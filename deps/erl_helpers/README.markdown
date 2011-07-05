@@ -1,24 +1,24 @@
-## erl_helpers
+# erl_helpers
 
 It's a set of Erlang "helper" modules, nothing any more.
 
-### Usage
+## Install
 
-Clone it inside your project (maybe in "deps" directory), and...
+Inside "deps" directory of your OTP application, for example:
 
+    $ git clone git@github.com:leandrosilva/erl_helpers.git
     $ cd erl_helpers
     $ make ungit
-    $ mkdir ebin
     $ make
 
-And finally, put it in the code path of your application.
+And finally, put it in the code path of your application and enjoy it.
 
-### 3rd party modules
+## 3rd party modules
 
-__mochijason2__ and __struct__ weren't built by me. However I added three new functions in __struct__: from_json/1, from_json/2, to_json/1.
+These modules __mochijason2__ and __struct__ weren't built by me. However I added three new functions in __struct__: from_json/1, from_json/2, to_json/1.
 
-### Licence
+## Copyright
 
-There's no formal LICENSE. Use as you want.
+There's no formal LICENSE. Use as you want!
 
 Copyright (c) 2011 Leandro Silva (CodeZone) <leandrodoze@gmail.com>.

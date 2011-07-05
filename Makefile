@@ -10,6 +10,7 @@ compile: clear
 	      -pa deps/amqp_client-2.5.0/ebin/ \
 	      -pa deps/rabbit_common-2.5.0/ebin/ \
 	      -pa deps/erl_helpers/ebin/ \
+	      -pa deps/erlang-uuid/ebin/ \
 	      -o ebin/ \
 	      src/*.erl
 	
@@ -20,6 +21,7 @@ compile_test: compile
 	      -pa deps/amqp_client-2.5.0/ebin/ \
 	      -pa deps/rabbit_common-2.5.0/ebin/ \
 	      -pa deps/erl_helpers/ebin/ \
+	      -pa deps/erlang-uuid/ebin/ \
 	      -o ebin/ \
 	      test/*.erl
 
