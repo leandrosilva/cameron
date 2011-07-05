@@ -3,7 +3,7 @@
 
 %% @doc The main gen_server, the "ear" of this diagnostic system which subscribes to "awaiting
 %%      queue" in order to be notifyed of every "request for diagnostic" and dispatch it to
-%%      cameron_doctor gen_server.
+%%      cameron_worker gen_server.
 
 -module(cameron_dispatcher).
 -author('Leandro Silva <leandrodoze@gmail.com>').
@@ -12,6 +12,8 @@
 
 % admin api
 -export([start_link/1, stop/0]).
+% public api
+-export([dispatch/1]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -19,6 +21,8 @@
 
 %%
 %% Types ------------------------------------------------------------------------------------------
+%%
+%%     Payload = {request_for_diagnostic, Customer, From}
 %%
 %%     Channel = A RabbitMQ Channel
 %%
@@ -38,6 +42,15 @@ start_link(_Options) ->
 %% @doc Manually stops the server.
 stop() ->
   gen_server:cast(?MODULE, stop).
+
+%%
+%% Public API -------------------------------------------------------------------------------------
+%%
+
+%% @spec diagnostic(Payload) -> ok
+%% @doc Async dispatch of a resquest for diagnostic.
+dispatch({request_for_diagnostic, _Customer, _From} = Payload) ->
+  cameron_messaging:publish_to(awaiting_queue, Payload).
 
 %%
 %% Gen_Server Callbacks ---------------------------------------------------------------------------
@@ -84,7 +97,7 @@ handle_info({#'basic.deliver'{delivery_tag = Tag}, #amqp_msg{payload = RawPayloa
   io:format("Tag: ~w~n", [Tag]),
   io:format("------------------------~n"),
   
-  ok = cameron_doctor:diagnostic_it(Payload),
+  ok = cameron_worker:diagnostic(Payload),
   
   cameron_messaging:acknowledge_delivery(State#state.messaging_channel, Tag),
   

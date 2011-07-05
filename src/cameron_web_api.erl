@@ -27,7 +27,7 @@ handle_http('POST', ["api", "diagnostic", "ask"], Req) ->
   Body = get_body(Req),
   Payload = get_payload(Body),
   
-  ok = cameron_messaging:publish_to(awaiting_queue, Payload),
+  ok = cameron_dispatcher:dispatch(Payload),
   
   Req:respond(201, [{"Content-Type", "application/json"}], "{\"payload\":\"~s\"}", [Body]);
 

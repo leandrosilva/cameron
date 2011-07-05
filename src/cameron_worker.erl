@@ -1,9 +1,9 @@
 %% @author Leandro Silva <leandrodoze@gmail.com>
 %% @copyright 2011 Leandro Silva.
 
-%% @doc The worker gen_server, the senior doctor of this diagnostic system.
+%% @doc The worker gen_server, the responsable to make diagnostic.
 
--module(cameron_doctor).
+-module(cameron_worker).
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 -behaviour(gen_server).
@@ -11,7 +11,7 @@
 % admin api
 -export([start_link/1, stop/0]).
 % public api
--export([diagnostic_it/1, make_diagnostic_for/3]).
+-export([diagnostic/1, make_diagnostic/3]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -54,10 +54,10 @@ stop() ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec diagnostic_it(Payload) -> ok
+%% @spec diagnostic(Payload) -> ok
 %% @doc Make a complete diagnostic to a customer.
-diagnostic_it({request_for_diagnostic, _Customer, _From} = Payload) ->
-  gen_server:cast(?MODULE, {diagnostic_it, Payload}),
+diagnostic({request_for_diagnostic, _Customer, _From} = Payload) ->
+  gen_server:cast(?MODULE, {diagnostic, Payload}),
   ok.
 
 %%
@@ -83,16 +83,16 @@ handle_call(_Request, _From, State) ->
 %% @doc Handling cast messages.
 
 % make diagnostic
-handle_cast({diagnostic_it, {request_for_diagnostic, Customer, _From} = Payload}, State) ->
-  io:format("~n[cameron_doctor] ----------~n"),
+handle_cast({diagnostic, {request_for_diagnostic, Customer, _From} = Payload}, State) ->
+  io:format("~n[cameron_worker] ----------~n"),
   io:format("Payload: ~w~n", [Payload]),
   io:format("------------------------~n"),
   
   Id = State#state.id,
   
-  spawn(?MODULE, make_diagnostic_for, [Id, Customer, "Cloud"]),
-  spawn(?MODULE, make_diagnostic_for, [Id, Customer, "Hosting"]),
-  spawn(?MODULE, make_diagnostic_for, [Id, Customer, "SQL Server"]),
+  spawn(?MODULE, make_diagnostic, [Id, Customer, "Cloud"]),
+  spawn(?MODULE, make_diagnostic, [Id, Customer, "Hosting"]),
+  spawn(?MODULE, make_diagnostic, [Id, Customer, "SQL Server"]),
   
   NewState = State#state{id = Id + 1},
   
@@ -129,7 +129,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal API -----------------------------------------------------------------------------------
 %%
 
-make_diagnostic_for(Id, Customer, Product) ->
+make_diagnostic(Id, Customer, Product) ->
   io:format("[~w] Customer: ~w~n", [Id, Customer]),
   io:format("[~w] Product: ~w~n", [Id, Product]),
   

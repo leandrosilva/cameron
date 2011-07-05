@@ -9,7 +9,7 @@
     cameron_app,
     cameron_sup,
     cameron_dispatcher,
-    cameron_doctor,
+    cameron_worker,
     cameron_messaging,
     cameron_web_server,
     cameron_web_api,

@@ -45,7 +45,7 @@ init([]) ->
                       permanent, 5000, worker, dynamic},
 
   CameronConfig = nothing,
-  Cameron = {cameron_doctor, {cameron_doctor, start_link, [CameronConfig]},
+  Cameron = {cameron_worker, {cameron_worker, start_link, [CameronConfig]},
                           permanent, 5000, worker, dynamic},
 
   WebServerConfig = cameron:get_web_server_config(),
