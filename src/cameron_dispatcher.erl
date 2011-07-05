@@ -50,7 +50,7 @@ stop() ->
 %% @spec diagnostic(Payload) -> ok
 %% @doc Async dispatch of a resquest for diagnostic.
 dispatch({request_for_diagnostic, _Customer, _From} = Payload) ->
-  cameron_messaging:publish_to(awaiting_queue, Payload).
+  cameron_messaging:publish_to(awaiting_for_diagnostic_queue, Payload).
 
 %%
 %% Gen_Server Callbacks ---------------------------------------------------------------------------
@@ -59,7 +59,7 @@ dispatch({request_for_diagnostic, _Customer, _From} = Payload) ->
 %% @spec init(_Options) -> {ok, State} | {ok, State, Timeout} | ignore | {stop, Reason}
 %% @doc Initiates the server.
 init(_Options) ->
-  Channel = cameron_messaging:subscribe_to(awaiting_queue),
+  Channel = cameron_messaging:subscribe_to(awaiting_for_diagnostic_queue),
   
   {ok, #state{messaging_channel = Channel}}.
 
@@ -88,7 +88,7 @@ handle_cast(_Msg, State) ->
 %%                  {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
 %% @doc Handling all non call/cast messages.
 
-% receive messages from awaiting_queue
+% receive messages from awaiting_for_diagnostic_queue
 handle_info({#'basic.deliver'{delivery_tag = Tag}, #amqp_msg{payload = RawPayload}}, State) ->
   Payload = binary_to_term(RawPayload),
   

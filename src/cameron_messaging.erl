@@ -17,7 +17,7 @@
 %%
 %% Types ------------------------------------------------------------------------------------------
 %%
-%%     QueueName = atom() = awaiting_queue
+%%     QueueName = atom() = awaiting_for_diagnostic_queue
 %%
 %%     Payload = {request_for_diagnostic, Customer, From}
 %%
@@ -43,17 +43,17 @@
 
 %% @spec publish_to(QueueName, Payload) -> ok
 %% @doc Publish a customer to be diagnosted.
-publish_to(awaiting_queue, {request_for_diagnostic, _Customer, _From} = Payload) ->
+publish_to(awaiting_for_diagnostic_queue, {request_for_diagnostic, _Customer, _From} = Payload) ->
   Host = get_amqp_server_host(),
 
   {ok, Connection} = amqp_connection:start(#amqp_params_network{host = Host}),
   {ok, Channel} = amqp_connection:open_channel(Connection),
 
-  amqp_channel:call(Channel, #'queue.declare'{queue = <<"awaiting_queue">>, durable = true}),
+  amqp_channel:call(Channel, #'queue.declare'{queue = <<"awaiting_for_diagnostic_queue">>, durable = true}),
 
   RawPayload = term_to_binary(Payload),
   
-  amqp_channel:cast(Channel, #'basic.publish'{exchange = <<"">>, routing_key = <<"awaiting_queue">>},
+  amqp_channel:cast(Channel, #'basic.publish'{exchange = <<"">>, routing_key = <<"awaiting_for_diagnostic_queue">>},
                              #amqp_msg{props = #'P_basic'{delivery_mode = 2}, payload = RawPayload}),
 
   ok = amqp_channel:close(Channel),
@@ -62,16 +62,16 @@ publish_to(awaiting_queue, {request_for_diagnostic, _Customer, _From} = Payload)
 
 %% @spec subscribe_to(QueueName) -> Channel
 %% @doc Subscribe to the diagnostic queue.
-subscribe_to(awaiting_queue) ->
+subscribe_to(awaiting_for_diagnostic_queue) ->
   Host = get_amqp_server_host(),
   
   {ok, Connection} = amqp_connection:start(#amqp_params_network{host = Host}),
   {ok, Channel} = amqp_connection:open_channel(Connection),
 
-  amqp_channel:call(Channel, #'queue.declare'{queue = <<"awaiting_queue">>, durable = true}),
+  amqp_channel:call(Channel, #'queue.declare'{queue = <<"awaiting_for_diagnostic_queue">>, durable = true}),
 
   amqp_channel:call(Channel, #'basic.qos'{prefetch_count = 1}),
-  amqp_channel:subscribe(Channel, #'basic.consume'{queue = <<"awaiting_queue">>}, self()),
+  amqp_channel:subscribe(Channel, #'basic.consume'{queue = <<"awaiting_for_diagnostic_queue">>}, self()),
   
   receive
       #'basic.consume_ok'{} -> ok
