@@ -49,15 +49,15 @@ pop() ->
 
 %% @step business_ticket_uuid(LongUUID) -> ShortUUID
 %% @doc Extract just "{CustomerId}:{RequestId}" from the complete ticket UUID.
-%%      That is, without "cameron:diagnosts:ticket:".
+%%      That is, without "cameron:diagnostics:ticket:".
 business_ticket_uuid(LongUUID) ->
   string:sub_string(LongUUID, 28).
 
 %% @step redis_ticket_uuid(ShortUUID) -> LongUUID
-%% @doc Add "cameron:diagnosts:ticket:" to {CustomerId}:{RequestId}.
-%%      That is, "cameron:diagnosts:ticket:{CustomerId}:{RequestId}".
+%% @doc Add "cameron:diagnostics:ticket:" to {CustomerId}:{RequestId}.
+%%      That is, "cameron:diagnostics:ticket:{CustomerId}:{RequestId}".
 redis_ticket_uuid(ShortUUID) ->
-  "cameron:diagnosts:ticket:" ++ ShortUUID.
+  "cameron:diagnostics:ticket:" ++ ShortUUID.
   
 %%
 %% Internal Functions -----------------------------------------------------------------------------
