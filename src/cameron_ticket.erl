@@ -1,15 +1,15 @@
 %% @author Leandro Silva <leandrodoze@gmail.com>
 %% @copyright 2011 Leandro Silva.
 
-%% @doc An abstractiom used to keep track in a database every state (which step?) of a diagnost
-%%      request. In this case, it stores those step in a Redis server. It's possible also to get
-%%      stored data.
+%% @doc An abstraction for tickets. It's used to keep track in a database every state (steps?) of a
+%%      ticket that refers to a request for diagnost. And in this case, it stores those steps in a
+%%      Redis server.
 
--module(cameron_tracker).
+-module(cameron_ticket).
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 % public api
--export([step/1]).
+-export([create/1, pop/0]).
 
 %%
 %% Includes, Defines, and Records -----------------------------------------------------------------
@@ -24,35 +24,41 @@
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec step({incoming_request, Payload}) -> {ok, Ticket} | {error, Reason}
-%% @doc This first step kick-off the whole process and so it returns a king of ticket which allow
-%%      to get any related information in the future.
-step({incoming_request, #diagnostic_request{customer_id = CustomerId, from_id = FromId} = Payload}) ->
-  io:format("--- [cameron_tracker] incoming_request :: Payload: ~w~n", [Payload]),
+%% @spec create(Payload) -> {ok, Ticket} | {error, Reason}
+%% @doc This first step of the whole process is create a ticket which allow keep track of diagnostic
+%%      state and get any related information at any time in the future.
+create(#diagnostic_request{customer_id = CustomerId, from_id = FromId} = Payload) ->
+  io:format("--- [cameron_ticket] create a ticket // Payload: ~w~n", [Payload]),
   
   {ok, Ticket} = get_diagnostic_ticket(CustomerId),
 
   1 = redis(["lpush", ?QUEUE_INCOMING, Ticket]),
   ok = redis(["hmset", Ticket, "step", "incoming", "from_id", FromId]),
   
-  {ok, Ticket};
+  {ok, business_ticket_uuid(Ticket)}.
 
-%% @spec step(dispatching_request) -> {ok, Ticket} | {error, Reason}
+%% @spec pop() -> {ok, Ticket} | {error, Reason}
 %% @doc It rpop a ticket (of a request for diagnostic) from the incoming queue at Redis.
-step(dispatching_request) ->
-  io:format("--- [cameron_tracker] dispatching_request~n"),
+pop() ->
+  io:format("--- [cameron_ticket] pop a ticket~n"),
 
   Ticket = redis(["rpop", ?QUEUE_INCOMING]),
   0 = redis(["hset", Ticket, "step", "dispatching"]),
 
-  {ok, Ticket};
+  {ok, business_ticket_uuid(Ticket)}.
 
-%% @spec step(Step) -> ok
-%% @doc Fallback.
-step(Step) ->
-  io:format("--- [cameron_tracker] Undefined step: ~w~n", [Step]),
-  ok.
+%% @step business_ticket_uuid(LongUUID) -> ShortUUID
+%% @doc Extract just "{CustomerId}:{RequestId}" from the complete ticket UUID.
+%%      That is, without "cameron:diagnosts:ticket:".
+business_ticket_uuid(LongUUID) ->
+  string:sub_string(LongUUID, 28).
 
+%% @step redis_ticket_uuid(ShortUUID) -> LongUUID
+%% @doc Add "cameron:diagnosts:ticket:" to {CustomerId}:{RequestId}.
+%%      That is, "cameron:diagnosts:ticket:{CustomerId}:{RequestId}".
+redis_ticket_uuid(ShortUUID) ->
+  "cameron:diagnosts:ticket:" ++ ShortUUID.
+  
 %%
 %% Internal Functions -----------------------------------------------------------------------------
 %%
@@ -65,7 +71,7 @@ get_diagnostic_ticket(CustomerId) ->
   {Year, Month, Day} = date(),
   {Hour, Minute, Second} = time(),
   
-  Ticket = lists:concat(["cameron:diagnosts:ticket:", CustomerId, ":",
+  Ticket = lists:concat(["cameron:diagnostics:ticket:", CustomerId, ":",
                          maybe_padding(Year), maybe_padding(Month), maybe_padding(Day),
                          maybe_padding(Hour), maybe_padding(Minute), maybe_padding(Second)]),
   

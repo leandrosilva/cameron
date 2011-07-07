@@ -11,7 +11,7 @@
 -behaviour(gen_server).
 
 % admin api
--export([start_link/1, stop/0]).
+-export([start_link/0, stop/0]).
 % public api
 -export([dispatch/1]).
 % gen_server callbacks
@@ -29,9 +29,9 @@
 %% Admin API --------------------------------------------------------------------------------------
 %%
 
-%% @spec start_link(_Options) -> {ok, Pid} | ignore | {error, Error}
+%% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @doc Start cameron server.
-start_link(_Options) ->
+start_link() ->
   gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 %% @spec stop() -> ok
@@ -48,7 +48,7 @@ stop() ->
 dispatch(#diagnostic_request{} = Payload) ->
   io:format("~n~n--- [cameron_dispatcher] incoming diagnostic request~n"),
   
-  {ok, Ticket} = cameron_tracker:step({incoming_request, Payload}),
+  {ok, Ticket} = cameron_ticket:create(Payload),
   
   ok = gen_server:cast(?MODULE, {dispatch, incoming_request}),
   
@@ -80,7 +80,7 @@ handle_call(_Request, _From, State) ->
 handle_cast({dispatch, incoming_request}, State) ->
   io:format("--- [cameron_dispatcher] dispatching an incoming request~n"),
   
-  {ok, Ticket} = cameron_tracker:step(dispatching_request),
+  {ok, Ticket} = cameron_ticket:pop(),
 
   io:format("--- [cameron_dispatcher] dispatching an incoming request // Ticket: ~s~n", [Ticket]),
   

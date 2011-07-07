@@ -34,10 +34,9 @@ handle_http('POST', ["api", "diagnostic", "ask"], Req) ->
   Payload = build_payload(Body),
   
   {ok, Ticket} = cameron_dispatcher:dispatch(Payload),
-  LocationURL = build_location_url(Ticket),
   
   Req:respond(201, [{"Content-Type", "application/json"},
-                    {"Location", LocationURL}],
+                    {"Location", ["http://localhost:8080/api/diagnostics/ticket/", Ticket]}],
                    "{\"payload\":\"~s\"}", [Body]);
 
 % handle the 404 page not found
@@ -84,11 +83,3 @@ build_payload(Body) ->
   From = binary_to_list(struct:get_value(<<"from_id">>, Struct)),
   
   #diagnostic_request{customer_id = CustomerId, from_id = From}.
-
-build_location_url(Ticket) ->
-  T1 = string:sub_string(Ticket, 25),
-  T2 = string:tokens(T1, ":"),
-
-  [CustomerId | RequestId] = T2,
-
-  ["http://localhost:8080/api/diagnostics/ticket/", CustomerId, RequestId].

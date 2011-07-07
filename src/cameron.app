@@ -10,7 +10,7 @@
     cameron_sup,
     cameron_dispatcher,
     cameron_worker,
-    cameron_tracker,
+    cameron_ticket,
     cameron_web_server,
     cameron_web_api,
     cameron_deps

@@ -40,13 +40,11 @@ upgrade() ->
 %%
 %% @doc supervisor callback.
 init([]) ->
-  HouseConfig = nothing,
-  House = {cameron_dispatcher, {cameron_dispatcher, start_link, [HouseConfig]},
-                               permanent, 5000, worker, dynamic},
+  Dispatcher = {cameron_dispatcher, {cameron_dispatcher, start_link, []},
+                                    permanent, 5000, worker, dynamic},
 
-  CameronConfig = nothing,
-  Cameron = {cameron_worker, {cameron_worker, start_link, [CameronConfig]},
-                             permanent, 5000, worker, dynamic},
+  WorkerSup = {cameron_worker_sup, {cameron_worker_sup, start_link, []},
+                                   permanent, 5000, supervisor, dynamic},
 
   WebServerConfig = cameron:get_web_server_config(),
   WebServer = {cameron_web_server, {cameron_web_server, start_link, [WebServerConfig]},
@@ -56,4 +54,4 @@ init([]) ->
   Redo = {cameron_redo, {redo, start_link, [cameron_redo, RedoConfig]},
                         permanent, 5000, worker, dynamic},
 
-  {ok, {{one_for_one, 10, 10}, [House, Cameron, WebServer, Redo]}}.
+  {ok, {{one_for_one, 10, 10}, [Dispatcher, WorkerSup, WebServer, Redo]}}.

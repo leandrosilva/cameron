@@ -9,9 +9,9 @@
 -behaviour(gen_server).
 
 % admin api
--export([start_link/1, stop/0]).
+-export([start_link/1, stop/1]).
 % public api
--export([diagnostic/1, make_diagnostic/3]).
+-export([diagnostic/1, get_name/1, make_diagnostic/3]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -19,31 +19,45 @@
 %% Includes and Records ---------------------------------------------------------------------------
 %%
 
--record(state, {id = 0}).
+-record(state, {ticket}).
 
 %%
 %% Admin API --------------------------------------------------------------------------------------
 %%
 
-%% @spec start_link(_Options) -> {ok, Pid} | ignore | {error, Error}
+%% @spec start_link(Ticket) -> {ok, Pid} | ignore | {error, Error}
 %% @doc Start cameron server.
-start_link(_Options) ->
-  gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+start_link(Ticket) ->
+  WorkerName = cameron_worker_sup:which_child(Ticket),
+  gen_server:start_link({local, WorkerName}, ?MODULE, [Ticket], []).
 
 %% @spec stop() -> ok
 %% @doc Manually stops the server.
-stop() ->
-  gen_server:cast(?MODULE, stop).
+stop(Ticket) ->
+  WorkerName = get_name(Ticket),
+  gen_server:cast(WorkerName, stop).
 
 %%
 %% Public API -------------------------------------------------------------------------------------
 %%
 
 %% @spec diagnostic(Ticket) -> ok
-%% @doc Make a complete diagnostic to a customer, based on a ticket.
+%% @doc Create a new process, child of cameron_worker_sup, and then make a complete diagnostic (in
+%%      parallel, of course) to the ticket given.
 diagnostic(Ticket) ->
-  gen_server:cast(?MODULE, {diagnostic, Ticket}),
+  case cameron_worker_sup:start_child(Ticket) of
+    {ok, _Pid} ->
+      WorkerName = get_name(Ticket),
+      ok = gen_server:cast(WorkerName, {diagnostic, Ticket});
+    {error, {already_started, _Pid}} ->
+      ok
+  end,
   ok.
+
+%% @spec get_name(This) -> WorkerName
+%% @doc Which worker is handling a ticket given.
+get_name(Ticket) ->
+  cameron_worker_sup:which_child(Ticket).
 
 %%
 %% Gen_Server Callbacks ---------------------------------------------------------------------------
@@ -51,8 +65,8 @@ diagnostic(Ticket) ->
 
 %% @spec init(_Options) -> {ok, State} | {ok, State, Timeout} | ignore | {stop, Reason}
 %% @doc Initiates the server.
-init(_Options) ->
-  {ok, #state{id = 1}}.
+init(Ticket) ->
+  {ok, #state{ticket = Ticket}}.
 
 %% @spec handle_call(Request, From, State) ->
 %%                  {reply, Reply, State} | {reply, Reply, State, Timeout} | {noreply, State} |
@@ -71,15 +85,11 @@ handle_call(_Request, _From, State) ->
 handle_cast({diagnostic, Ticket}, State) ->
   io:format("~n--- [cameron_worker] diagnosting // Ticket: ~s~n", [Ticket]),
   
-  Id = State#state.id,
+  spawn(?MODULE, make_diagnostic, [Ticket, 1, "Cloud"]),
+  spawn(?MODULE, make_diagnostic, [Ticket, 2, "Hosting"]),
+  spawn(?MODULE, make_diagnostic, [Ticket, 3, "SQL Server"]),
   
-  spawn(?MODULE, make_diagnostic, [Id, Ticket, "Cloud"]),
-  spawn(?MODULE, make_diagnostic, [Id, Ticket, "Hosting"]),
-  spawn(?MODULE, make_diagnostic, [Id, Ticket, "SQL Server"]),
-  
-  NewState = State#state{id = Id + 1},
-  
-  {noreply, NewState};
+  {noreply, State};
 
 % manual shutdown
 handle_cast(stop, State) ->
@@ -112,9 +122,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-make_diagnostic(Id, Customer, Product) ->
-  io:format("[~w] Customer: ~w~n", [Id, Customer]),
-  io:format("[~w] Product: ~w~n", [Id, Product]),
-  
+make_diagnostic(Ticket, Index, Product) ->
+  io:format("[~s] Index: ~w, Product: ~s~n", [Ticket, Index, Product]),
   ok.
   
