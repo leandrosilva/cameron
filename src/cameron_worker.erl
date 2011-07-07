@@ -19,7 +19,7 @@
 %% Includes and Records ---------------------------------------------------------------------------
 %%
 
--record(state, {ticket}).
+-record(state, {ticket, countdown}).
 
 %%
 %% Admin API --------------------------------------------------------------------------------------
@@ -81,7 +81,7 @@ handle_call(_Request, _From, State) ->
 %%                  {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
 %% @doc Handling cast messages.
 
-% make diagnostic
+% make a complete diagnostic
 handle_cast({diagnostic, Ticket}, State) ->
   io:format("~n--- [cameron_worker] diagnosting // Ticket: ~s~n", [Ticket]),
   
@@ -89,7 +89,19 @@ handle_cast({diagnostic, Ticket}, State) ->
   spawn(?MODULE, make_diagnostic, [Ticket, 2, "Hosting"]),
   spawn(?MODULE, make_diagnostic, [Ticket, 3, "SQL Server"]),
   
-  {noreply, State};
+  {noreply, State#state{countdown= 3}};
+
+% notify when a individual diagnostic is done
+handle_cast({notify_done, Ticket, Index, Product}, State) ->
+  io:format("[~s] Index: ~w, Product: ~s // Notified its work is done~n", [Ticket, Index, Product]),
+  
+  Countdown = State#state.countdown - 1,
+  
+  case Countdown of
+    0 -> ok = cameron_worker_sup:stop_child(Ticket) % supervisor verifica quem esta done e mata?
+  end,
+      
+  {noreply, State#state{countdown = Countdown}};
 
 % manual shutdown
 handle_cast(stop, State) ->
@@ -110,7 +122,8 @@ handle_info(_Info, State) ->
 %% @spec terminate(Reason, State) -> void()
 %% @doc This function is called by a gen_server when it is about to terminate. When it returns,
 %%      the gen_server terminates with Reason. The return value is ignored.
-terminate(_Reason, _State) ->
+terminate(_Reason, State) ->
+  io:format("~n--- [cameron_worker] terminating // Ticket: ~s~n", [State#state.ticket]),
   terminated.
 
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
@@ -123,6 +136,25 @@ code_change(_OldVsn, State, _Extra) ->
 %%
 
 make_diagnostic(Ticket, Index, Product) ->
-  io:format("[~s] Index: ~w, Product: ~s~n", [Ticket, Index, Product]),
+  io:format("--- [cameron_worker_~s] Index: ~w, Product: ~s~n", [Ticket, Index, Product]),
+
+  case Product of
+    "Cloud" ->
+      Time = 5000;
+    "Hosting" ->
+      Time = 8000;
+    "SQL Server" ->
+      Time = 3000
+  end,
+  
+  receive after Time ->
+    io:format("--- [cameron_worker_~s] Index: ~w, Product: ~s // Done~n", [Ticket, Index, Product]),
+    notify_done(Ticket, Index, Product)
+  end,
+  
   ok.
+  
+notify_done(Ticket, Index, Product) ->
+  WorkerName = get_name(Ticket),
+  ok = gen_server:cast(WorkerName, {notify_done, Ticket, Index, Product}).
   

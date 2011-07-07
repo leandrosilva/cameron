@@ -38,7 +38,7 @@ upgrade() ->
 start_child(Ticket) ->
   WorkerName = build_worker_name(Ticket),
 
-  WorkerSpec = {WorkerName, {cameron_worker, start_link, [Ticket]}, permanent, 5000, worker, dynamic},
+  WorkerSpec = {WorkerName, {cameron_worker, start_link, [Ticket]}, temporary, 5000, worker, dynamic},
   supervisor:start_child(cameron_worker_sup, WorkerSpec).
 
 %% @spec stop_child(Ticket) -> ok | {error, Error}
