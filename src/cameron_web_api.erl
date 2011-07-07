@@ -79,7 +79,8 @@ get_body(Req) ->
 build_payload(Body) ->
   Struct = struct:from_json(Body),
   
-  CustomerId = binary_to_list(struct:get_value(<<"customer_id">>, Struct)),
+  % CustomerId = binary_to_list(struct:get_value(<<"customer_id">>, Struct)),
+  CustomerId = "customer_" ++ cameron_ticket:uuid(),
   From = binary_to_list(struct:get_value(<<"from_id">>, Struct)),
   
   #diagnostic_request{customer_id = CustomerId, from_id = From}.

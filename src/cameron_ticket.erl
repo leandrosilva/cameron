@@ -9,7 +9,7 @@
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 % public api
--export([create/1, pop/0]).
+-export([create/1, pop/0, uuid/0]).
 
 %%
 %% Includes, Defines, and Records -----------------------------------------------------------------
@@ -32,7 +32,7 @@ create(#diagnostic_request{customer_id = CustomerId, from_id = FromId} = Payload
   
   {ok, Ticket} = get_diagnostic_ticket(CustomerId),
 
-  1 = redis(["lpush", ?QUEUE_INCOMING, Ticket]),
+  redis(["lpush", ?QUEUE_INCOMING, Ticket]),
   ok = redis(["hmset", Ticket, "step", "incoming", "from_id", FromId]),
   
   {ok, business_ticket_uuid(Ticket)}.
@@ -46,6 +46,11 @@ pop() ->
   0 = redis(["hset", Ticket, "step", "dispatching"]),
 
   {ok, business_ticket_uuid(Ticket)}.
+
+%% @spec uuid() -> Integer as String
+%% @doc Get a incr value from Redis.
+uuid() ->
+  integer_to_list(redis(["incr", "cameron:uuid"])).
 
 %% @step business_ticket_uuid(LongUUID) -> ShortUUID
 %% @doc Extract just "{CustomerId}:{RequestId}" from the complete ticket UUID.

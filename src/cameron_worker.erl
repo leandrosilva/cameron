@@ -97,9 +97,9 @@ handle_cast({notify_done, Ticket, Index, Product}, State) ->
   
   Countdown = State#state.countdown - 1,
   
-  case Countdown of
-    0 -> ok = cameron_worker_sup:stop_child(Ticket) % supervisor verifica quem esta done e mata?
-  end,
+  % case Countdown of
+  %   0 -> ok = cameron_worker_sup:stop_child(Ticket) % supervisor verifica quem esta done e mata?
+  % end,
       
   {noreply, State#state{countdown = Countdown}};
 
