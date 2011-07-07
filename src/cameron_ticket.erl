@@ -9,7 +9,7 @@
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 % public api
--export([create/1, pop/0, uuid/0]).
+-export([create/1, pop/0, save_result/1, close/1, uuid/0]).
 
 %%
 %% Includes, Defines, and Records -----------------------------------------------------------------
@@ -45,7 +45,32 @@ pop() ->
   Ticket = redis(["rpop", ?QUEUE_INCOMING]),
   0 = redis(["hset", Ticket, "step", "dispatching"]),
 
-  {ok, business_ticket_uuid(Ticket)}.
+  BusinessTicketUUID = business_ticket_uuid(Ticket),
+
+  {ok, BusinessTicketUUID}.
+
+%% @spec save_result(Result) -> {ok, Ticket} | {error, Reason}
+%% @doc Save to Redis a diagnostic test result.
+save_result(#diagnostic_result{ticket = Ticket, product_id = ProductId, result = Result}) ->
+  io:format("--- [cameron_ticket] save a result~n"),
+
+  RedisTicketUUID = redis_ticket_uuid(Ticket),
+
+  1 = redis(["hset", RedisTicketUUID, ProductId, Result]),
+
+  {ok, Ticket}.
+
+%% @spec close(Ticket) -> {ok, Ticket} | {error, Reason}
+%% @doc Save to Redis a step close.
+close(Ticket) ->
+  io:format("--- [cameron_ticket] close a ticket~n"),
+
+  RedisTicketUUID = redis_ticket_uuid(Ticket),
+
+  0 = redis(["hset", RedisTicketUUID, "step", "done"]),
+  redis(["lpush", ?QUEUE_DONE, RedisTicketUUID]),
+
+  {ok, Ticket}.
 
 %% @spec uuid() -> Integer as String
 %% @doc Get a incr value from Redis.

@@ -2,3 +2,5 @@
 %% @copyright 2011 Leandro Silva.
 
 -record(diagnostic_request, {customer_id, from_id}).
+
+-record(diagnostic_result, {ticket, product_id, result}).

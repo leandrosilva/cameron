@@ -19,6 +19,8 @@
 %% Includes and Records ---------------------------------------------------------------------------
 %%
 
+-include("include/cameron.hrl").
+
 -record(state, {ticket, countdown}).
 
 %%
@@ -85,23 +87,30 @@ handle_call(_Request, _From, State) ->
 handle_cast({diagnostic, Ticket}, State) ->
   io:format("~n--- [cameron_worker] diagnosting // Ticket: ~s~n", [Ticket]),
   
-  spawn(?MODULE, make_diagnostic, [Ticket, 1, "Cloud"]),
-  spawn(?MODULE, make_diagnostic, [Ticket, 2, "Hosting"]),
-  spawn(?MODULE, make_diagnostic, [Ticket, 3, "SQL Server"]),
+  spawn(?MODULE, make_diagnostic, [Ticket, 1, "cloud"]),
+  spawn(?MODULE, make_diagnostic, [Ticket, 2, "hosting"]),
+  spawn(?MODULE, make_diagnostic, [Ticket, 3, "sql_server"]),
   
-  {noreply, State#state{countdown= 3}};
+  {noreply, State#state{countdown = 3}};
 
 % notify when a individual diagnostic is done
-handle_cast({notify_done, Ticket, Index, Product}, State) ->
-  io:format("[~s] Index: ~w, Product: ~s // Notified its work is done~n", [Ticket, Index, Product]),
+handle_cast({notify_done, Ticket, Index, ProductId, Result}, State) ->
+  io:format("[~s] Index: ~w, ProductId: ~s // Notified its work is done~n", [Ticket, Index, ProductId]),
   
-  Countdown = State#state.countdown - 1,
-  
-  % case Countdown of
-  %   0 -> ok = cameron_worker_sup:stop_child(Ticket) % supervisor verifica quem esta done e mata?
-  % end,
+  {ok, Ticket} = cameron_ticket:save_result(#diagnostic_result{ticket = Ticket,
+                                                               product_id = ProductId,
+                                                               result = Result}),
+
+  case State#state.countdown of
+    1 ->
+      {ok, Ticket} = cameron_ticket:close(Ticket),
+      % ok = cameron_worker_sup:stop_child(Ticket) % supervisor verifica quem esta done e mata?
+      NewState = State#state{countdown = 0};
+    N ->
+      NewState = State#state{countdown = N - 1}
+  end,
       
-  {noreply, State#state{countdown = Countdown}};
+  {noreply, NewState};
 
 % manual shutdown
 handle_cast(stop, State) ->
@@ -135,26 +144,55 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-make_diagnostic(Ticket, Index, Product) ->
-  io:format("--- [cameron_worker_~s] Index: ~w, Product: ~s~n", [Ticket, Index, Product]),
+make_diagnostic(Ticket, Index, ProductId) ->
+  io:format("--- [cameron_worker_~s] Index: ~w, ProductId: ~s~n", [Ticket, Index, ProductId]),
 
-  case Product of
-    "Cloud" ->
-      Time = 5000;
-    "Hosting" ->
-      Time = 8000;
-    "SQL Server" ->
-      Time = 3000
+  % case ProductId of
+  %   "Cloud" ->
+  %     Time = 5000;
+  %   "Hosting" ->
+  %     Time = 8000;
+  %   "SQL Server" ->
+  %     Time = 3000
+  % end,
+  
+  % receive after Time ->
+  %   io:format("--- [cameron_worker_~s] Index: ~w, ProductId: ~s // Done~n", [Ticket, Index, ProductId]),
+  %   notify_done(Ticket, Index, ProductId)
+  % end,
+
+  % case ProductId of
+  %   "cloud" ->
+  %     URL = "http://guru-sp.com/index.php/Usu%C3%A1rio:PotHix";
+  %   "hosting" ->
+  %     URL = "http://guru-sp.com/index.php/Usu%C3%A1rio:Admin";
+  %   "sql_server" ->
+  %     URL = "http://guru-sp.com/index.php/Usu%C3%A1rio:Agaelebe"
+  % end,
+
+  case ProductId of
+    "cloud" ->
+      URL = "http://eumoroemguarulhos.appspot.com/";
+    "hosting" ->
+      URL = "http://eumoroemguarulhos.appspot.com/";
+    "sql_server" ->
+      URL = "http://eumoroemguarulhos.appspot.com/"
   end,
   
-  receive after Time ->
-    io:format("--- [cameron_worker_~s] Index: ~w, Product: ~s // Done~n", [Ticket, Index, Product]),
-    notify_done(Ticket, Index, Product)
-  end,
-  
+  % {ok, {{"HTTP/1.1", 200, "OK"},
+  %       [_, _, _, _, _, _, _, _, _, _, _],
+  %       Result}} = http_helper:http_get(URL),
+
+{ok, {{"HTTP/1.1", 200, "OK"},
+      [_, _, _, _, _],
+      Result}} = http_helper:http_get(URL),
+         
+  io:format("--- [cameron_worker_~s] Index: ~w, ProductId: ~s // Done~n", [Ticket, Index, ProductId]),
+
+  notify_done(Ticket, Index, ProductId, Result),
   ok.
   
-notify_done(Ticket, Index, Product) ->
+notify_done(Ticket, Index, ProductId, Result) ->
   WorkerName = get_name(Ticket),
-  ok = gen_server:cast(WorkerName, {notify_done, Ticket, Index, Product}).
+  ok = gen_server:cast(WorkerName, {notify_done, Ticket, Index, ProductId, Result}).
   
