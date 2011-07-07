@@ -69,7 +69,7 @@ handle_call(_Request, _From, State) ->
 
 % make diagnostic
 handle_cast({diagnostic, Ticket}, State) ->
-  io:format("~n--- [cameron_worker] Ticket: ~s~n", [Ticket]),
+  io:format("~n--- [cameron_worker] diagnosting // Ticket: ~s~n", [Ticket]),
   
   Id = State#state.id,
   

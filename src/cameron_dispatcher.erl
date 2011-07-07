@@ -84,6 +84,8 @@ handle_cast({dispatch, incoming_request}, State) ->
 
   io:format("--- [cameron_dispatcher] dispatching an incoming request // Ticket: ~s~n", [Ticket]),
   
+  ok = cameron_worker:diagnostic(Ticket),
+  
   {noreply, State};
 
 % manual shutdown

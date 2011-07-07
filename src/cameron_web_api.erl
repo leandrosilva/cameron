@@ -86,7 +86,7 @@ build_payload(Body) ->
   #diagnostic_request{customer_id = CustomerId, from_id = From}.
 
 build_location_url(Ticket) ->
-  T1 = string:sub_string(Ticket, 24),
+  T1 = string:sub_string(Ticket, 25),
   T2 = string:tokens(T1, ":"),
 
   [CustomerId | RequestId] = T2,

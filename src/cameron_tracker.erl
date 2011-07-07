@@ -17,8 +17,8 @@
 
 -include("include/cameron.hrl").
 
--define(QUEUE_INCOMING, "cameron:queue:incoming").
--define(QUEUE_DONE,     "cameron:queue:done").
+-define(QUEUE_INCOMING, "cameron:queues:incoming").
+-define(QUEUE_DONE,     "cameron:queues:done").
 
 %%
 %% Public API -------------------------------------------------------------------------------------
@@ -65,7 +65,7 @@ get_diagnostic_ticket(CustomerId) ->
   {Year, Month, Day} = date(),
   {Hour, Minute, Second} = time(),
   
-  Ticket = lists:concat(["cameron:ticket:diagnost:", CustomerId, ":",
+  Ticket = lists:concat(["cameron:diagnosts:ticket:", CustomerId, ":",
                          maybe_padding(Year), maybe_padding(Month), maybe_padding(Day),
                          maybe_padding(Hour), maybe_padding(Minute), maybe_padding(Second)]),
   
