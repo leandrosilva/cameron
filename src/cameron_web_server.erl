@@ -17,14 +17,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 %%
-%% Types ------------------------------------------------------------------------------------------
-%%
-%%     WebConfig = [{host, Host}, {port, Port}, {backlog, Backlog}, {docroot, DocRoot}]
-%%
-%%         Host = string()
-%%         Port = int()
-%%         Backlog = int()
-%%         DocRoot = string()
+%% Includes and Records ---------------------------------------------------------------------------
 %%
 
 -record(state, {host, port, backlog, docroot}).
@@ -169,5 +162,5 @@ handle_websocket(Ws) ->
   cameron_web_api:handle_websocket(Path, Ws).
 
 %%
-%% Internal API -----------------------------------------------------------------------------------
+%% Internal Functions -----------------------------------------------------------------------------
 %%

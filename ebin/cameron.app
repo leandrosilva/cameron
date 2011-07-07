@@ -10,7 +10,7 @@
     cameron_sup,
     cameron_dispatcher,
     cameron_worker,
-    cameron_messaging,
+    cameron_tracker,
     cameron_web_server,
     cameron_web_api,
     cameron_deps
@@ -21,5 +21,6 @@
                        {port, 8080},
                        {backlog, 128},
                        {docroot, "priv/www"}]},
-         {amqp_server, [{host, "127.0.0.1"}]}]},
+         {redis_server, [{host, "127.0.0.1"},
+                         {port, 6379}]}]},
   {applications, [kernel, stdlib]}]}.

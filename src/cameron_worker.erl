@@ -16,22 +16,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 %%
-%% Types ------------------------------------------------------------------------------------------
-%%
-%%     Payload = {request_for_diagnostic, Customer, From}
-%%
-%%     Customer = {customer, Id}
-%%
-%%         customer = atom()
-%%         Id = {Type, Value}
-%%
-%%             Type = atom() = login | cpf | cnpj
-%%             Value = string()
-%%
-%%     From = {from, CommunicationSystem}
-%%
-%%         from = atom()
-%%         CommunicationSystem = string()
+%% Includes and Records ---------------------------------------------------------------------------
 %%
 
 -record(state, {id = 0}).
@@ -54,10 +39,10 @@ stop() ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec diagnostic(Payload) -> ok
-%% @doc Make a complete diagnostic to a customer.
-diagnostic({request_for_diagnostic, _Customer, _From} = Payload) ->
-  gen_server:cast(?MODULE, {diagnostic, Payload}),
+%% @spec diagnostic(Ticket) -> ok
+%% @doc Make a complete diagnostic to a customer, based on a ticket.
+diagnostic(Ticket) ->
+  gen_server:cast(?MODULE, {diagnostic, Ticket}),
   ok.
 
 %%
@@ -83,16 +68,14 @@ handle_call(_Request, _From, State) ->
 %% @doc Handling cast messages.
 
 % make diagnostic
-handle_cast({diagnostic, {request_for_diagnostic, Customer, _From} = Payload}, State) ->
-  io:format("~n[cameron_worker] ----------~n"),
-  io:format("Payload: ~w~n", [Payload]),
-  io:format("------------------------~n"),
+handle_cast({diagnostic, Ticket}, State) ->
+  io:format("~n--- [cameron_worker] Ticket: ~s~n", [Ticket]),
   
   Id = State#state.id,
   
-  spawn(?MODULE, make_diagnostic, [Id, Customer, "Cloud"]),
-  spawn(?MODULE, make_diagnostic, [Id, Customer, "Hosting"]),
-  spawn(?MODULE, make_diagnostic, [Id, Customer, "SQL Server"]),
+  spawn(?MODULE, make_diagnostic, [Id, Ticket, "Cloud"]),
+  spawn(?MODULE, make_diagnostic, [Id, Ticket, "Hosting"]),
+  spawn(?MODULE, make_diagnostic, [Id, Ticket, "SQL Server"]),
   
   NewState = State#state{id = Id + 1},
   
@@ -126,7 +109,7 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
 %%
-%% Internal API -----------------------------------------------------------------------------------
+%% Internal Functions -----------------------------------------------------------------------------
 %%
 
 make_diagnostic(Id, Customer, Product) ->

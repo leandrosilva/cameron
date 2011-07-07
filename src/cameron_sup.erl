@@ -42,14 +42,18 @@ upgrade() ->
 init([]) ->
   HouseConfig = nothing,
   House = {cameron_dispatcher, {cameron_dispatcher, start_link, [HouseConfig]},
-                      permanent, 5000, worker, dynamic},
+                               permanent, 5000, worker, dynamic},
 
   CameronConfig = nothing,
   Cameron = {cameron_worker, {cameron_worker, start_link, [CameronConfig]},
-                          permanent, 5000, worker, dynamic},
+                             permanent, 5000, worker, dynamic},
 
   WebServerConfig = cameron:get_web_server_config(),
   WebServer = {cameron_web_server, {cameron_web_server, start_link, [WebServerConfig]},
-                               permanent, 5000, worker, dynamic},
+                                   permanent, 5000, worker, dynamic},
 
-  {ok, {{one_for_one, 10, 10}, [House, Cameron, WebServer]}}.
+  RedoConfig = cameron:get_redis_server_config(),
+  Redo = {cameron_redo, {redo, start_link, [cameron_redo, RedoConfig]},
+                        permanent, 5000, worker, dynamic},
+
+  {ok, {{one_for_one, 10, 10}, [House, Cameron, WebServer, Redo]}}.

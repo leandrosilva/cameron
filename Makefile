@@ -6,22 +6,22 @@ compile: clear
 	@cp src/$(APP_NAME).app ebin/
 	@erlc -pa ebin/ \
 	      -pa deps/ \
-	      -pa deps/misultin-0.6.2/ebin/ \
-	      -pa deps/amqp_client-2.5.0/ebin/ \
-	      -pa deps/rabbit_common-2.5.0/ebin/ \
 	      -pa deps/erl_helpers/ebin/ \
 	      -pa deps/erlang-uuid/ebin/ \
+	      -pa deps/misultin-0.6.2/ebin/ \
+	      -pa deps/redo/ebin/ \
+	      -I include/ \
 	      -o ebin/ \
 	      src/*.erl
 	
 compile_test: compile
 	@erlc -pa ebin/ \
 	      -pa deps/ \
-	      -pa deps/misultin-0.6.2/ebin/ \
-	      -pa deps/amqp_client-2.5.0/ebin/ \
-	      -pa deps/rabbit_common-2.5.0/ebin/ \
 	      -pa deps/erl_helpers/ebin/ \
 	      -pa deps/erlang-uuid/ebin/ \
+	      -pa deps/misultin-0.6.2/ebin/ \
+	      -pa deps/redo/ebin/ \
+	      -I include/ \
 	      -o ebin/ \
 	      test/*.erl
 

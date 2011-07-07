@@ -17,17 +17,13 @@
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
--include_lib("amqp_client/include/amqp_client.hrl").
-
 %%
-%% Types ------------------------------------------------------------------------------------------
-%%
-%%     Payload = {request_for_diagnostic, Customer, From}
-%%
-%%     Channel = A RabbitMQ Channel
+%% Includes and Records ---------------------------------------------------------------------------
 %%
 
--record(state, {messaging_channel}).
+-include("include/cameron.hrl").
+
+-record(state, {nothing_yet = yes}).
 
 %%
 %% Admin API --------------------------------------------------------------------------------------
@@ -47,10 +43,16 @@ stop() ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec diagnostic(Payload) -> ok
+%% @spec diagnostic(Payload) -> {ok, Ticket} | {error, Reason}
 %% @doc Async dispatch of a resquest for diagnostic.
-dispatch({request_for_diagnostic, _Customer, _From} = Payload) ->
-  cameron_messaging:publish_to(awaiting_for_diagnostic_queue, Payload).
+dispatch(#diagnostic_request{} = Payload) ->
+  io:format("~n~n--- [cameron_dispatcher] incoming diagnostic request~n"),
+  
+  {ok, Ticket} = cameron_tracker:step({incoming_request, Payload}),
+  
+  ok = gen_server:cast(?MODULE, {dispatch, incoming_request}),
+  
+  {ok, Ticket}.
 
 %%
 %% Gen_Server Callbacks ---------------------------------------------------------------------------
@@ -59,9 +61,7 @@ dispatch({request_for_diagnostic, _Customer, _From} = Payload) ->
 %% @spec init(_Options) -> {ok, State} | {ok, State, Timeout} | ignore | {stop, Reason}
 %% @doc Initiates the server.
 init(_Options) ->
-  Channel = cameron_messaging:subscribe_to(awaiting_for_diagnostic_queue),
-  
-  {ok, #state{messaging_channel = Channel}}.
+  {ok, #state{}}.
 
 %% @spec handle_call(Request, From, State) ->
 %%                  {reply, Reply, State} | {reply, Reply, State, Timeout} | {noreply, State} |
@@ -76,6 +76,16 @@ handle_call(_Request, _From, State) ->
 %%                  {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
 %% @doc Handling cast messages.
 
+% dispatches incoming request
+handle_cast({dispatch, incoming_request}, State) ->
+  io:format("--- [cameron_dispatcher] dispatching an incoming request~n"),
+  
+  {ok, Ticket} = cameron_tracker:step(dispatching_request),
+
+  io:format("--- [cameron_dispatcher] dispatching an incoming request // Ticket: ~s~n", [Ticket]),
+  
+  {noreply, State};
+
 % manual shutdown
 handle_cast(stop, State) ->
   {stop, normal, State};
@@ -87,21 +97,6 @@ handle_cast(_Msg, State) ->
 %% @spec handle_info(Info, State) ->
 %%                  {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
 %% @doc Handling all non call/cast messages.
-
-% receive messages from awaiting_for_diagnostic_queue
-handle_info({#'basic.deliver'{delivery_tag = Tag}, #amqp_msg{payload = RawPayload}}, State) ->
-  Payload = binary_to_term(RawPayload),
-  
-  io:format("~n[cameron_dispatcher] ------------~n"),
-  io:format("Payload: ~w~n", [Payload]),
-  io:format("Tag: ~w~n", [Tag]),
-  io:format("------------------------~n"),
-  
-  ok = cameron_worker:diagnostic(Payload),
-  
-  cameron_messaging:acknowledge_delivery(State#state.messaging_channel, Tag),
-  
-  {noreply, State};
 
 % handle_info generic fallback (ignore)
 handle_info(_Info, State) ->
@@ -119,5 +114,5 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
 %%
-%% Internal API -----------------------------------------------------------------------------------
+%% Internal Functions -----------------------------------------------------------------------------
 %%

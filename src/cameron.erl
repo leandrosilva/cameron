@@ -9,7 +9,7 @@
 % admin api
 -export([start/0, stop/0, upgrade/0]).
 % public api
--export([get_version/0, get_basedir/0, get_web_server_config/0, get_amqp_server_config/0]).
+-export([get_version/0, get_basedir/0, get_web_server_config/0, get_redis_server_config/0]).
 
 %%
 %% Admin API --------------------------------------------------------------------------------------
@@ -52,13 +52,13 @@ get_basedir() ->
 get_web_server_config() ->
   get_env(web_server).
 
-%% @spec get_amqp_server_config() -> string()
-%% @doc The Cameron web server configuration.
-get_amqp_server_config() ->
-  get_env(amqp_server).
+%% @spec get_redis_server_config() -> string()
+%% @doc Redis server configuration.
+get_redis_server_config() ->
+  get_env(redis_server).
 
 %%
-%% Internal API -----------------------------------------------------------------------------------
+%% Internal Functions -----------------------------------------------------------------------------
 %%
 
 %% @spec get_key(Name) -> Val | undefined

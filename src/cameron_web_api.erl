@@ -13,7 +13,13 @@
 -export([handle_http/3, handle_websocket/2]).
 
 %%
-%% Misultin-based Callbacks for cameron_webcare -------------------------------------------------------
+%% Includes and Records ---------------------------------------------------------------------------
+%%
+
+-include("include/cameron.hrl").
+
+%%
+%% Misultin-based Callbacks for cameron_web_api ---------------------------------------------------
 %%
 
 % --- HTTP Routes to support handle_http callback -------------------------------------------------
@@ -25,11 +31,14 @@ handle_http('GET', ["api"], Req) ->
 % handle a GET on /api/diagnostic/ask
 handle_http('POST', ["api", "diagnostic", "ask"], Req) ->
   Body = get_body(Req),
-  Payload = get_payload(Body),
+  Payload = build_payload(Body),
   
-  ok = cameron_dispatcher:dispatch(Payload),
+  {ok, Ticket} = cameron_dispatcher:dispatch(Payload),
+  LocationURL = build_location_url(Ticket),
   
-  Req:respond(201, [{"Content-Type", "application/json"}], "{\"payload\":\"~s\"}", [Body]);
+  Req:respond(201, [{"Content-Type", "application/json"},
+                    {"Location", LocationURL}],
+                   "{\"payload\":\"~s\"}", [Body]);
 
 % handle the 404 page not found
 handle_http(_, _, Req) ->
@@ -61,19 +70,25 @@ handle_websocket(_, _Ws) ->
   ok.
 
 %%
-%% Internal API -----------------------------------------------------------------------------------
+%% Internal Functions -----------------------------------------------------------------------------
 %%
 
 get_body(Req) ->
   {req, _, _, _, _, _, _, _, _, _, _, _, _, Body} = Req:raw(),
   binary_to_list(Body).
   
-get_payload(Body) ->
+build_payload(Body) ->
   Struct = struct:from_json(Body),
   
-  Customer = {customer, {binary_to_atom(struct:get_value({<<"customer">>, <<"type_id">>}, Struct), utf8),
-                         binary_to_list(struct:get_value({<<"customer">>, <<"value_id">>}, Struct))}},
-  From = {from, binary_to_list(struct:get_value(<<"from">>, Struct))},
+  CustomerId = binary_to_list(struct:get_value(<<"customer_id">>, Struct)),
+  From = binary_to_list(struct:get_value(<<"from_id">>, Struct)),
   
-  {request_for_diagnostic, Customer, From}.
-  
+  #diagnostic_request{customer_id = CustomerId, from_id = From}.
+
+build_location_url(Ticket) ->
+  T1 = string:sub_string(Ticket, 24),
+  T2 = string:tokens(T1, ":"),
+
+  [CustomerId | RequestId] = T2,
+
+  ["http://localhost:8080/api/diagnostics/ticket/", CustomerId, RequestId].
