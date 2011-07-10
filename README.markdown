@@ -8,6 +8,16 @@ To achive that objective, as you can see, it has been built as an Erlang/OTP app
 
 1. It receives a request asking to run a workflow given:
 
+    HTTP/1.1 200 OK
+
+    { "name":     "bar",
+      "data":     "any JSON-like data to be attached to that resquest",
+      "next":     [{ "name": "kar",
+                     "url":  "http://kar.com/workflow/{key}"},
+                   { "name": "xar",
+                     "url":  "http://xar.com/workflow/{key}"}],
+      "parallel": "yes" }
+
     POST http://{host}:{port}/api/workflow/{name}/start HTTP/1.1
     Content-Type: application/json
     
