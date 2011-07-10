@@ -16,16 +16,16 @@ To achive that objective, as you can see, it has been built as an Erlang/OTP app
 
 Let see what these input variables mean:
 
-- __host:__ Cameron web server host name or IP address
-- __port:__ Cameron web server port
+- **host:** Cameron web server host name or IP address
+- **port:** Cameron web server port
 
-These values are statically defineds inside priv/config/{environment}.config which is selected by environment (e.g. development, test, or production).
+These values are statically defineds inside *priv/config/{environment}.config* which is selected by environment (e.g. development, test, or production).
 
-- name: the unique identification of a workflow given
+- **name:** the unique identification of a workflow given
 
-These value are defined inside priv/config/{environment}.config, with a specific layout we are going to see next.
+That value also is defined inside *priv/config/{environment}.config* with a specific layout we are going to see next.
 
-And that *JSON payload*, as itself explains, has a pre-defined (and expected) layout.
+Finally, that *JSON payload*, as itself explains, has a pre-defined (and expected) layout.
   
 1.1. It verifies whether that workflow exists or not, by look to a configuration file where is recorded any existent workflow. The layout of that configuration file is like that:
 
