@@ -10,7 +10,7 @@ To achive that objective, as you can see, it has been built as an Erlang/OTP app
 
     POST http://{host}:{port}/api/workflow/{name}/start
     Content-Type: application/json
-
+    
     { "key":  "any kind of ID which is gonna be posted to the start_point_url for that workflow",
       "data": "any JSON-like data to be attached to that resquest" }
 
