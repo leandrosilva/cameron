@@ -160,9 +160,7 @@ make_diagnostic(Ticket, Index, ProductId) ->
   %       [_, _, _, _, _, _, _, _, _, _, _],
   %       Result}} = http_helper:http_get(URL),
 
-  {ok, {{"HTTP/1.1", 200, _},
-        _,
-        Result}} = http_helper:http_get(URL),
+  {ok, {{"HTTP/1.1", 200, _}, _, Result}} = http_helper:http_get(URL),
          
   io:format("--- [cameron_worker_~s] Index: ~w, ProductId: ~s // Done~n", [Ticket, Index, ProductId]),
 
