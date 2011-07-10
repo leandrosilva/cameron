@@ -104,13 +104,13 @@ handle_cast({notify_done, Ticket, Index, ProductId, Result}, State) ->
   case State#state.countdown of
     1 ->
       {ok, Ticket} = cameron_ticket:close(Ticket),
+      NewState = State#state{countdown = 0},
       % ok = cameron_worker_sup:stop_child(Ticket) % supervisor verifica quem esta done e mata?
-      NewState = State#state{countdown = 0};
+      {stop, normal, NewState};
     N ->
-      NewState = State#state{countdown = N - 1}
-  end,
-      
-  {noreply, NewState};
+      NewState = State#state{countdown = N - 1},
+      {noreply, NewState}
+  end;
 
 % manual shutdown
 handle_cast(stop, State) ->
@@ -147,45 +147,22 @@ code_change(_OldVsn, State, _Extra) ->
 make_diagnostic(Ticket, Index, ProductId) ->
   io:format("--- [cameron_worker_~s] Index: ~w, ProductId: ~s~n", [Ticket, Index, ProductId]),
 
-  % case ProductId of
-  %   "Cloud" ->
-  %     Time = 5000;
-  %   "Hosting" ->
-  %     Time = 8000;
-  %   "SQL Server" ->
-  %     Time = 3000
-  % end,
-  
-  % receive after Time ->
-  %   io:format("--- [cameron_worker_~s] Index: ~w, ProductId: ~s // Done~n", [Ticket, Index, ProductId]),
-  %   notify_done(Ticket, Index, ProductId)
-  % end,
-
-  % case ProductId of
-  %   "cloud" ->
-  %     URL = "http://guru-sp.com/index.php/Usu%C3%A1rio:PotHix";
-  %   "hosting" ->
-  %     URL = "http://guru-sp.com/index.php/Usu%C3%A1rio:Admin";
-  %   "sql_server" ->
-  %     URL = "http://guru-sp.com/index.php/Usu%C3%A1rio:Agaelebe"
-  % end,
-
   case ProductId of
     "cloud" ->
-      URL = "http://eumoroemguarulhos.appspot.com/";
+      URL = "http://localhost:9292/workflow/v0.0.1/cloud/zabbix";
     "hosting" ->
-      URL = "http://eumoroemguarulhos.appspot.com/";
+      URL = "http://localhost:9292/workflow/v0.0.1/hosting/zabbix";
     "sql_server" ->
-      URL = "http://eumoroemguarulhos.appspot.com/"
+      URL = "http://localhost:9292/workflow/v0.0.1/sqlserver/zabbix"
   end,
   
   % {ok, {{"HTTP/1.1", 200, "OK"},
   %       [_, _, _, _, _, _, _, _, _, _, _],
   %       Result}} = http_helper:http_get(URL),
 
-{ok, {{"HTTP/1.1", 200, "OK"},
-      [_, _, _, _, _],
-      Result}} = http_helper:http_get(URL),
+  {ok, {{"HTTP/1.1", 200, _},
+        _,
+        Result}} = http_helper:http_get(URL),
          
   io:format("--- [cameron_worker_~s] Index: ~w, ProductId: ~s // Done~n", [Ticket, Index, ProductId]),
 

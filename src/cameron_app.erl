@@ -25,7 +25,7 @@ start(_Type, _StartArgs) ->
 %% @spec stop(_State) -> ok
 %% @doc application stop callback for cameron.
 stop(_State) ->
-  inets:stop(),
+  % inets:stop(),
   ok.
 
 %% @spec upgrade() -> ok
