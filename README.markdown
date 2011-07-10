@@ -8,7 +8,7 @@ To achive that objective, as you can see, it has been built as an Erlang/OTP app
 
 1. It receives a request asking to run a workflow given:
 
-    POST http://{host}:{port}/api/workflow/{name}/start
+    POST http://{host}:{port}/api/workflow/{name}/start HTTP/1.1
     Content-Type: application/json
     
     { "key":  "any kind of ID which is gonna be posted to the start_point_url for that workflow",
