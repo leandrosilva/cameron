@@ -4,19 +4,9 @@ That is a *work in progress* for **Cameron Workflow System** which aim to be a g
 
 To achive that objective, as you can see, it has been built as an Erlang/OTP application with a REST-like Web API, powered by Misulting, and a Redis-based backend database and queue system.
 
-### How does it work?
+### How does it work
 
 1. It receives a request asking to run a workflow given:
-
-    HTTP/1.1 200 OK
-
-    { "name":     "bar",
-      "data":     "any JSON-like data to be attached to that resquest",
-      "next":     [{ "name": "kar",
-                     "url":  "http://kar.com/workflow/{key}"},
-                   { "name": "xar",
-                     "url":  "http://xar.com/workflow/{key}"}],
-      "parallel": "yes" }
 
     POST http://{host}:{port}/api/workflow/{name}/start HTTP/1.1
     Content-Type: application/json
