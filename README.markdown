@@ -1,22 +1,31 @@
 ## cameron
 
-That is __work in progress__ for __Cameron Workflow System__ which aim to be generic workflow system (as its name suggests, obviously) able to handle multiple concurrent requests asking for run workflows, and run them all in parallel, as fast ass possible.
+That is a *work in progress* for **Cameron Workflow System** which aim to be a generic workflow system (as its name suggests, I know) able to handle multiple concurrent requests asking to run pre-defined workflows, enqueue them and run them in parallel, as fast as possible.
 
-To achive that, as you can see, it is really an Erlang/OTP application with a REST-like Web API, powered by Misulting, and a Redis server as its back-end database and queue system.
+To achive that objective, as you can see, it has been built as an Erlang/OTP application with a REST-like Web API, powered by Misulting, and a Redis-based backend database and queue system.
 
-### Basically, how does it works?
+### How does it work?
 
-1. It receives a request to run a workflow by POST a JSON payload /api/workflow/{name}/start
+1. It receives a request asking to run a workflow given:
 
-That JSON payload has the following layout:
+    POST http://{host}:{port}/api/workflow/{name}/start
+    Content-Type: application/json
 
     { "key":  "any kind of ID which is gonna be posted to the start_point_url for that workflow",
       "data": "any JSON-like data to be attached to that resquest" }
 
-Thus, these input mean:
+Let see what these input variables mean:
 
-    - name:    name of a workflow given you want to run
-    - payload: any data you want to stored attached to that resquest and get in the future
+- __host:__ Cameron web server host name or IP address
+- __port:__ Cameron web server port
+
+These values are statically defineds inside priv/config/{environment}.config which is selected by environment (e.g. development, test, or production).
+
+- name: the unique identification of a workflow given
+
+These value are defined inside priv/config/{environment}.config, with a specific layout we are going to see next.
+
+And that *JSON payload*, as itself explains, has a pre-defined (and expected) layout.
   
 1.1. It verifies whether that workflow exists or not, by look to a configuration file where is recorded any existent workflow. The layout of that configuration file is like that:
 
