@@ -26,7 +26,7 @@
 
 % handle a GET on /api
 handle_http('GET', ["api"], Req) ->
-  Req:ok([{"Content-Type", "text/plain"}], "Cameron Diagnostic System // Web API");
+  Req:ok([{"Content-Type", "text/plain"}], "Cameron Workflow System // Web API");
 
 % handle a GET on /api/diagnostic/ask
 handle_http('POST', ["api", "diagnostic", "ask"], Req) ->
