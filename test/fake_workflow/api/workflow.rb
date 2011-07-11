@@ -7,14 +7,18 @@ Rack::API.app do
   version "v0.0.1" do
     get "/start" do
         {
-          data: { customer_id:           "007",
-                  customer_name:         "Leandro Silva",
-                  customer_login:        "leandrosilva.codezone",
-                  customer_web_info:     { blog:    "http://leandrosilva.com.br",
-                                           twitter: "codezone" },
-                  customer_billing_info: { prefered_payment_method: "creditcard",
-                                           prefered_due_date:       "on 5 of each month" }},
-          next:
+          workflow_name: "diagnostic",
+          step_name:     "start_point",
+          step_type:     "parallel",
+          
+          step_data:     { customer_id:           "007",
+                           customer_name:         "Leandro Silva",
+                           customer_login:        "leandrosilva.codezone",
+                           customer_web_info:     { blog:    "http://leandrosilva.com.br",
+                                                    twitter: "codezone" },
+                           customer_billing_info: { prefered_payment_method: "creditcard",
+                                                    prefered_due_date:       "on 5 of each month" }},
+          next_steps:
             [
               { name: "cloud_zabbix",
                 url:  "http://localhost:9292/workflow/cloud/zabbix" },

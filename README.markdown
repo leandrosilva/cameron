@@ -158,16 +158,16 @@ And so, that **start_point_url**, when receives a HTTP POST, must respond someth
 
     HTTP/1.1 200 OK
     
-    { "workflow_name": "bar",
-      "name":          "start_point"
-      "type":          "parallel or pipeline",
-      "data":          "any JSON-like data to be attached to that resquest",
-      "steps":         [{ "name":    "kar",
-                          "url":     "http://kar.com/workflow/{key}",
-                          "payload": "any JSON-like data to be posted to this step"},
-                        { "name":    "xar",
-                          "url":     "http://xar.com/workflow/{key}",
-                          "payload": "any JSON-like data to be posted to this step"}] }
+    { "workflow_name":      "bar",
+      "step_name":          "start_point"
+      "step_type":          "parallel or pipeline",
+      "step_data":          "any JSON-like data to be attached to that resquest",
+      "next_steps":         [{ "name":    "kar",
+                               "url":     "http://kar.com/workflow/{key}",
+                               "payload": "any JSON-like data to be posted to this step"},
+                             { "name":    "xar",
+                               "url":     "http://xar.com/workflow/{key}",
+                               "payload": "any JSON-like data to be posted to this step"}] }
 
 This response really means:
 
