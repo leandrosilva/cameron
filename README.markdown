@@ -24,7 +24,7 @@ These values are statically defined inside **priv/config/{environment}.config** 
 
 - **name:** the unique identification of a workflow given
 
-That value is defined inside **priv/config/workflows.{environment}.config** with a specific layout we are going to see next.
+That value is defined inside **priv/workflows/{environment}.config** with a specific layout we are going to see next.
 
 And finally, that *JSON payload*, as itself explains, has an expected layout containing two attributes which are **key** and **data**.
 
@@ -34,10 +34,8 @@ Oops! So, to be idiomatic, there is a record for workflow request:
 
 1.1.) It verifies whether that workflow exists or not, by look to a configuration file where is recorded any existent workflow. The layout of that configuration file is like that:
 
-    {workflows, [{workflow, {name, bar},
-                            {start_point_url, "http://foo.com/workflow/bar/start/{key}"}},
-                 {workflow, {name, zar},
-                            {start_point_url, "http://foo.com/workflow/zar/start/{key}"}}]}
+    {workflows, [{bar, {start_point_url, "http://foo.com/workflow/bar/start/{key}"}},
+                 {zar, {start_point_url, "http://foo.com/workflow/zar/start/{key}"}}]}.
 
 1.2.exists.1.) It generates a ticket, thru **cameron_ticket** module, which is a kind of UUID for that request
 
@@ -158,10 +156,10 @@ And there is also a **cameron_worker** supervisor, that is **cameron_worker_sup*
 
 3.1.) So, when a worker receives a request to move on thru a workflow given, it starts by POST the payload's key to workflow's start_point_url
 
-Just to remember, this start_point_url resides inside **priv/config/workflows.{environment}.config**, as we already saw before:
+Just to remember, this start_point_url resides inside **priv/workflows/{environment}.config**, as we already saw before:
 
-    {workflow, {name, bar},
-               {start_point_url, "http://foo.com/workflow/bar/start/{key}"}
+    {workflows, [{bar, {start_point_url, "http://foo.com/workflow/bar/start/{key}"}},
+                 {zar, {start_point_url, "http://foo.com/workflow/zar/start/{key}"}}]}.
 
 And so, that **start_point_url**, when receives a HTTP POST, must respond something like this:
 
