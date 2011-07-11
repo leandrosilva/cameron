@@ -33,26 +33,26 @@ upgrade() ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec start_child(Ticket) -> {ok, ChildPid} | {ok, ChildPid, Info} | {error, Error}
-%% @dynamic Start a cameron_worker_{ShortUUID} process to diagnostic a Ticket given.
-start_child(Ticket) ->
-  WorkerName = build_worker_name(Ticket),
+%% @spec start_child(TicketShortUUID) -> {ok, ChildPid} | {ok, ChildPid, Info} | {error, Error}
+%% @dynamic Start a cameron_worker_{ShortUUID} process to diagnostic a TicketShortUUID given.
+start_child(TicketShortUUID) ->
+  WorkerName = build_worker_name(TicketShortUUID),
 
-  WorkerSpec = {WorkerName, {cameron_worker, start_link, [Ticket]}, temporary, 5000, worker, dynamic},
+  WorkerSpec = {WorkerName, {cameron_worker, start_link, [TicketShortUUID]}, temporary, 5000, worker, dynamic},
   supervisor:start_child(cameron_worker_sup, WorkerSpec).
 
-%% @spec stop_child(Ticket) -> ok | {error, Error}
+%% @spec stop_child(TicketShortUUID) -> ok | {error, Error}
 %% @dynamic Stop a cameron_worker_{ShortUUID}.
-stop_child(Ticket) ->
-  WorkerName = build_worker_name(Ticket),
+stop_child(TicketShortUUID) ->
+  WorkerName = build_worker_name(TicketShortUUID),
   
   supervisor:terminate_child(cameron_worker_sup, WorkerName),
   supervisor:delete_child(cameron_worker_sup, WorkerName).
 
-%% @spec which_chil(Ticket) -> WorkerName | {error, Error}
+%% @spec which_chil(TicketShortUUID) -> WorkerName | {error, Error}
 %% @dynamic Which worker is handling a ticket given.
-which_child(Ticket) ->
-  build_worker_name(Ticket).
+which_child(TicketShortUUID) ->
+  build_worker_name(TicketShortUUID).
 
 %% @spec which_children() -> [ChildSpec] | {error, Error}
 %% @dynamic List of children workers.
@@ -78,7 +78,7 @@ init([]) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-build_worker_name(Ticket) ->
-  WorkerName = "cameron_worker_" ++ Ticket,
+build_worker_name(TicketShortUUID) ->
+  WorkerName = "cameron_worker_" ++ TicketShortUUID,
   list_to_atom(WorkerName).
   

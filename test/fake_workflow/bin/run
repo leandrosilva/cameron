@@ -1,6 +1,0 @@
-#!/bin/sh
-
-echo "Running on $RUBY_VERSION"
-
-rackup config.ru
-  

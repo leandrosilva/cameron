@@ -30,7 +30,7 @@ And finally, that *JSON payload*, as itself explains, has an expected layout con
 
 Oops! So, to be idiomatic, there is a record for workflow request:
 
-    -record(workflow_request, {key, data, from}).
+    -record(workflow_request, {workflow_name, key, data, from}).
 
 1.1.) It verifies whether that workflow exists or not, by look to a configuration file where is recorded any existent workflow. The layout of that configuration file is like that:
 
@@ -41,42 +41,50 @@ Oops! So, to be idiomatic, there is a record for workflow request:
 
 1.2.exists.1.) It generates a ticket, thru **cameron_ticket** module, which is a kind of UUID for that request
 
-A ticket UUID is like this:
+A **Ticket UUID** is like this:
 
-    cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
+    cameron:workflow:{name}:ticket:{key}:{timestamp}
 
-These parameters mean:
+And has its own record:
 
-- **name:** workflow name, as we could see before
-- **key:** request payload's key attribute.
+    -record(workflow_ticket, {workflow_name, uuid, short_uuid, tag_part, key_part, timestamp_part}).
+
+Where:
+
+- **workflow_name:** workflow name, as we could see before
+- **uuid:** full length Ticket UUID
+- **short_uuid:** short length Ticket UUD. It will be explained in more details next
+- **tag_part:** cameron:workflow:{name}:ticket:
+- **key_part:** request payload's key attribute
+- **timestamp_part:** yyyyMMddhhmmssms, that is year + hour + minute + second + microseconds (16 digits)
 
 #### Important information about Ticket here
 
 Clients/requesters know tickets just like it:
 
-    {key}:{yyyyMMddhhmmss}
+    {key}:{timestamp}
 
 In other words, to a client:
 
-    Ticket = {key}:{yyyyMMddhhmmss}
+    Ticket = {key}:{timestamp}
 
 And not:
 
-    Ticket = cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
+    Ticket = cameron:workflow:{name}:ticket:{key}:{timestamp}
 
 Thus, internally, we call theses different point of views:
 
-- **redis_ticket_uuid**
+- **long ticket uuid**
 
-It is how a ticket UUID is stored in Redis:
+*"Full Length UUID"*. It is how a ticket UUID is stored in Redis:
 
-    cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
+    cameron:workflow:{name}:ticket:{key}:{timestamp}
     
-- **business_ticket_uuid**
+- **short ticket uuid**
 
-That is how a ticket UUID is know by clients:
+*"Short Length UUID"*. That is how a ticket UUID is know by clients:
 
-    {key}:{yyyyMMddhhmmss}
+    {key}:{timestamp}
 
 These different point of views is just to be brief. I mean, clients don't need to deal with a loooong ticket UUID, with a Redis-like namespace.
 
@@ -84,7 +92,7 @@ These different point of views is just to be brief. I mean, clients don't need t
 
 Here we have a kind of tip. If it is convenient for you, key can be a tuple. Let's see does it work:
 
-    cameron:workflow:{name}:ticket:{(key_type,key_value)}:{yyyyMMddhhmmss}
+    cameron:workflow:{name}:ticket:{(key_type,key_value)}:{timestamp}
 
 In order words, it is:
 
@@ -100,15 +108,16 @@ Yay. That is fun, isn't that?
 
 1.2.exists.3.) Creates a Redis hash, named by that ticket, to store any data about that request in its whole life, with has the following layout:
 
-    hmset cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
+    hmset cameron:workflow:{name}:ticket:{key}:{timestamp}
           request.key           {from request payload}
           request.data          {from request payload}
+          request.from          {from request payload}
           status.current        enqueued
           status.enqueued.time  {now}
 
 1.2.exists.4.) Notifies **cameron_dispatcher** process which is responsible to pass that request/ticket away:
 
-    cameron_dispatcher:notify_incoming_request_to(WorkflowName)
+    cameron_dispatcher:notify_incoming_request(WorkflowName)
 
 1.2.exists.5.) Finally it responds to the HTTP resquest with sucess:
 
@@ -123,7 +132,7 @@ Yay. That is fun, isn't that?
 
     {that received payload, to requester/client know what happened}
     
-2.) **cameron_dispatcher** is a *gen_server* which provides an public API to be notified by **cameron_web_api** about incoming requests, as we already saw before
+2.) **cameron\_dispatcher** is a *gen_server* which provides an public API to be notified by **cameron\_web_api** about incoming requests, as we already saw before
 
 2.1.) It take a ticket from the incoming queue, at Redis, for that workflow:
 
@@ -131,15 +140,15 @@ Yay. That is fun, isn't that?
 
 2.2.) Updates ticket's hash with new current status, as following:
 
-    hset cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
+    hset cameron:workflow:{name}:ticket:{key}:{timestamp}
          status.current          dispatched
          status.dispatched.time  {now}
 
 2.3.) Spawns a new worker to handle that workflow/ticket
 
-    {ok, WorkerPid} = cameron_worker:spawn_new_to(WorkflowName, Ticket)
+    {ok, WorkerPid} = cameron_worker:spawn_new(WorkflowName, Ticket)
 
-3.) **cameron_worker** is a *gen_server* which is created/spawned by the **cameron_dispatcher** on demand. In other words, one new process per request/ticket
+3.) **cameron\_worker** is a *gen_server* which is created/spawned by the **cameron_dispatcher** on demand. In other words, one new process per request/ticket
 
 Its state record is like that:
 
@@ -179,7 +188,7 @@ This response really means:
 
 3.2.) Updates ticket's hash with new current status, as following:
 
-    hset cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
+    hset cameron:workflow:{name}:ticket:{key}:{timestamp}
          status.current       started
          status.started.time  {now}
          step.kar.name        {kar.name}
@@ -191,35 +200,36 @@ This response really means:
 
 3.3.) For each step **cameron_worker** spawn a new process passing a record as parameter:
 
-    -record(workflow_step_input, {name, url, payload, owner_worker}).
+    -record(workflow_step_input, {workflow_name, ticket_short_uuid, name, url, payload, worker_name}).
 
 And updates ticket's hash:
 
-    hset cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
-         step.{name}.status          spawned
-         step.{name}.status.spawned  {now}
+    hset cameron:workflow:{name}:ticket:{key}:{timestamp}
+         step.{name}.status               spawned
+         step.{name}.status.spawned.time  {now}
 
 3.4.) After spawn every **slaver** process, updates ticket's hash with new current status, as following:
 
-    hset cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
+    hset cameron:workflow:{name}:ticket:{key}:{timestamp}
          status.current   wip
          status.wip.time  {now}
 
-3.5.) Once every **slaver** process finish its work, it notifies its **cameron_worker** owner and past to that a record with result of its work:
+3.5.) Once a **slaver** process finish its work, it notifies its **cameron_worker** owner and past to that a record with result of its work:
 
-    -record(workflow_step_output, {name, url, payload, output, owner_worker}).
+    -record(workflow_step_output, {workflow_name, ticket_short_uuid, name, url, payload, output, worker_name}).
 
 And updates ticket's hash:
 
-    hset cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
-         step.{name}.status       done
-         step.{name}.status.done  {now}
+    hset cameron:workflow:{name}:ticket:{key}:{timestamp}
+         step.{name}.status            done
+         step.{name}.status.done.time  {now}
+         step.{name}.output            {output}
 
 3.6.) **cameron_worker** has a kind of countdown in its process state, as we saw above, which is used to know when its whole work is done. And when its done:
 
 It updates ticket's hash:
 
-    hset cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
+    hset cameron:workflow:{name}:ticket:{key}:{timestamp}
          status.current    done
          status.done.time  {now}
 

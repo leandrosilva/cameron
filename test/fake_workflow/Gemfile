@@ -1,4 +1,0 @@
-source "http://rubygems.org"
-
-gem "rack-api", "~> 0.2.1", :require => "rack/api"
-gem "json"

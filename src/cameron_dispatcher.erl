@@ -1,9 +1,9 @@
 %% @author Leandro Silva <leandrodoze@gmail.com>
 %% @copyright 2011 Leandro Silva.
 
-%% @doc The main gen_server, the "ear" of this diagnostic system which subscribes to "awaiting
-%%      queue" in order to be notifyed of every "request for diagnostic" and dispatch it to
-%%      cameron_worker gen_server.
+%% @doc The main gen_server, the "ear" of this workflow system which kind of subscribes to
+%%      "incoming queue" in order to be notifyed of every "request for diagnostic" and dispatch
+%%      it to a new cameron_worker gen_server.
 
 -module(cameron_dispatcher).
 -author('Leandro Silva <leandrodoze@gmail.com>').
@@ -13,7 +13,7 @@
 % admin api
 -export([start_link/0, stop/0]).
 % public api
--export([dispatch/1]).
+-export([notify_incoming_request/1]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -43,14 +43,14 @@ stop() ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec diagnostic(Payload) -> {ok, Ticket} | {error, Reason}
-%% @doc Async dispatch of a resquest for diagnostic.
-dispatch(#diagnostic_request{} = Payload) ->
-  io:format("~n~n--- [cameron_dispatcher] incoming diagnostic request~n"),
+%% @spec notify_incoming_request(WorkflowRequest) -> {ok, Ticket} | {error, Reason}
+%% @doc It triggers an async dispatch of a resquest to run a workflow.
+notify_incoming_request(#workflow_request{} = WorkflowRequest) ->
+  io:format("~n~n--- [cameron_dispatcher] incoming workflow request~n"),
   
-  {ok, Ticket} = cameron_ticket:create(Payload),
+  {ok, Ticket} = cameron_ticket:create_new(WorkflowRequest),
   
-  ok = gen_server:cast(?MODULE, {dispatch, incoming_request}),
+  ok = gen_server:cast(?MODULE, {notify_incoming_request, WorkflowRequest}),
   
   {ok, Ticket}.
 
@@ -77,14 +77,14 @@ handle_call(_Request, _From, State) ->
 %% @doc Handling cast messages.
 
 % dispatches incoming request
-handle_cast({dispatch, incoming_request}, State) ->
+handle_cast({notify_incoming_request, WorkflowRequest}, State) ->
   io:format("--- [cameron_dispatcher] dispatching an incoming request~n"),
   
-  {ok, Ticket} = cameron_ticket:pop(),
+  {ok, Ticket} = cameron_ticket:take_next(WorkflowRequest#workflow_request.workflow_name),
 
   io:format("--- [cameron_dispatcher] dispatching an incoming request // Ticket: ~s~n", [Ticket]),
   
-  ok = cameron_worker:diagnostic(Ticket),
+  ok = cameron_worker:spawn_new(Ticket),
   
   {noreply, State};
 
