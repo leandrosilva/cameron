@@ -207,10 +207,5 @@ Or:
     GET http://{host}:{port}/api/workflow/{name}/key/{key} HTTP/1.1
     Accept: application/json
 
-And finally by:
-
-    GET http://{host}:{port}/api/workflow/{name}/key/{key} HTTP/1.1
-    Accept: application/json
-
 
 ### What else?
