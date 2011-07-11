@@ -34,7 +34,7 @@ handle_http('POST', ["api", "workflow", WorkflowName, "start"], Req) ->
 
   case cameron:get_workflow(WorkflowName) of
     undefined ->
-      Req:respond(402, [{"Content-Type", "application/json"}],
+      Req:respond(404, [{"Content-Type", "application/json"}],
                        "{\"payload\":\"~s\"}", [Body]);
     _ ->
       WorkflowRequest = build_request(WorkflowName, Body),
