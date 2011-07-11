@@ -50,7 +50,9 @@ These parameters mean:
 - **name:** workflow name, as we could see before
 - **key:** request payload's key attribute.
 
-But clients/requesters know just it:
+#### Important information about Ticket here
+
+Clients/requesters know tickets just like it:
 
     {key}:{yyyyMMddhhmmss}
 
@@ -58,19 +60,29 @@ In other words, to a client:
 
     Ticket = {key}:{yyyyMMddhhmmss}
 
-Internally, we call that:
+And not:
 
-- **redis_ticket_uuid**, how that is stored at Redis
+    Ticket = cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
+
+Thus, internally, we call theses different point of views:
+
+- **redis_ticket_uuid**
+
+It is how a ticket UUID is stored in Redis:
 
     cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
     
-- **business_ticket_uuid**, how clients know that
+- **business_ticket_uuid**
+
+That is how a ticket UUID is know by clients:
 
     {key}:{yyyyMMddhhmmss}
 
-Just to be brief.
+These different point of views is just to be brief. I mean, clients don't need to deal with a loooong ticket UUID, with a Redis-like namespace.
 
-So, wait a minute. Here we have a kind of tip. If it is convenient for you, key can be a tuple. Let's see does it work:
+#### Other important information about Ticket here
+
+Here we have a kind of tip. If it is convenient for you, key can be a tuple. Let's see does it work:
 
     cameron:workflow:{name}:ticket:{(key_type,key_value)}:{yyyyMMddhhmmss}
 
@@ -80,7 +92,7 @@ In order words, it is:
     cameron:workflow:bar:ticket:(id,007):20110710213645
     cameron:workflow:bar:ticket:(cpf,28965487611):20110710213715
 
-Yay. That is Fun.
+Yay. That is fun, isn't that?
 
 1.2.exists.2.) Pushes that ticket to a Redis queue:
 
