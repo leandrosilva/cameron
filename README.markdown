@@ -50,6 +50,26 @@ These parameters mean:
 - **name:** workflow name, as we could see before
 - **key:** request payload's key attribute.
 
+But clients/requesters know just it:
+
+    {key}:{yyyyMMddhhmmss}
+
+In other words, to a client:
+
+    Ticket = {key}:{yyyyMMddhhmmss}
+
+Internally, we call that:
+
+- **redis_ticket_uuid**, how that is stored at Redis
+
+    cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
+    
+- **business_ticket_uuid**, how clients know that
+
+    {key}:{yyyyMMddhhmmss}
+
+Just to be brief.
+
 So, wait a minute. Here we have a kind of tip. If it is convenient for you, key can be a tuple. Let's see does it work:
 
     cameron:workflow:{name}:ticket:{(key_type,key_value)}:{yyyyMMddhhmmss}
@@ -197,15 +217,24 @@ Yay! **When this whole process is done**, the workflow is done.
 
 ### How does a workflow state is get by the client?
 
-It is possible to see any available data (inside ticket's hash) at any time:
+It is possible to see any available data (inside ticket's hash) at any time by:
 
     GET http://{host}:{port}/api/workflow/{name}/ticket/{ticket} HTTP/1.1
     Accept: application/json
 
-Or:
+And that is the "search semantic" on Redis for achieve it:
+
+    hget cameron:workflow:{name}:ticket:{ticket}
+
+Or, you can search by key:
 
     GET http://{host}:{port}/api/workflow/{name}/key/{key} HTTP/1.1
     Accept: application/json
 
+Which can be achieved by:
+
+    key cameron:workflow:{name}:ticket:{key}:*
 
 ### What else?
+
+- TODO
