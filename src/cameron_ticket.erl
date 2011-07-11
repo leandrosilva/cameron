@@ -155,7 +155,7 @@ maybe_padding(Number) when is_integer(Number) and (Number > 9) and (Number < 61)
   integer_to_list(Number);
   
 maybe_padding(List) when is_list(List) ->
-  case string:len(List) < 6 of
+  case (string:len(List) =/= 4) and (string:len(List) < 6) of
     true ->
       NewList = "0" ++ List,
       maybe_padding(NewList);

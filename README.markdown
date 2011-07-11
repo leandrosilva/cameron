@@ -54,7 +54,7 @@ Where:
 - **short_uuid:** short length Ticket UUD. It will be explained in more details next
 - **tag_part:** cameron:workflow:{name}:ticket:
 - **key_part:** request payload's key attribute
-- **timestamp_part:** yyyyMMddhhmmssms, that is year + hour + minute + second + microseconds (16 digits)
+- **timestamp_part:** yyyyMMddhhmmssms, that is year + hour + minute + second + microseconds (20 digits)
 
 #### Important information about Ticket here
 
