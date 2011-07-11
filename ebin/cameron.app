@@ -2,7 +2,7 @@
 %% @copyright 2011 Leandro Silva.
 
 {application, cameron,
- [{description, "Cameron Diagnostic System"},
+ [{description, "Cameron Workflow System"},
   {vsn, "0.0.1"},
   {modules, [
     cameron,
