@@ -32,7 +32,7 @@ handle_http('GET', ["api"], Req) ->
 handle_http('POST', ["api", "workflow", WorkflowName, "start"], Req) ->
   Body = get_body(Req),
 
-  case cameron:get_workflow(WorkflowName) of
+  case workflow_exists(WorkflowName) of
     undefined ->
       Req:respond(404, [{"Content-Type", "application/json"}],
                        "{\"payload\":\"~s\"}", [Body]);
@@ -57,6 +57,12 @@ handle_http(_, _, Req) ->
 get_body(Req) ->
   {req, _, _, _, _, _, _, _, _, _, _, _, _, Body} = Req:raw(),
   binary_to_list(Body).
+
+workflow_exists(WorkflowName) ->
+  case cameron:get_workflow(list_to_atom(WorkflowName)) of
+    undefined -> no;
+    _         -> yes
+  end.
   
 build_request(WorkflowName, Body) ->
   Struct = struct:from_json(Body),
