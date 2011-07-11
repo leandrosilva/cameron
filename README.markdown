@@ -1,10 +1,10 @@
 ## cameron
 
-That is a *work in progress* for **Cameron Workflow System** which aim to be a generic workflow system (as its name suggests, I know) able to handle multiple concurrent requests asking to run pre-defined workflows, enqueue them and run them in parallel, as fast as possible.
+That is a *work in progress* for **Cameron Workflow System** which aim to be a web-based workflow system able to handle multiple concurrent HTTP requests asking to run pre-defined workflows, enqueue them and run them in parallel, as fast as possible.
 
 To achive that objective, as you can see, it has been built as an Erlang/OTP application with a REST-like Web API, powered by Misultin, and a Redis-based backend database and queue system.
 
-### How does it work
+### How does it work?
 
 1.) It receives a request asking to run a workflow given:
 
@@ -12,21 +12,26 @@ To achive that objective, as you can see, it has been built as an Erlang/OTP app
     Content-Type: application/json
     
     { "key":  "any kind of ID which is gonna be posted to the start_point_url for that workflow",
-      "data": "any JSON-like data to be attached to that resquest" }
+      "data": "any JSON-like data to be attached to that resquest",
+      "from": "an identification of the client/requester" }
 
-That incoming request is handled by **cameron_web_api** module, based on Misultin. So, let's see what these input variables mean:
+That incoming request is handled by **cameron_web_api** module, which is a HTTP handler module for **cameron_web_server**, a Misultin-based web server. So, let's see what these input variables mean:
 
 - **host:** Cameron web server host name or IP address
 - **port:** Cameron web server port
 
-These values are statically defineds inside **priv/config/{environment}.config** which is selected by environment (e.g. development, test, or production).
+These values are statically defined inside **priv/config/{environment}.config** which is, at Cameron bootstrap, selected by environment (e.g. development, test, or production).
 
 - **name:** the unique identification of a workflow given
 
 That value is defined inside **priv/config/workflows.{environment}.config** with a specific layout we are going to see next.
 
-Finally, that *JSON payload*, as itself explains, has an expected layout containing two attributes which are **key** and **data**.
-  
+And finally, that *JSON payload*, as itself explains, has an expected layout containing two attributes which are **key** and **data**.
+
+Oops! So, to be idiomatic, there is a record for workflow request:
+
+    -record(workflow_request, {key, data, from}).
+
 1.1.) It verifies whether that workflow exists or not, by look to a configuration file where is recorded any existent workflow. The layout of that configuration file is like that:
 
     {workflows, [{workflow, {name, bar},
@@ -38,12 +43,24 @@ Finally, that *JSON payload*, as itself explains, has an expected layout contain
 
 A ticket UUID is like this:
 
-    cameron:workflow:{name}:ticket:{key}
+    cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
 
 These parameters mean:
 
-- **name:** workflow name
-- **key:**  payload key attribute
+- **name:** workflow name, as we could see before
+- **key:** request payload's key attribute.
+
+So, wait a minute. Here we have a kind of tip. If it is convenient for you, key can be a tuple. Let's see does it work:
+
+    cameron:workflow:{name}:ticket:{(key_type,key_value)}:{yyyyMMddhhmmss}
+
+In order words, it is:
+
+    cameron:workflow:bar:ticket:(login,leandrosilva):20110710213523
+    cameron:workflow:bar:ticket:(id,007):20110710213645
+    cameron:workflow:bar:ticket:(cpf,28965487611):20110710213715
+
+Yay. That is Fun.
 
 1.2.exists.2.) Pushes that ticket to a Redis queue:
 
@@ -51,13 +68,15 @@ These parameters mean:
 
 1.2.exists.3.) Creates a Redis hash, named by that ticket, to store any data about that request in its whole life, with has the following layout:
 
-    hmset cameron:workflow:{name}:ticket:{key}
-          payload.key           {from request}
-          payload.data          {from request}
+    hmset cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
+          request.key           {from request payload}
+          request.data          {from request payload}
           status.current        enqueued
           status.enqueued.time  {now}
 
-1.2.exists.4.) Notifies its dispatcher process which is responsible to pass that request/ticket away
+1.2.exists.4.) Notifies **cameron_dispatcher** process which is responsible to pass that request/ticket away:
+
+    cameron_dispatcher:notify_incoming_request_to(WorkflowName)
 
 1.2.exists.5.) Finally it responds to the HTTP resquest with sucess:
 
@@ -72,9 +91,7 @@ These parameters mean:
 
     {that received payload, to requester/client know what happened}
     
-2.) **cameron_dispatcher** is a *gen_server* which provides an public API to be notified by **cameron_web_api** about incoming requests:
-
-    cameron_dispatcher:notify_incoming_request_to(WorkflowName)
+2.) **cameron_dispatcher** is a *gen_server* which provides an public API to be notified by **cameron_web_api** about incoming requests, as we already saw before
 
 2.1.) It take a ticket from the incoming queue, at Redis, for that workflow:
 
@@ -82,7 +99,7 @@ These parameters mean:
 
 2.2.) Updates ticket's hash with new current status, as following:
 
-    hset cameron:workflow:{name}:ticket:{key}
+    hset cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
          status.current          dispatched
          status.dispatched.time  {now}
 
@@ -90,25 +107,107 @@ These parameters mean:
 
     {ok, WorkerPid} = cameron_worker:spawn_new_to(WorkflowName, Ticket)
 
-3.) **cameron_worker** is a *gen_server* which are created/spawned by the **cameron_dispatcher** on demand, in other words one per request/ticket
+3.) **cameron_worker** is a *gen_server* which is created/spawned by the **cameron_dispatcher** on demand. In other words, one new process per request/ticket
+
+Its state record is like that:
+
+    -record(state, {name, ticket, countdown, workflow_request}).
+
+And there is also a **cameron_worker** supervisor, that is **cameron_worker_sup**.
 
 3.1.) So, when a worker receives a request to move on thru a workflow given, it starts by POST the payload's key to workflow's start_point_url
 
-Just to remember, this start_point_url resides inside a configuration file, as showed above:
+Just to remember, this start_point_url resides inside **priv/config/workflows.{environment}.config**, as we already saw before:
 
     {workflow, {name, bar},
                {start_point_url, "http://foo.com/workflow/bar/start/{key}"}
 
-And that start_point_url should respond something like this:
+And so, that **start_point_url**, when receives a HTTP POST, must respond something like this:
 
     HTTP/1.1 200 OK
     
-    { "name":     "bar",
-      "data":     "any JSON-like data to be attached to that resquest",
-      "next":     [{ "name": "kar",
-                     "url":  "http://kar.com/workflow/{key}"},
-                   { "name": "xar",
-                     "url":  "http://xar.com/workflow/{key}"}],
-      "parallel": "yes" }
+    { "workflow_name": "bar",
+      "name":          "start_point"
+      "type":          "parallel or pipeline",
+      "data":          "any JSON-like data to be attached to that resquest",
+      "steps":         [{ "name":    "kar",
+                          "url":     "http://kar.com/workflow/{key}",
+                          "payload": "any JSON-like data to be posted to this step"},
+                        { "name":    "xar",
+                          "url":     "http://xar.com/workflow/{key}",
+                          "payload": "any JSON-like data to be posted to this step"}] }
 
-What else?????? What else??????
+This response really means:
+
+- **workflow_name:** self explained
+- **name:** workflow name
+- **type:** "parallel" means each step must run in parallel, independently; if "pipeline" each step will run sequentially and its response will be passed to next one
+- **data:** any kind of JSON-like data
+- **steps:** list of steps that make up the workflow
+
+3.2.) Updates ticket's hash with new current status, as following:
+
+    hset cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
+         status.current       started
+         status.started.time  {now}
+         step.kar.name        {kar.name}
+         step.kar.url         {kar.url}
+         step.kar.payload     {kar.payload}
+         step.xar.name        {xar.name}
+         step.xar.url         {xar.url}
+         step.xar.payload     {xar.payload}
+
+3.3.) For each step **cameron_worker** spawn a new process passing a record as parameter:
+
+    -record(workflow_step_input, {name, url, payload, owner_worker}).
+
+And updates ticket's hash:
+
+    hset cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
+         step.{name}.status          spawned
+         step.{name}.status.spawned  {now}
+
+3.4.) After spawn every **slaver** process, updates ticket's hash with new current status, as following:
+
+    hset cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
+         status.current   wip
+         status.wip.time  {now}
+
+3.5.) Once every **slaver** process finish its work, it notifies its **cameron_worker** owner and past to that a record with result of its work:
+
+    -record(workflow_step_output, {name, url, payload, output, owner_worker}).
+
+And updates ticket's hash:
+
+    hset cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
+         step.{name}.status       done
+         step.{name}.status.done  {now}
+
+3.6.) **cameron_worker** has a kind of countdown in its process state, as we saw above, which is used to know when its whole work is done. And when its done:
+
+It updates ticket's hash:
+
+    hset cameron:workflow:{name}:ticket:{key}:{yyyyMMddhhmmss}
+         status.current    done
+         status.done.time  {now}
+
+And just stop.
+
+Yay! **When this whole process is done**, the workflow is done.
+
+### How does a workflow state is get by the client?
+
+It is possible to see any available data (inside ticket's hash) at any time:
+
+    GET http://{host}:{port}/api/workflow/{name}/ticket/{ticket} HTTP/1.1
+    Accept: application/json
+
+Or:
+
+  GET http://{host}:{port}/api/workflow/{name}/key/{key} HTTP/1.1
+  Accept: application/json
+
+And finally by:
+
+  GET http://{host}:{port}/api/workflow/{name}/key/{key} HTTP/1.1
+  Accept: application/json
