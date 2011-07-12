@@ -167,7 +167,7 @@ And so, that **start_point_url**, when receives a HTTP POST, must respond someth
     
     { "workflow_name":      "bar",
       "step_name":          "start_point"
-      "step_type":          "parallel or pipeline",
+      "step_type":          "parallel or sequential",
       "step_data":          "any JSON-like data to be attached to that resquest",
       "next_steps":         [{ "name":    "kar",
                                "url":     "http://kar.com/workflow/{key}",
@@ -180,7 +180,7 @@ This response really means:
 
 - **workflow_name:** self explained
 - **name:** workflow name
-- **type:** "parallel" means each step must run in parallel, independently; if "pipeline" each step will run sequentially and its response will be passed to next one
+- **type:** "parallel" means each step must run in parallel, independently; if "sequential" each step will run sequentially and its response will be passed to next one
 - **data:** any kind of JSON-like data
 - **steps:** list of steps that make up the workflow
 
