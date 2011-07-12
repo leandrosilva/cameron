@@ -9,7 +9,7 @@
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 % public api
--export([create_new/1, take_next/1, save_output/1, close/1, uuid/0]).
+-export([new/1, take_next/1, save_output/1, close/1]).
 
 %%
 %% Includes ---------------------------------------------------------------------------------------
@@ -21,81 +21,86 @@
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec create_new(WorkflowRequest) -> {ok, Ticket} | {error, Reason}
+%% @spec new(WorkflowRequest) -> {ok, Ticket} | {error, Reason}
 %% @doc The first step of the whole process is create a ticket which allow keep track of workflow
 %%      execution state and get any related data at any time in the future.
-create_new(#workflow_request{workflow_name = WorkflowName, key = Key, data = Data, from = From} = WorkflowRequest) ->
+new(#workflow_request{workflow_name = WorkflowName, key = Key, data = Data, from = From} = WorkflowRequest) ->
   io:format("--- [cameron_ticket] create a ticket // WorkflowRequest: ~w~n", [WorkflowRequest]),
   
-  {ok, Ticket} = get_new_ticket(WorkflowName, Key),
-
-  redis(["lpush", get_incoming_queue_name(WorkflowName), Ticket#workflow_ticket.uuid]),
-  ok = redis(["hmset", Ticket#workflow_ticket.uuid,
-                       "request.key",      Key,
-                       "request.data",     Data,
-                       "request.from",     From,
-                       "status.current",   "enqueued",
-                       "request.key",      Key,
-                       "request.enqueued", datetime_as_string()]),
+  UUID = get_new_uuid(),
   
-  {ok, to_short_ticket_uuid(Ticket)}.
+  UUIDTag = redis_uuid_tag_for(UUID),
+  TicketTag = redis_ticket_tag_for(WorkflowName, Key, UUID),
+  ok = redis(["set", UUIDTag, TicketTag]),
+
+  IncomingQueueName = redis_incoming_queue_name_for(WorkflowName),
+  redis(["lpush", IncomingQueueName, UUIDTag]),
+  
+  ok = redis(["hmset", TicketTag,
+                       "request.key",     Key,
+                       "request.data",    Data,
+                       "request.from",    From,
+                       "status.current",  "enqueued",
+                       "status.enqueued", datetime()]),
+  
+  {ok, #workflow_ticket{workflow_name = WorkflowName, key = Key, uuid = UUID}}.
 
 %% @spec take_next(WorkflowName) -> {ok, Ticket} | {error, Reason}
 %% @doc It pop the next ticket (of a request for diagnostic) from the incoming queue at Redis.
 take_next(WorkflowName) ->
   io:format("--- [cameron_ticket] take next ticket to dispatch~n"),
 
-  LongUUID = redis(["rpop", get_incoming_queue_name(WorkflowName)]),
-  ok = redis(["hmset", LongUUID,
+  IncomingQueueName = redis_incoming_queue_name_for(WorkflowName),
+  UUIDTag = redis(["rpop", IncomingQueueName]),
+  TicketTag = redis(["get", UUIDTag]),
+
+  UUID = redis_uuid_from(UUIDTag),
+  Key = redis(["hget", TicketTag, "request.key"]),
+  
+  ok = redis(["hmset", TicketTag,
                        "step.current",         "dispatched",
-                       "step.dispatched.time", datetime_as_string()]),
+                       "step.dispatched.time", datetime()]),
 
-  Ticket = build_workflow_ticket(WorkflowName, LongUUID),
-
-  {ok, Ticket}.
+  {ok, #workflow_ticket{workflow_name = WorkflowName, key = Key, uuid = UUID}}.
 
 %% @spec save_output(WorkflowStepOutput) -> {ok, Ticket} | {error, Reason}
 %% @doc Save to Redis a workflow execution output.
-save_output(#workflow_step_output{workflow_name     = WorkflowName,
-                                  ticket_short_uuid = ShortUUID,
-                                  name              = Name,
-                                  url               = _URL,
-                                  payload           = _Payload,
-                                  output            = Output,
-                                  worker_name       = _WorkerName}) ->
+save_output(#workflow_step_output{workflow_name = WorkflowName,
+                                  ticket_uuid   = UUID,
+                                  name          = Name,
+                                  url           = _URL,
+                                  payload       = _Payload,
+                                  output        = Output,
+                                  worker_name   = _WorkerName}) ->
                                     
   io:format("--- [cameron_ticket] saving an output~n"),
 
-  LongUUID = to_long_ticket_uuid(WorkflowName, ShortUUID),
+  UUIDTag = redis_uuid_tag_for(UUID),
+  TicketTag = redis(["get", UUIDTag]),
+  Key = redis(["hget", TicketTag, "request.key"]),
 
-  ok = redis(["hmset", LongUUID,
+  ok = redis(["hmset", TicketTag,
                        "step." ++ Name ++ ".status.current",   "done",
-                       "step." ++ Name ++ ".status.done.time", datetime_as_string(),
+                       "step." ++ Name ++ ".status.done.time", datetime(),
                        "step." ++ Name ++ ".output",           Output]),
 
-  Ticket = build_workflow_ticket(WorkflowName, LongUUID),
-
-  {ok, Ticket}.
+  {ok, #workflow_ticket{workflow_name = WorkflowName, key = Key, uuid = UUID}}.
 
 %% @spec close(Ticket) -> {ok, Ticket} | {error, Reason}
 %% @doc Save to Redis a step close.
-close(#workflow_ticket{workflow_name = WorkflowName} = Ticket) ->
+close(#workflow_ticket{workflow_name = WorkflowName, key = _Key, uuid = UUID} = Ticket) ->
   io:format("--- [cameron_ticket] close a ticket~n"),
 
-  LongUUID = to_long_ticket_uuid(Ticket),
+  UUIDTag = redis_uuid_tag_for(UUID),
+  TicketTag = redis(["get", UUIDTag]),
 
-  ok = redis(["hmset", LongUUID,
+  ok = redis(["hmset", TicketTag,
                        "status.current",   "done",
-                       "status.done.time", datetime_as_string()]),
+                       "status.done.time", datetime()]),
 
-  redis(["lpush", get_done_queue_name(WorkflowName), LongUUID]),
+  redis(["lpush", redis_done_queue_name_for(WorkflowName), UUID]),
 
   {ok, Ticket}.
-
-%% @spec uuid() -> Integer as String
-%% @doc Get a incr value from Redis.
-uuid() ->
-  integer_to_list(redis(["incr", "cameron:uuid"])).
   
 %%
 %% Internal Functions -----------------------------------------------------------------------------
@@ -107,69 +112,34 @@ redis(Command) ->
   Output = redo:cmd(cameron_redo, Command),
   maybe_ok(maybe_string(Output)).
 
-redis_root_tag_for(WorkflowName) ->
+redis_uuid_tag_for(UUID) ->
+  "cameron:uuid:" ++ UUID.
+
+redis_uuid_from(UUID) ->
+  re:replace(UUID, "cameron:uuid:", "", [{return, list}]).
+  
+redis_workflow_tag_for(WorkflowName) ->
+  % cameron:workflow:{name}:
   re:replace("cameron:workflow:{name}:", "{name}", WorkflowName, [{return, list}]).
 
-redis_ticket_tag_for(WorkflowName) ->
-  redis_root_tag_for(WorkflowName) ++ "ticket:".
+redis_ticket_tag_for(WorkflowName, Key) ->
+  % cameron:workflow:{name}:key:{key}:ticket:
+  redis_workflow_tag_for(WorkflowName) ++ "key:" ++ Key ++ ":ticket:".
   
-get_incoming_queue_name(WorkflowName) ->
-  redis_root_tag_for(WorkflowName) ++ "queue:incoming".
+redis_ticket_tag_for(Workflow, Key, UUID) ->
+  % cameron:workflow:{name}:key:{key}:ticket:{uuid}
+  redis_ticket_tag_for(Workflow, Key) ++ UUID.
+  
+redis_incoming_queue_name_for(WorkflowName) ->
+  % cameron:workflow:{name}:queue:incoming
+  redis_workflow_tag_for(WorkflowName) ++ "queue:incoming".
 
-get_done_queue_name(WorkflowName) ->
-  redis_root_tag_for(WorkflowName) ++ "queue:done".
+redis_done_queue_name_for(WorkflowName) ->
+  % cameron:workflow:{name}:queue:done
+  redis_workflow_tag_for(WorkflowName) ++ "queue:done".
 
-get_new_ticket(WorkflowName, Key) ->
-  {{Year, Month, Day}, {Hour, Minute, Second}} = erlang:localtime(),
-  {_MegaSecs, _Secs, MicroSecs} = now(),
-  
-  Tag = redis_ticket_tag_for(WorkflowName),
-  Timestamp = lists:concat([maybe_padding(Year), maybe_padding(Month), maybe_padding(Day),
-                            maybe_padding(Hour), maybe_padding(Minute), maybe_padding(Second),
-                            maybe_padding(MicroSecs)]),
-                            
-  ShortUUID = Key ++ ":" ++ Timestamp,
-  UUID = Tag ++ ShortUUID,
-  
-  {ok, #workflow_ticket{workflow_name  = WorkflowName,
-                        uuid           = UUID,
-                        short_uuid     = ShortUUID,
-                        tag_part       = Tag,
-                        key_part       = Key,
-                        timestamp_part = Timestamp}}.
-
-to_short_ticket_uuid(WorkflowName, LongUUID) ->
-  Tag = redis_ticket_tag_for(WorkflowName),
-  re:replace(LongUUID, Tag, "", [{return, list}]).
-  
-to_short_ticket_uuid(Ticket) ->
-  Ticket#workflow_ticket.key_part ++ ":" ++ Ticket#workflow_ticket.timestamp_part.
-  
-to_long_ticket_uuid(WorkflowName, ShortUUID) ->
-  Tag = redis_ticket_tag_for(WorkflowName),
-  _UUID = Tag ++ ShortUUID.
-
-to_long_ticket_uuid(Ticket) ->
-  Tag = redis_ticket_tag_for(Ticket#workflow_ticket.workflow_name),
-  ShortUUID = Ticket#workflow_ticket.short_uuid,
-  
-  _UUID = Tag ++ ShortUUID.
-
-parse_short_ticket_uuid(ShortUUID) ->
-  [Key, Timestamp] = string:tokens(ShortUUID, ":"),
-  {Key, Timestamp}.
-  
-build_workflow_ticket(WorkflowName, LongUUID) ->
-  ShortUUID = to_short_ticket_uuid(WorkflowName, LongUUID),
-  Tag = redis_ticket_tag_for(WorkflowName),
-  {Key, Timestamp} = parse_short_ticket_uuid(ShortUUID),
-  
-  #workflow_ticket{workflow_name  = WorkflowName,
-                   uuid           = LongUUID,
-                   short_uuid     = ShortUUID,
-                   tag_part       = Tag,
-                   key_part       = Key,
-                   timestamp_part = Timestamp}.
+get_new_uuid() ->
+  uuid_helper:new().
 
 maybe_padding(Number) when is_integer(Number) and (Number < 10) ->
   "0" ++ integer_to_list(Number);
@@ -215,7 +185,7 @@ maybe_ok("OK") ->
 maybe_ok(Other) ->
   Other.
   
-datetime_as_string() ->
+datetime() ->
   {{Year, Month, Day}, {Hour, Minute, Second}} = erlang:localtime(),
   
   lists:concat([maybe_padding(Month), "-", maybe_padding(Day),    "-", maybe_padding(Year), " ",

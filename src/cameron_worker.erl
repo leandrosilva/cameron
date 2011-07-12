@@ -46,20 +46,20 @@ stop(Ticket) ->
 %% @spec spawn_new(Ticket) -> ok
 %% @doc Create a new process, child of cameron_worker_sup, and then make a complete diagnostic (in
 %%      parallel, of course) to the ticket given.
-spawn_new(#workflow_ticket{short_uuid = TicketShortUUID} = Ticket) ->
-  case cameron_worker_sup:start_child(TicketShortUUID) of
+spawn_new(#workflow_ticket{uuid = TicketUUID} = Ticket) ->
+  case cameron_worker_sup:start_child(TicketUUID) of
     {ok, _Pid} ->
-      WorkerName = get_name(TicketShortUUID),
+      WorkerName = get_name(TicketUUID),
       ok = gen_server:cast(WorkerName, {spawn_new, Ticket});
     {error, {already_started, _Pid}} ->
       ok
   end,
   ok.
 
-%% @spec get_name(TicketShortUUID) -> WorkerName
+%% @spec get_name(TicketUUID) -> WorkerName
 %% @doc Which worker is handling a ticket given.
-get_name(TicketShortUUID) ->
-  cameron_worker_sup:which_child(TicketShortUUID).
+get_name(TicketUUID) ->
+  cameron_worker_sup:which_child(TicketUUID).
 
 %%
 %% Gen_Server Callbacks ---------------------------------------------------------------------------
@@ -84,46 +84,46 @@ handle_call(_Request, _From, State) ->
 %% @doc Handling cast messages.
 
 % wake up to run a workflow
-handle_cast({spawn_new, #workflow_ticket{workflow_name = WorkflowName, short_uuid = TicketShortUUID} = Ticket}, State) ->
+handle_cast({spawn_new, #workflow_ticket{workflow_name = WorkflowName, uuid = TicketUUID} = Ticket}, State) ->
   io:format("~n--- [cameron_worker] running // Ticket: ~w~n", [Ticket]),
   
-  CloudInput = #workflow_step_input{workflow_name     = WorkflowName,
-                                    ticket_short_uuid = TicketShortUUID,
-                                    name              = "cloud_zabbix",
-                                    url               = "http://localhost:9292/workflow/v0.0.1/cloud/zabbix",
-                                    payload           = "x",
-                                    worker_name       = get_name(TicketShortUUID)},
+  CloudInput = #workflow_step_input{workflow_name = WorkflowName,
+                                    ticket_uuid   = TicketUUID,
+                                    name          = "cloud_zabbix",
+                                    url           = "http://localhost:9292/workflow/v0.0.1/cloud/zabbix",
+                                    payload       = "x",
+                                    worker_name   = get_name(TicketUUID)},
   
   spawn(?MODULE, work, [1, CloudInput]),
   
-  HostInput = #workflow_step_input{workflow_name     = WorkflowName,
-                                   ticket_short_uuid = TicketShortUUID,
-                                   name              = "hosting_zabbix",
-                                   url               = "http://localhost:9292/workflow/v0.0.1/hosting/zabbix",
-                                   payload           = "y",
-                                   worker_name       = get_name(TicketShortUUID)},
+  HostInput = #workflow_step_input{workflow_name = WorkflowName,
+                                   ticket_uuid   = TicketUUID,
+                                   name          = "hosting_zabbix",
+                                   url           = "http://localhost:9292/workflow/v0.0.1/hosting/zabbix",
+                                   payload       = "y",
+                                   worker_name   = get_name(TicketUUID)},
   
   spawn(?MODULE, work, [2, HostInput]),
   
-  SqlServerInput = #workflow_step_input{workflow_name     = WorkflowName,
-                                        ticket_short_uuid = TicketShortUUID,
-                                        name              = "sqlserver_zabbix",
-                                        url               = "http://localhost:9292/workflow/v0.0.1/sqlserver/zabbix",
-                                        payload           = "z",
-                                        worker_name       = get_name(TicketShortUUID)},
+  SqlServerInput = #workflow_step_input{workflow_name = WorkflowName,
+                                        ticket_uuid   = TicketUUID,
+                                        name          = "sqlserver_zabbix",
+                                        url           = "http://localhost:9292/workflow/v0.0.1/sqlserver/zabbix",
+                                        payload       = "z",
+                                        worker_name   = get_name(TicketUUID)},
   
   spawn(?MODULE, work, [3, SqlServerInput]),
   
   {noreply, State#state{countdown = 3}};
 
 % notify when a individual diagnostic is done
-handle_cast({notify_done, Index, #workflow_step_output{workflow_name     = _WorkflowName,
-                                                       ticket_short_uuid = _TicketShortUUID,
-                                                       name              = Name,
-                                                       url               = _URL,
-                                                       payload           = _Payload,
-                                                       output            = _Output,
-                                                       worker_name       = WorkerName} = StepOutput}, State) ->
+handle_cast({notify_done, Index, #workflow_step_output{workflow_name = _WorkflowName,
+                                                       ticket_uuid   = _TicketUUID,
+                                                       name          = Name,
+                                                       url           = _URL,
+                                                       payload       = _Payload,
+                                                       output        = _Output,
+                                                       worker_name   = WorkerName} = StepOutput}, State) ->
   io:format("--- [~s] Index: ~w, WorkerName: ~s // Notified its work is done~n", [Name, Index, WorkerName]),
   
   {ok, Ticket} = cameron_ticket:save_output(StepOutput),
@@ -170,13 +170,13 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-work(Index, #workflow_step_input{workflow_name     = WorkflowName,
-                                 ticket_short_uuid = TicketShortUUID,
-                                 name              = Name,
-                                 url               = URL,
-                                 payload           = _Payload,
-                                 worker_name       = WorkerName}) ->
-  io:format("--- [(~w) cameron_worker_~s] Index: ~w, WorkerName: ~s, Name: ~s~n", [self(), TicketShortUUID, Index, WorkerName, Name]),
+work(Index, #workflow_step_input{workflow_name  = WorkflowName,
+                                 ticket_uuid    = TicketUUID,
+                                 name           = Name,
+                                 url            = URL,
+                                 payload        = _Payload,
+                                 worker_name    = WorkerName}) ->
+  io:format("--- [(~w) cameron_worker_~s] Index: ~w, WorkerName: ~s, Name: ~s~n", [self(), TicketUUID, Index, WorkerName, Name]),
 
   % {ok, {{"HTTP/1.1", 200, "OK"},
   %       [_, _, _, _, _, _, _, _, _, _, _],
@@ -184,26 +184,26 @@ work(Index, #workflow_step_input{workflow_name     = WorkflowName,
 
   {ok, {{"HTTP/1.1", 200, _}, _, Output}} = http_helper:http_get(URL),
          
-  StepOutput = #workflow_step_output{workflow_name     = WorkflowName,
-                                     ticket_short_uuid = TicketShortUUID,
-                                     name              = Name,
-                                     url               = URL,
-                                     payload           = _Payload,
-                                     output            = Output,
-                                     worker_name       = WorkerName},
+  StepOutput = #workflow_step_output{workflow_name = WorkflowName,
+                                     ticket_uuid   = TicketUUID,
+                                     name          = Name,
+                                     url           = URL,
+                                     payload       = _Payload,
+                                     output        = Output,
+                                     worker_name   = WorkerName},
 
-  io:format("--- [(~w) cameron_worker_~s] Index: ~w, WorkerName: ~s, Name: ~s // Done~n", [self(), TicketShortUUID, Index, WorkerName, Name]),
+  io:format("--- [(~w) cameron_worker_~s] Index: ~w, WorkerName: ~s, Name: ~s // Done~n", [self(), TicketUUID, Index, WorkerName, Name]),
   
   notify_done(Index, StepOutput),
   ok.
   
-notify_done(Index, #workflow_step_output{workflow_name     = _WorkflowName,
-                                         ticket_short_uuid = TicketShortUUID,
-                                         name              = _Name,
-                                         url               = _URL,
-                                         payload           = _Payload,
-                                         output            = _Output,
-                                         worker_name       = WorkerName} = StepOutput) ->
-  WorkerName = get_name(TicketShortUUID),
+notify_done(Index, #workflow_step_output{workflow_name = _WorkflowName,
+                                         ticket_uuid   = TicketUUID,
+                                         name          = _Name,
+                                         url           = _URL,
+                                         payload       = _Payload,
+                                         output        = _Output,
+                                         worker_name   = WorkerName} = StepOutput) ->
+  WorkerName = get_name(TicketUUID),
   ok = gen_server:cast(WorkerName, {notify_done, Index, StepOutput}).
   

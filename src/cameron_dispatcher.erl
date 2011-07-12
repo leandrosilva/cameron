@@ -48,7 +48,7 @@ stop() ->
 notify_incoming_request(#workflow_request{} = WorkflowRequest) ->
   io:format("~n~n--- [cameron_dispatcher] incoming workflow request~n"),
   
-  {ok, Ticket} = cameron_ticket:create_new(WorkflowRequest),
+  {ok, Ticket} = cameron_ticket:new(WorkflowRequest),
   
   ok = gen_server:cast(?MODULE, {notify_incoming_request, WorkflowRequest}),
   

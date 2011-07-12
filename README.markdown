@@ -1,6 +1,6 @@
 ## cameron
 
-That is a *work in progress* for **Cameron Workflow System** which aim to be a web-based workflow system able to handle multiple concurrent HTTP requests asking to run pre-defined workflows, enqueue them and run them in parallel, as fast as possible.
+That's a *work in progress* for **Cameron Workflow System** which aim to be a web-based workflow system able to handle multiple concurrent HTTP requests asking to run pre-defined workflows, enqueue them and run them in parallel, as fast as possible.
 
 To achive that objective, as you can see, it has been built as an Erlang/OTP application with a REST-like Web API, powered by Misultin, and a Redis-based backend database and queue system.
 
@@ -39,66 +39,35 @@ Oops! So, to be idiomatic, there is a record for workflow request:
 
 1.2.exists.1.) It generates a ticket, thru **cameron_ticket** module, which is a kind of UUID for that request
 
-A **Ticket UUID** is like this:
+In Redis, a **Ticket UUID** is stored like this:
 
-    cameron:workflow:{name}:ticket:{key}:{timestamp}
+    cameron:workflow:{name}:key:{key}:ticket:{uuid}
 
-And has its own record:
+That's what I call *full length UUID*, and isn't what customers know. Instead, customers know just the *UUID* part of that.
 
-    -record(workflow_ticket, {workflow_name, uuid, short_uuid, tag_part, key_part, timestamp_part}).
+There's a record type to handle ticket which is:
+
+    -record(workflow_ticket, {workflow_name, key, uuid}).
 
 Where:
 
 - **workflow_name:** workflow name, as we could see before
-- **uuid:** full length Ticket UUID
-- **short_uuid:** short length Ticket UUD. It will be explained in more details next
-- **tag_part:** cameron:workflow:{name}:ticket:
-- **key_part:** request payload's key attribute
-- **timestamp_part:** yyyyMMddhhmmssms, that is year + hour + minute + second + microseconds (20 digits)
+- **key:** request payload's key attribute
+- **uuid:** a 32 bytes unique alphanumeric identifier
 
 #### Important information about Ticket here
 
-Clients/requesters know tickets just like it:
-
-    {key}:{timestamp}
-
-In other words, to a client:
-
-    Ticket = {key}:{timestamp}
-
-And not:
-
-    Ticket = cameron:workflow:{name}:ticket:{key}:{timestamp}
-
-Thus, internally, we call theses different point of views:
-
-- **long ticket uuid**
-
-*"Full Length UUID"*. It is how a ticket UUID is stored in Redis:
-
-    cameron:workflow:{name}:ticket:{key}:{timestamp}
-    
-- **short ticket uuid**
-
-*"Short Length UUID"*. That is how a ticket UUID is know by clients:
-
-    {key}:{timestamp}
-
-These different point of views is just to be brief. I mean, clients don't need to deal with a loooong ticket UUID, with a Redis-like namespace.
-
-#### Other important information about Ticket here
-
 Here we have a kind of tip. If it is convenient for you, key can be a tuple. Let's see does it work:
 
-    cameron:workflow:{name}:ticket:{(key_type,key_value)}:{timestamp}
+    cameron:workflow:{name}:key:{(key_type,key_value)}:ticket:{uuid}
 
 In order words, it is:
 
-    cameron:workflow:bar:ticket:(login,leandrosilva):20110710213523
-    cameron:workflow:bar:ticket:(id,007):20110710213645
-    cameron:workflow:bar:ticket:(cpf,28965487611):20110710213715
+    cameron:workflow:bar:key:(login,leandrosilva):ticket:d858a86eb936a0bb83276299a1840086
+    cameron:workflow:bar:key:(id,007):ticket:3c43602bff3a7b1870577e828626aa7a
+    cameron:workflow:bar:key:(cpf,28965487611):ticket:a0b9c506344794e237ab8dd4ce24dcc3
 
-Yay. That is fun, isn't that?
+Yay. That's fun, isn't that?
 
 1.2.exists.2.) Pushes that ticket to a Redis queue:
 
@@ -106,7 +75,7 @@ Yay. That is fun, isn't that?
 
 1.2.exists.3.) Creates a Redis hash, named by that ticket, to store any data about that request in its whole life, with has the following layout:
 
-    hmset cameron:workflow:{name}:ticket:{key}:{timestamp}
+    hmset cameron:workflow:{name}:key:{key}:ticket:{uuid}
           request.key           {from request payload}
           request.data          {from request payload}
           request.from          {from request payload}
@@ -138,7 +107,7 @@ Yay. That is fun, isn't that?
 
 2.2.) Updates ticket's hash with new current status, as following:
 
-    hmset cameron:workflow:{name}:ticket:{key}:{timestamp}
+    hmset cameron:workflow:{name}:key:{key}:ticket:{uuid}
           status.current          dispatched
           status.dispatched.time  {now}
 
@@ -152,7 +121,7 @@ Its state record is like that:
 
     -record(state, {name, ticket, countdown, workflow_request}).
 
-And there is also a **cameron_worker** supervisor, that is **cameron_worker_sup**.
+And there is also a **cameron_worker** supervisor, that's **cameron_worker_sup**.
 
 3.1.) So, when a worker receives a request to move on thru a workflow given, it starts by POST the payload's key to workflow's start_point_url
 
@@ -186,7 +155,7 @@ This response really means:
 
 3.2.) Updates ticket's hash with new current status, as following:
 
-    hmset cameron:workflow:{name}:ticket:{key}:{timestamp}
+    hmset cameron:workflow:{name}:key:{key}:ticket:{uuid}
           status.current       started
           status.started.time  {now}
           step.kar.name        {kar.name}
@@ -202,13 +171,13 @@ This response really means:
 
 And updates ticket's hash:
 
-    hmset cameron:workflow:{name}:ticket:{key}:{timestamp}
+    hmset cameron:workflow:{name}:key:{key}:ticket:{uuid}
           step.{name}.status.current       spawned
           step.{name}.status.spawned.time  {now}
 
 3.4.) After spawn every **slaver** process, updates ticket's hash with new current status, as following:
 
-    hmset cameron:workflow:{name}:ticket:{key}:{timestamp}
+    hmset cameron:workflow:{name}:key:{key}:ticket:{uuid}
           status.current   wip
           status.wip.time  {now}
 
@@ -218,7 +187,7 @@ And updates ticket's hash:
 
 And updates ticket's hash:
 
-    hmset cameron:workflow:{name}:ticket:{key}:{timestamp}
+    hmset cameron:workflow:{name}:key:{key}:ticket:{uuid}
           step.{name}.status.current    done
           step.{name}.status.done.time  {now}
           step.{name}.output            {output}
@@ -227,7 +196,7 @@ And updates ticket's hash:
 
 It updates ticket's hash:
 
-    hmset cameron:workflow:{name}:ticket:{key}:{timestamp}
+    hmset cameron:workflow:{name}:key:{key}:ticket:{uuid}
           status.current    done
           status.done.time  {now}
 
@@ -242,7 +211,7 @@ It is possible to see any available data (inside ticket's hash) at any time by:
     GET http://{host}:{port}/api/workflow/{name}/ticket/{ticket} HTTP/1.1
     Accept: application/json
 
-And that is the "search semantic" on Redis for achieve it:
+And that's the "search semantic" on Redis for achieve it:
 
     hget cameron:workflow:{name}:ticket:{ticket}
 
@@ -253,7 +222,7 @@ Or, you can search by key:
 
 Which can be achieved by:
 
-    key cameron:workflow:{name}:ticket:{key}:*
+    key cameron:workflow:{name}:key:{key}:ticket:{uuid}*
 
 ### What else?
 

@@ -33,17 +33,18 @@ handle_http('POST', ["api", "workflow", WorkflowName, "start"], Req) ->
   Body = get_body(Req),
 
   case workflow_exists(WorkflowName) of
-    undefined ->
-      Req:respond(404, [{"Content-Type", "application/json"}],
-                       "{\"payload\":\"~s\"}", [Body]);
-    _ ->
+    yes ->
       WorkflowRequest = build_request(WorkflowName, Body),
   
       {ok, Ticket} = cameron_dispatcher:notify_incoming_request(WorkflowRequest),
   
       Req:respond(201, [{"Content-Type", "application/json"},
-                        {"Location", ["http://localhost:8080/api/workflow/diagnostic/ticket/", Ticket]}],
-                       "{\"payload\":\"~s\"}", [Body])
+                        {"Location", ["http://localhost:8080/api/workflow/diagnostic/ticket/",
+                                      Ticket#workflow_ticket.uuid]}],
+                       "{\"payload\":\"~s\"}", [Body]);
+     no ->
+       Req:respond(404, [{"Content-Type", "application/json"}],
+                        "{\"payload\":\"~s\"}", [Body])
   end;
 
 % handle the 404 page not found
