@@ -4,17 +4,17 @@
 %% @doc Helper module to generate UUID.
 
 -module(uuid_helper).
--export([randon/0, test_unique/0]).
+-export([new/0, test_unique/0]).
 
-randon() ->
+new() ->
   bin_to_hexstr(crypto:rand_bytes(16)).  
 
 test_unique() ->
-  Curr = randon(),
+  Curr = new(),
   test_unique(1, [Curr]).
 
 test_unique(Index, Prevs) ->
-  Curr = randon(),
+  Curr = new(),
   
   case lists:member(Curr, Prevs) of
     true ->
