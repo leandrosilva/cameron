@@ -85,13 +85,13 @@ handle_call(_Request, _From, State) ->
 
 % wake up to run a workflow
 handle_cast({spawn_new, #workflow_ticket{workflow_name = WorkflowName, short_uuid = TicketShortUUID} = Ticket}, State) ->
-  io:format("~n--- [cameron_worker] running // Ticket: ~s~n", [Ticket]),
+  io:format("~n--- [cameron_worker] running // Ticket: ~w~n", [Ticket]),
   
   CloudInput = #workflow_step_input{workflow_name     = WorkflowName,
                                     ticket_short_uuid = TicketShortUUID,
                                     name              = "cloud_zabbix",
                                     url               = "http://localhost:9292/workflow/v0.0.1/cloud/zabbix",
-                                    payload           = "",
+                                    payload           = "x",
                                     worker_name       = get_name(TicketShortUUID)},
   
   spawn(?MODULE, work, [1, CloudInput]),
@@ -100,7 +100,7 @@ handle_cast({spawn_new, #workflow_ticket{workflow_name = WorkflowName, short_uui
                                    ticket_short_uuid = TicketShortUUID,
                                    name              = "hosting_zabbix",
                                    url               = "http://localhost:9292/workflow/v0.0.1/hosting/zabbix",
-                                   payload           = "",
+                                   payload           = "y",
                                    worker_name       = get_name(TicketShortUUID)},
   
   spawn(?MODULE, work, [2, HostInput]),
@@ -109,7 +109,7 @@ handle_cast({spawn_new, #workflow_ticket{workflow_name = WorkflowName, short_uui
                                         ticket_short_uuid = TicketShortUUID,
                                         name              = "sqlserver_zabbix",
                                         url               = "http://localhost:9292/workflow/v0.0.1/sqlserver/zabbix",
-                                        payload           = "",
+                                        payload           = "z",
                                         worker_name       = get_name(TicketShortUUID)},
   
   spawn(?MODULE, work, [3, SqlServerInput]),
@@ -123,8 +123,8 @@ handle_cast({notify_done, Index, #workflow_step_output{workflow_name     = _Work
                                                        url               = _URL,
                                                        payload           = _Payload,
                                                        output            = _Output,
-                                                       worker_name       = WorkerName}} = StepOutput, State) ->
-  io:format("[~s] Index: ~w, WorkerName: ~s // Notified its work is done~n", [Name, Index, WorkerName]),
+                                                       worker_name       = WorkerName} = StepOutput}, State) ->
+  io:format("--- [~s] Index: ~w, WorkerName: ~s // Notified its work is done~n", [Name, Index, WorkerName]),
   
   {ok, Ticket} = cameron_ticket:save_output(StepOutput),
 
@@ -132,7 +132,6 @@ handle_cast({notify_done, Index, #workflow_step_output{workflow_name     = _Work
     1 ->
       {ok, Ticket} = cameron_ticket:close(Ticket),
       NewState = State#state{countdown = 0},
-      % ok = cameron_worker_sup:stop_child(Ticket) % supervisor verifica quem esta done e mata?
       {stop, normal, NewState};
     N ->
       NewState = State#state{countdown = N - 1},
@@ -158,8 +157,8 @@ handle_info(_Info, State) ->
 %% @spec terminate(Reason, State) -> void()
 %% @doc This function is called by a gen_server when it is about to terminate. When it returns,
 %%      the gen_server terminates with Reason. The return value is ignored.
-terminate(_Reason, State) ->
-  io:format("~n--- [cameron_worker] terminating // Ticket: ~s~n", [State#state.ticket]),
+terminate(Reason, State) ->
+  io:format("~n--- [cameron_worker] terminating // Ticket: ~s, Reason: ~w~n", [State#state.ticket, Reason]),
   terminated.
 
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
@@ -177,7 +176,7 @@ work(Index, #workflow_step_input{workflow_name     = WorkflowName,
                                  url               = URL,
                                  payload           = _Payload,
                                  worker_name       = WorkerName}) ->
-  io:format("--- [cameron_worker_~s] Index: ~w, WorkerName: ~s, Name: ~s~n", [TicketShortUUID, Index, WorkerName, Name]),
+  io:format("--- [(~w) cameron_worker_~s] Index: ~w, WorkerName: ~s, Name: ~s~n", [self(), TicketShortUUID, Index, WorkerName, Name]),
 
   % {ok, {{"HTTP/1.1", 200, "OK"},
   %       [_, _, _, _, _, _, _, _, _, _, _],
@@ -185,17 +184,17 @@ work(Index, #workflow_step_input{workflow_name     = WorkflowName,
 
   {ok, {{"HTTP/1.1", 200, _}, _, Output}} = http_helper:http_get(URL),
          
-  io:format("--- [cameron_worker_~s] Index: ~w, WorkerName: ~s, Name: ~s // Done~n", [TicketShortUUID, Index, WorkerName, Name]),
+  StepOutput = #workflow_step_output{workflow_name     = WorkflowName,
+                                     ticket_short_uuid = TicketShortUUID,
+                                     name              = Name,
+                                     url               = URL,
+                                     payload           = _Payload,
+                                     output            = Output,
+                                     worker_name       = WorkerName},
 
-  Output = #workflow_step_output{workflow_name     = WorkflowName,
-                                 ticket_short_uuid = TicketShortUUID,
-                                 name              = Name,
-                                 url               = URL,
-                                 payload           = _Payload,
-                                 output            = Output,
-                                 worker_name       = WorkerName},
-
-  notify_done(Index, Output),
+  io:format("--- [(~w) cameron_worker_~s] Index: ~w, WorkerName: ~s, Name: ~s // Done~n", [self(), TicketShortUUID, Index, WorkerName, Name]),
+  
+  notify_done(Index, StepOutput),
   ok.
   
 notify_done(Index, #workflow_step_output{workflow_name     = _WorkflowName,

@@ -82,7 +82,7 @@ handle_cast({notify_incoming_request, WorkflowRequest}, State) ->
   
   {ok, Ticket} = cameron_ticket:take_next(WorkflowRequest#workflow_request.workflow_name),
 
-  io:format("--- [cameron_dispatcher] dispatching an incoming request // Ticket: ~s~n", [Ticket]),
+  io:format("--- [cameron_dispatcher] dispatching an incoming request // Ticket: ~w~n", [Ticket]),
   
   ok = cameron_worker:spawn_new(Ticket),
   

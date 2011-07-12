@@ -138,9 +138,9 @@ Yay. That is fun, isn't that?
 
 2.2.) Updates ticket's hash with new current status, as following:
 
-    hset cameron:workflow:{name}:ticket:{key}:{timestamp}
-         status.current          dispatched
-         status.dispatched.time  {now}
+    hmset cameron:workflow:{name}:ticket:{key}:{timestamp}
+          status.current          dispatched
+          status.dispatched.time  {now}
 
 2.3.) Spawns a new worker to handle that workflow/ticket
 
@@ -186,15 +186,15 @@ This response really means:
 
 3.2.) Updates ticket's hash with new current status, as following:
 
-    hset cameron:workflow:{name}:ticket:{key}:{timestamp}
-         status.current       started
-         status.started.time  {now}
-         step.kar.name        {kar.name}
-         step.kar.url         {kar.url}
-         step.kar.payload     {kar.payload}
-         step.xar.name        {xar.name}
-         step.xar.url         {xar.url}
-         step.xar.payload     {xar.payload}
+    hmset cameron:workflow:{name}:ticket:{key}:{timestamp}
+          status.current       started
+          status.started.time  {now}
+          step.kar.name        {kar.name}
+          step.kar.url         {kar.url}
+          step.kar.payload     {kar.payload}
+          step.xar.name        {xar.name}
+          step.xar.url         {xar.url}
+          step.xar.payload     {xar.payload}
 
 3.3.) For each step **cameron_worker** spawn a new process passing a record as parameter:
 
@@ -202,15 +202,15 @@ This response really means:
 
 And updates ticket's hash:
 
-    hset cameron:workflow:{name}:ticket:{key}:{timestamp}
-         step.{name}.status               spawned
-         step.{name}.status.spawned.time  {now}
+    hmset cameron:workflow:{name}:ticket:{key}:{timestamp}
+          step.{name}.status.current       spawned
+          step.{name}.status.spawned.time  {now}
 
 3.4.) After spawn every **slaver** process, updates ticket's hash with new current status, as following:
 
-    hset cameron:workflow:{name}:ticket:{key}:{timestamp}
-         status.current   wip
-         status.wip.time  {now}
+    hmset cameron:workflow:{name}:ticket:{key}:{timestamp}
+          status.current   wip
+          status.wip.time  {now}
 
 3.5.) Once a **slaver** process finish its work, it notifies its **cameron_worker** owner and past to that a record with result of its work:
 
@@ -218,18 +218,18 @@ And updates ticket's hash:
 
 And updates ticket's hash:
 
-    hset cameron:workflow:{name}:ticket:{key}:{timestamp}
-         step.{name}.status            done
-         step.{name}.status.done.time  {now}
-         step.{name}.output            {output}
+    hmset cameron:workflow:{name}:ticket:{key}:{timestamp}
+          step.{name}.status.current    done
+          step.{name}.status.done.time  {now}
+          step.{name}.output            {output}
 
 3.6.) **cameron_worker** has a kind of countdown in its process state, as we saw above, which is used to know when its whole work is done. And when its done:
 
 It updates ticket's hash:
 
-    hset cameron:workflow:{name}:ticket:{key}:{timestamp}
-         status.current    done
-         status.done.time  {now}
+    hmset cameron:workflow:{name}:ticket:{key}:{timestamp}
+          status.current    done
+          status.done.time  {now}
 
 And just stop.
 
