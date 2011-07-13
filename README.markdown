@@ -222,7 +222,7 @@ Or, you can search by key:
 
 Which can be achieved by:
 
-    key cameron:workflow:{name}:key:{key}:ticket:{*}
+    key cameron:workflow:{name}:key:{key}:ticket:*
 
 ### What else?
 
