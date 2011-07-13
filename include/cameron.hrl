@@ -1,7 +1,7 @@
 %% @author Leandro Silva <leandrodoze@gmail.com>
 %% @copyright 2011 Leandro Silva.
 
--record(workflow, {name, start_point_url}).
+-record(workflow, {name, start_url}).
 
 -record(workflow_request, {workflow_name, key, data, from}).
 

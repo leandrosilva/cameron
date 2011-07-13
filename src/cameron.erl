@@ -59,7 +59,7 @@ get_redis_server_config() ->
   get_env(redis_server).
 
 %% @spec get_workflows_config() -> {workflows, [{workflow, {name, Name},
-%%                                                         {start_point_url, URL}}]}
+%%                                                         {start_url, URL}}]}
 %% @doc Workflows configuration.
 get_workflows_config() ->
   {ok, [[WorkflowsConfigFile]]} = init:get_argument(workflows),
@@ -67,7 +67,7 @@ get_workflows_config() ->
   
   WorkflowsConfig.
 
-%% @spec get_workflow(Name) -> {start_point_url, URL} | undefined
+%% @spec get_workflow(Name) -> {start_url, URL} | undefined
 %% @doc Get a workflow configuration by name.
 get_workflow(Name) ->
   proplists:get_value(Name, get_workflows_config(), undefined).

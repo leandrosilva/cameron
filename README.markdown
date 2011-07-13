@@ -11,7 +11,7 @@ To achive that objective, as you can see, it has been built as an Erlang/OTP app
     POST http://{host}:{port}/api/workflow/{name}/start HTTP/1.1
     Content-Type: application/json
     
-    { "key":  "any kind of ID which is gonna be posted to the start_point_url for that workflow",
+    { "key":  "any kind of ID which is gonna be posted to the start_url for that workflow",
       "data": "any JSON-like data to be attached to that resquest",
       "from": "an identification of the client/requester" }
 
@@ -34,8 +34,8 @@ Oops! So, to be idiomatic, there is a record for workflow request:
 
 1.1.) It verifies whether that workflow exists or not, by look to a configuration file where is recorded any existent workflow. The layout of that configuration file is like that:
 
-    {workflows, [{bar, {start_point_url, "http://foo.com/workflow/bar/start/{key}"}},
-                 {zar, {start_point_url, "http://foo.com/workflow/zar/start/{key}"}}]}.
+    {workflows, [{bar, {start_url, "http://foo.com/workflow/bar/start/{key}"}},
+                 {zar, {start_url, "http://foo.com/workflow/zar/start/{key}"}}]}.
 
 1.2.exists.1.) It generates a ticket, thru **cameron_ticket** module, which is a kind of UUID for that request
 
@@ -123,14 +123,14 @@ Its state record is like that:
 
 And there is also a **cameron_worker** supervisor, that's **cameron_worker_sup**.
 
-3.1.) So, when a worker receives a request to move on thru a workflow given, it starts by POST the payload's key to workflow's start_point_url
+3.1.) So, when a worker receives a request to move on thru a workflow given, it starts by POST the payload's key to workflow's start_url
 
-Just to remember, this start_point_url resides inside **priv/workflows/{environment}.config**, as we already saw before:
+Just to remember, this start_url resides inside **priv/workflows/{environment}.config**, as we already saw before:
 
-    {workflows, [{bar, {start_point_url, "http://foo.com/workflow/bar/start/{key}"}},
-                 {zar, {start_point_url, "http://foo.com/workflow/zar/start/{key}"}}]}.
+    {workflows, [{bar, {start_url, "http://foo.com/workflow/bar/start/{key}"}},
+                 {zar, {start_url, "http://foo.com/workflow/zar/start/{key}"}}]}.
 
-And so, that **start_point_url**, when receives a HTTP POST, must respond something like this:
+And so, that **start_url**, when receives a HTTP POST, must respond something like this:
 
     HTTP/1.1 200 OK
     

@@ -40,6 +40,7 @@ handle_http('POST', ["api", "workflow", WorkflowName, "start"], Req) ->
   
       Req:respond(201, [{"Content-Type", "application/json"},
                         {"Location", ["http://localhost:8080/api/workflow/", WorkflowName,
+                                      "/key/", Ticket#workflow_ticket.key,
                                       "/ticket/", Ticket#workflow_ticket.uuid]}],
                        "{\"payload\":\"~s\"}", [Body]);
      no ->
