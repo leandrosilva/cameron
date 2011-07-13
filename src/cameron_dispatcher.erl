@@ -13,7 +13,7 @@
 % admin api
 -export([start_link/0, stop/0]).
 % public api
--export([notify_incoming_request/1]).
+-export([dispatch_request/1]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -43,14 +43,14 @@ stop() ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec notify_incoming_request(WorkflowRequest) -> {ok, Ticket} | {error, Reason}
+%% @spec dispatch_request(WorkflowRequest) -> {ok, Ticket} | {error, Reason}
 %% @doc It triggers an async dispatch of a resquest to run a workflow.
-notify_incoming_request(#workflow_request{} = WorkflowRequest) ->
+dispatch_request(#workflow_request{} = WorkflowRequest) ->
   io:format("~n~n--- [cameron_dispatcher] incoming workflow request~n"),
   
   {ok, Ticket} = cameron_ticket:new(WorkflowRequest),
   
-  ok = gen_server:cast(?MODULE, {notify_incoming_request, WorkflowRequest}),
+  ok = gen_server:cast(?MODULE, {dispatch_request, WorkflowRequest}),
   
   {ok, Ticket}.
 
@@ -77,7 +77,7 @@ handle_call(_Request, _From, State) ->
 %% @doc Handling cast messages.
 
 % dispatches incoming request
-handle_cast({notify_incoming_request, WorkflowRequest}, State) ->
+handle_cast({dispatch_request, WorkflowRequest}, State) ->
   io:format("--- [cameron_dispatcher] dispatching an incoming request~n"),
   
   {ok, Ticket} = cameron_ticket:take_next(WorkflowRequest#workflow_request.workflow_name),

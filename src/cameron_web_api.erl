@@ -36,11 +36,11 @@ handle_http('POST', ["api", "workflow", WorkflowName, "start"], Req) ->
     yes ->
       WorkflowRequest = build_request(WorkflowName, Body),
   
-      {ok, Ticket} = cameron_dispatcher:notify_incoming_request(WorkflowRequest),
+      {ok, Ticket} = cameron_dispatcher:dispatch_request(WorkflowRequest),
   
       Req:respond(201, [{"Content-Type", "application/json"},
-                        {"Location", ["http://localhost:8080/api/workflow/diagnostic/ticket/",
-                                      Ticket#workflow_ticket.uuid]}],
+                        {"Location", ["http://localhost:8080/api/workflow/", WorkflowName,
+                                      "/ticket/", Ticket#workflow_ticket.uuid]}],
                        "{\"payload\":\"~s\"}", [Body]);
      no ->
        Req:respond(404, [{"Content-Type", "application/json"}],

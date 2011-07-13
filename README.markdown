@@ -84,7 +84,7 @@ Yay. That's fun, isn't that?
 
 1.2.exists.4.) Notifies **cameron_dispatcher** process which is responsible to pass that request/ticket away:
 
-    cameron_dispatcher:notify_incoming_request(WorkflowName)
+    cameron_dispatcher:dispatch_request(WorkflowName)
 
 1.2.exists.5.) Finally it responds to the HTTP resquest with sucess:
 
