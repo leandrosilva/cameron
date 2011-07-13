@@ -80,7 +80,8 @@ handle_call(_Request, _From, State) ->
 handle_cast({dispatch_request, WorkflowRequest}, State) ->
   io:format("--- [cameron_dispatcher] dispatching an incoming request~n"),
   
-  {ok, Ticket} = cameron_ticket:take_next(WorkflowRequest#workflow_request.workflow_name),
+  Workflow = WorkflowRequest#workflow_request.workflow,
+  {ok, Ticket} = cameron_ticket:take_next(Workflow#workflow.name),
 
   io:format("--- [cameron_dispatcher] dispatching an incoming request // Ticket: ~w~n", [Ticket]),
   

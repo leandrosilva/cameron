@@ -3,7 +3,7 @@
 
 -record(workflow, {name, start_url}).
 
--record(workflow_request, {workflow_name, key, data, from}).
+-record(workflow_request, {workflow = #workflow{}, key, data, from}).
 
 -record(workflow_ticket, {workflow_name, key, uuid}).
 

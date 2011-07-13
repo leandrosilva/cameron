@@ -24,10 +24,12 @@
 %% @spec new(WorkflowRequest) -> {ok, Ticket} | {error, Reason}
 %% @doc The first step of the whole process is create a ticket which allow keep track of workflow
 %%      execution state and get any related data at any time in the future.
-new(#workflow_request{workflow_name = WorkflowName, key = Key, data = Data, from = From} = WorkflowRequest) ->
+new(#workflow_request{workflow = Workflow, key = Key, data = Data, from = From} = WorkflowRequest) ->
   io:format("--- [cameron_ticket] create a ticket // WorkflowRequest: ~w~n", [WorkflowRequest]),
   
   UUID = get_new_uuid(),
+  
+  WorkflowName = Workflow#workflow.name,
   
   UUIDTag = redis_uuid_tag_for(UUID),
   TicketTag = redis_ticket_tag_for(WorkflowName, Key, UUID),

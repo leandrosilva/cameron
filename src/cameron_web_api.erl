@@ -74,4 +74,4 @@ build_request(WorkflowName, Body) ->
   Data = binary_to_list(struct:get_value(<<"data">>, Struct)),
   From = binary_to_list(struct:get_value(<<"from">>, Struct)),
   
-  #workflow_request{workflow_name = WorkflowName, key = Key, data = Data, from = From}.
+  #workflow_request{workflow = #workflow{name = WorkflowName}, key = Key, data = Data, from = From}.
