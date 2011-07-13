@@ -208,12 +208,12 @@ Yay! **When this whole process is done**, the workflow is done.
 
 It is possible to see any available data (inside ticket's hash) at any time by:
 
-    GET http://{host}:{port}/api/workflow/{name}/ticket/{ticket} HTTP/1.1
+    GET http://{host}:{port}/api/workflow/{name}/key/{key}/ticket/{ticket} HTTP/1.1
     Accept: application/json
 
 And that's the "search semantic" on Redis for achieve it:
 
-    hget cameron:workflow:{name}:ticket:{ticket}
+    hget cameron:workflow:{name}:key:{key}:ticket:{ticket}
 
 Or, you can search by key:
 
@@ -222,7 +222,7 @@ Or, you can search by key:
 
 Which can be achieved by:
 
-    key cameron:workflow:{name}:key:{key}:ticket:{uuid}*
+    key cameron:workflow:{name}:key:{key}:ticket:{*}
 
 ### What else?
 
