@@ -226,4 +226,11 @@ Which can be achieved by:
 
 ### What else?
 
-- TODO
+- need more documentation (TODO)
+
+### What to do now?
+
+- reengineer dispatcher, workers, and so on (embody "workflow" nomenclature)
+- improve API
+- finalize implementation (at least what is specified)
+- elasticsearch integration to improve searching?
