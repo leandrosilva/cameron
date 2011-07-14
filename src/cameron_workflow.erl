@@ -11,7 +11,7 @@
 % admin api
 -export([start_link/1, stop/1]).
 % public api
--export([accept_request/1, work/2]).
+-export([accept_new_request/1, start_promise_payment/1, work/2]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -43,32 +43,23 @@ stop(Promise) ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec accept_request(Request) -> {ok, Promise} | {error, Reason}
+%% @spec accept_new_request(Request) -> {ok, Promise} | {error, Reason}
 %% @doc It triggers an async dispatch of a resquest to run a workflow an pay a promise.
-accept_request(#request{} = Request) ->
-  io:format("~n~n--- [cameron_workflow] accepting incoming workflow request~n"),
-  
-  {ok, Promise} = cameron_workflow_keeper:accept_new_request(Request),
-  
-  case start_payment(Promise) of
-    ok              -> {ok, Promise};
-    {error, Reason} -> {error, Reason}
-  end.
+accept_new_request(#request{} = Request) ->
+  {ok, _Promise} = cameron_workflow_keeper:accept_new_request(Request).
 
 %% @spec start_to_pay_promise(Promise) -> ok
 %% @doc Create a new process, child of cameron_workflow_sup, and then run the workflow (in
 %%      parallel, of course) to the promise given.
-start_payment(#promise{uuid = PromiseUUID} = Promise) ->
-  io:format("~n~n--- [cameron_workflow] start payment~n"),
-
+start_promise_payment(#promise{uuid = PromiseUUID} = Promise) ->
   case cameron_workflow_sup:start_child(Promise) of
     {ok, _Pid} ->
       Pname = pname_for(PromiseUUID),
-      ok = gen_server:cast(Pname, {start_payment, Promise});
+      ok = gen_server:cast(Pname, {start_promise_payment, Promise}),
+      {ok, Promise};
     {error, {already_started, _Pid}} ->
-      ok
-  end,
-  ok.
+      {ok, Promise}
+  end.
 
 %%
 %% Gen_Server Callbacks ---------------------------------------------------------------------------
@@ -93,9 +84,7 @@ handle_call(_Request, _From, State) ->
 %% @doc Handling cast messages.
 
 % wake up to run a workflow
-handle_cast({start_payment, #promise{uuid = PromiseUUID} = Promise}, State) ->
-  io:format("~n--- [cameron_workflow] paying // Promise: ~w~n", [Promise]),
-  
+handle_cast({start_promise_payment, #promise{uuid = PromiseUUID} = Promise}, State) ->
   {ok, Promise} = cameron_workflow_keeper:start_to_pay_promise(Promise),
   
   CloudInput = #step_input{promise = Promise,
@@ -124,13 +113,23 @@ handle_cast({start_payment, #promise{uuid = PromiseUUID} = Promise}, State) ->
   
   {noreply, State#state{countdown = 3}};
 
-% notify when a individual diagnostic is done
-handle_cast({notify_paid, Index, #step_output{step_input = StepInput} = StepOutput}, State) ->
-  io:format("--- [~s] Index: ~w, Pname: ~s // Notified its work is done~n", [StepInput#step_input.name,
-                                                                             Index,
-                                                                             StepInput#step_input.pname]),
-  
+% notify when a individual promise is done
+handle_cast({notify_paid, _Index, #step_output{step_input = _StepInput} = StepOutput}, State) ->
   {ok, Promise} = cameron_workflow_keeper:save_promise_payment_progress(StepOutput),
+
+  case State#state.countdown of
+    1 ->
+      {ok, Promise} = cameron_workflow_keeper:mark_promise_as_paid(Promise),
+      NewState = State#state{countdown = 0},
+      {stop, normal, NewState};
+    N ->
+      NewState = State#state{countdown = N - 1},
+      {noreply, NewState}
+  end;
+
+% notify when a individual promise fail
+handle_cast({notify_error, _Index, #step_output{step_input = _StepInput} = StepOutput}, State) ->
+  {ok, Promise} = cameron_workflow_keeper:save_error_on_promise_payment_progress(StepOutput),
 
   case State#state.countdown of
     1 ->
@@ -155,16 +154,24 @@ handle_cast(_Msg, State) ->
 %% @doc Handling all non call/cast messages.
 
 % handle_info generic fallback (ignore)
+% fail
+handle_info({'EXIT', _, _}, State) ->
+  {noreply, State};
+  
+handle_info({'DOWN', _, _, _Pid, _}, State) ->
+  {noreply, State};
+  
 handle_info(_Info, State) ->
   {noreply, State}.
 
 %% @spec terminate(Reason, State) -> void()
 %% @doc This function is called by a gen_server when it is about to terminate. When it returns,
 %%      the gen_server terminates with Reason. The return value is ignored.
+
+% no problem, that's ok
 terminate(Reason, State) ->
   #promise{uuid = PromiseUUID} = State#state.promise,
-  
-  io:format("~n--- [cameron_workflow] terminating // Promise: ~s, Reason: ~w~n", [PromiseUUID, Reason]),
+  io:format("--- Paid: ~s // Reason: ~w~n", [PromiseUUID, Reason]),
   
   terminated.
 
@@ -180,32 +187,31 @@ code_change(_OldVsn, State, _Extra) ->
 pname_for(PromiseUUID) ->
   cameron_workflow_sup:which_child(PromiseUUID).
 
-work(Index, #step_input{promise = Promise,
-                        name    = Name,
+work(Index, #step_input{promise = _Promise,
+                        name    = _Name,
                         url     = URL,
                         payload = _Payload,
-                        pname   = Pname} = StepInput) ->
-  io:format("--- [(~w) cameron_workflow_~s] Index: ~w, Pname: ~s, Name: ~s~n", [self(),
-                                                                                Promise#promise.uuid,
-                                                                                Index, 
-                                                                                Pname, 
-                                                                                Name]),
+                        pname   = _Pname} = StepInput) ->
 
   % {ok, {{"HTTP/1.1", 200, "OK"},
   %       [_, _, _, _, _, _, _, _, _, _, _],
   %       Result}} = http_helper:http_get(URL),
 
-  {ok, {{"HTTP/1.1", 200, _}, _, Output}} = http_helper:http_get(URL),
-         
-  StepOutput = #step_output{step_input = StepInput, output = Output},
-
-  io:format("--- [(~w) cameron_workflow_~s] Index: ~w, Pname: ~s, Name: ~s // Paid~n", [self(),
-                                                                                        Promise#promise.uuid,
-                                                                                        Index, 
-                                                                                        Pname, 
-                                                                                        Name]),
+  case http_helper:http_get(URL) of
+    {ok, {{"HTTP/1.1", 200, _}, _, Output}} ->
+      StepOutput = #step_output{step_input = StepInput, output = Output},
+      notify_paid(Index, StepOutput);
+    {ok, {{"HTTP/1.1", _, _}, _, Output}} ->
+      StepOutput = #step_output{step_input = StepInput, output = Output},
+      notify_error(Index, StepOutput);
+    {error, {connect_failed, emfile}} ->
+      StepOutput = #step_output{step_input = StepInput, output = "{connect_failed, emfile}"},
+      notify_error(Index, StepOutput);
+    {error, _Reason} ->
+      StepOutput = #step_output{step_input = StepInput, output = "error"},
+      notify_error(Index, StepOutput)
+  end,
   
-  notify_paid(Index, StepOutput),
   ok.
   
 notify_paid(Index, #step_output{step_input = StepInput} = StepOutput) ->
@@ -213,4 +219,9 @@ notify_paid(Index, #step_output{step_input = StepInput} = StepOutput) ->
   
   Pname = pname_for(Promise#promise.uuid),
   ok = gen_server:cast(Pname, {notify_paid, Index, StepOutput}).
-  
+
+notify_error(Index, #step_output{step_input = StepInput} = StepOutput) ->
+  Promise = StepInput#step_input.promise,
+
+  Pname = pname_for(Promise#promise.uuid),
+  ok = gen_server:cast(Pname, {notify_error, Index, StepOutput}).

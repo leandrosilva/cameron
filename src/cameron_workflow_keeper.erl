@@ -9,7 +9,9 @@
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 % public api
--export([accept_new_request/1, start_to_pay_promise/1, save_promise_payment_progress/1, mark_promise_as_paid/1]).
+-export([accept_new_request/1, start_to_pay_promise/1]).
+-export([save_promise_payment_progress/1, mark_promise_as_paid/1]).
+-export([save_error_on_promise_payment_progress/1]).
 
 %%
 %% Includes ---------------------------------------------------------------------------------------
@@ -39,6 +41,8 @@ accept_new_request(#request{workflow = Workflow, key = RequestKey, data = Data, 
                        "status.current",  "promised",
                        "status.promised", datetime()]),
   
+  ok = redis(["set", redis_tag_as_pending(PromiseUUIDTag), PromiseUUIDTag]),
+  
   {ok, #promise{uuid = NewPromiseUUID, request = Request}}.
 
 %% @spec start_to_pay_promise(Promise) -> {ok, Promise} | {error, Reason}
@@ -47,8 +51,8 @@ start_to_pay_promise(#promise{} = Promise) ->
   PromiseUUIDTag = redis_promise_tag_for(Promise),
 
   ok = redis(["hmset", PromiseUUIDTag,
-                       "step.current",         "dispatched",
-                       "step.dispatched.time", datetime()]),
+                       "status.current",         "dispatched",
+                       "status.dispatched.time", datetime()]),
 
   
   {ok, Promise}.
@@ -60,14 +64,16 @@ save_promise_payment_progress(#step_output{step_input = StepInput, output = Outp
   Promise = StepInput#step_input.promise,
   PromiseUUIDTag = redis_promise_tag_for(Promise),
 
+  StepName = StepInput#step_input.name,
+
   ok = redis(["hmset", PromiseUUIDTag,
-                       "step." ++ StepInput#step_input.name ++ ".status.current",   "paid",
-                       "step." ++ StepInput#step_input.name ++ ".status.paid.time", datetime(),
-                       "step." ++ StepInput#step_input.name ++ ".output",           Output]),
+                       "step." ++ StepName ++ ".status.current",   "paid",
+                       "step." ++ StepName ++ ".status.paid.time", datetime(),
+                       "step." ++ StepName ++ ".output",           Output]),
 
   {ok, Promise}.
 
-%% @spec mark_promise_as_paid(Request) -> {ok, Request} | {error, Reason}
+%% @spec mark_promise_as_paid(Promise) -> {ok, Request} | {error, Reason}
 %% @doc Status: paid, this promise is done.
 mark_promise_as_paid(#promise{} = Promise) ->
   PromiseUUIDTag = redis_promise_tag_for(Promise),
@@ -76,6 +82,26 @@ mark_promise_as_paid(#promise{} = Promise) ->
                        "status.current",   "paid",
                        "status.paid.time", datetime()]),
 
+  1 = redis(["del", redis_tag_as_pending(PromiseUUIDTag)]),
+  ok = redis(["set", redis_tag_as_paid(PromiseUUIDTag), PromiseUUIDTag]),
+
+  {ok, Promise}.
+  
+%% @spec save_error_on_promise_payment_progress(WorkflowStepOutput) -> {ok, Request} | {error, Reason}
+%% @doc Status: error, this promise is done.
+save_error_on_promise_payment_progress(#step_output{step_input = StepInput, output = Output}) ->
+  Promise = StepInput#step_input.promise,
+  PromiseUUIDTag = redis_promise_tag_for(Promise),
+
+  StepName = StepInput#step_input.name,
+  
+  ok = redis(["hmset", PromiseUUIDTag,
+                       "step." ++ StepName ++ ".status.current",   "error",
+                       "step." ++ StepName ++ ".status.error.time", datetime(),
+                       "step." ++ StepName ++ ".output",           Output]),
+
+  ok = redis(["set", redis_error_tag_for(PromiseUUIDTag, StepName), Output]),
+  
   {ok, Promise}.
   
 %%
@@ -105,7 +131,16 @@ redis_promise_tag_for(#promise{uuid = PromiseUUID} = Promise) ->
   RequestKey = Request#request.key,
   
   redis_promise_tag_for(WorkflowName, RequestKey, PromiseUUID).
-  
+
+redis_tag_as_pending(AnyTag) ->
+  AnyTag ++ ":pending".
+
+redis_tag_as_paid(AnyTag) ->
+  AnyTag ++ ":paid".
+
+redis_error_tag_for(PromiseUUIDTag, Step) ->
+  PromiseUUIDTag ++ ":" ++ Step ++ ":error".
+
 %% promise
 
 new_promise_uuid() ->

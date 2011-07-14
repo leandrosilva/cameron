@@ -82,9 +82,9 @@ Yay. That's fun, isn't that?
           status.current        promised
           status.promised.time  {now}
 
-1.2.exists.4.) Notifies **cameron_dispatcher** process which is responsible to pass that request/request away:
+1.2.exists.4.) Notifies **cameron_workflow_dispatcher** process which is responsible to pass that request/request away:
 
-    cameron_dispatcher:dispatch_request(WorkflowName)
+    cameron_workflow_dispatcher:dispatch_new_promise(WorkflowName)
 
 1.2.exists.5.) Finally it responds to the HTTP resquest with sucess:
 
@@ -115,7 +115,7 @@ Yay. That's fun, isn't that?
 
     {ok, WorkerPid} = cameron_workflow:pay_it(WorkflowName, Request)
 
-3.) **cameron\_worker** is a *gen_server* which is created/spawned by the **cameron_dispatcher** on demand. In other words, one new process per request/request
+3.) **cameron\_worker** is a *gen_server* which is created/spawned by the **cameron_workflow_dispatcher** on demand. In other words, one new process per request/request
 
 Its state record is like that:
 

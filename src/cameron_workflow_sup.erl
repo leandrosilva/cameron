@@ -81,8 +81,11 @@ init([]) ->
   WorkflowCatalogConfig = cameron:get_workflows_config(),
   WorkflowCatalog = {cameron_workflow_catalog, {cameron_workflow_catalog, start_link, [WorkflowCatalogConfig]},
                                                 permanent, 5000, worker, dynamic},
-                                    
-  {ok, {{one_for_one, 10, 10}, [WorkflowCatalog]}}.
+
+  WorkflowDispatcher = {cameron_workflow_dispatcher, {cameron_workflow_dispatcher, start_link, []},
+                                                      permanent, 5000, worker, dynamic},
+                                                      
+  {ok, {{one_for_one, 10, 10}, [WorkflowCatalog, WorkflowDispatcher]}}.
 
 %%
 %% Internal Functions -----------------------------------------------------------------------------
