@@ -78,7 +78,11 @@ which_children() ->
 %%
 %% @doc supervisor callback.
 init([]) ->
-  {ok, {{one_for_one, 10, 10}, []}}.
+  WorkflowCatalogConfig = cameron:get_workflows_config(),
+  WorkflowCatalog = {cameron_workflow_catalog, {cameron_workflow_catalog, start_link, [WorkflowCatalogConfig]},
+                                                permanent, 5000, worker, dynamic},
+                                    
+  {ok, {{one_for_one, 10, 10}, [WorkflowCatalog]}}.
 
 %%
 %% Internal Functions -----------------------------------------------------------------------------

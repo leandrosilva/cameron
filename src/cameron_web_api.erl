@@ -29,7 +29,7 @@ handle_http('GET', ["api"], HttpRequest) ->
 handle_http('POST', ["api", "workflow", WorkflowName, "start"], HttpRequest) ->
   Payload = get_request_payload(HttpRequest),
 
-  case cameron_workflow:lookup(WorkflowName) of
+  case cameron_workflow_catalog:lookup(WorkflowName) of
     undefined ->
       HttpRequest:respond(404, [{"Content-Type", "application/json"}],
                                  "{\"payload\":\"~s\"}", [Payload]);

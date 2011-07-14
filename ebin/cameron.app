@@ -9,7 +9,9 @@
     cameron_app,
     cameron_sup,
     cameron_workflow,
+    cameron_workflow_catalog,
     cameron_workflow_keeper,
+    cameron_workflow_sup,
     cameron_web_server,
     cameron_web_api,
     cameron_deps

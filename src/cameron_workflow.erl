@@ -11,7 +11,7 @@
 % admin api
 -export([start_link/1, stop/1]).
 % public api
--export([lookup/1, accept_request/1, work/2]).
+-export([accept_request/1, work/2]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -42,19 +42,6 @@ stop(Promise) ->
 %%
 %% Public API -------------------------------------------------------------------------------------
 %%
-
-%% @spec lookup(Name) -> {Name, {start_url, URL}} | undefined
-%% @doc Get a workflow configuration by name.
-lookup(Name) when is_atom(Name) ->
-  Spec = proplists:get_value(Name, cameron:get_workflows_config(), undefined),
-  
-  case Spec of 
-    undefined        -> undefined;
-    {start_url, URL} -> #workflow{name = Name, start_url = URL}
-  end;
-  
-lookup(Name) when is_list(Name) ->
-  lookup(list_to_atom(Name)).
 
 %% @spec accept_request(Request) -> {ok, Promise} | {error, Reason}
 %% @doc It triggers an async dispatch of a resquest to run a workflow an pay a promise.
