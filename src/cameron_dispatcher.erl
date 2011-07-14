@@ -43,16 +43,16 @@ stop() ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec dispatch_request(WorkflowRequest) -> {ok, Ticket} | {error, Reason}
-%% @doc It triggers an async dispatch of a resquest to run a workflow.
-dispatch_request(#workflow_request{} = WorkflowRequest) ->
+%% @spec dispatch_request(Request) -> {ok, Promise} | {error, Reason}
+%% @doc It triggers an async dispatch of a resquest to run a workflow an pay a promise.
+dispatch_request(#request{} = Request) ->
   io:format("~n~n--- [cameron_dispatcher] incoming workflow request~n"),
   
-  {ok, Ticket} = cameron_ticket:new(WorkflowRequest),
+  {ok, Promise} = cameron_workflow:accept_new_request(Request),
   
-  ok = gen_server:cast(?MODULE, {dispatch_request, WorkflowRequest}),
+  ok = gen_server:cast(?MODULE, {dispatch_request, Request}),
   
-  {ok, Ticket}.
+  {ok, Promise}.
 
 %%
 %% Gen_Server Callbacks ---------------------------------------------------------------------------
@@ -76,16 +76,16 @@ handle_call(_Request, _From, State) ->
 %%                  {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
 %% @doc Handling cast messages.
 
-% dispatches incoming request
-handle_cast({dispatch_request, WorkflowRequest}, State) ->
+% dispatches incoming request to pay its promise
+handle_cast({dispatch_request, Request}, State) ->
   io:format("--- [cameron_dispatcher] dispatching an incoming request~n"),
   
-  Workflow = WorkflowRequest#workflow_request.workflow,
-  {ok, Ticket} = cameron_ticket:take_next(Workflow#workflow.name),
+  Workflow = Request#request.workflow,
+  {ok, Promise} = cameron_workflow:take_next_promise(Workflow#workflow.name),
 
-  io:format("--- [cameron_dispatcher] dispatching an incoming request // Ticket: ~w~n", [Ticket]),
+  io:format("--- [cameron_dispatcher] dispatching an promise // Promise: ~w~n", [Promise]),
   
-  ok = cameron_worker:spawn_new(Ticket),
+  ok = cameron_worker:pay_it(Promise),
   
   {noreply, State};
 

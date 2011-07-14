@@ -11,7 +11,7 @@
 % admin api
 -export([start_link/1, stop/1]).
 % public api
--export([spawn_new/1, get_name/1, work/2]).
+-export([pay_it/1, get_name/1, work/2]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -21,45 +21,45 @@
 
 -include("include/cameron.hrl").
 
--record(state, {ticket, countdown}).
+-record(state, {promise_uuid, countdown}).
 
 %%
 %% Admin API --------------------------------------------------------------------------------------
 %%
 
-%% @spec start_link(Ticket) -> {ok, Pid} | ignore | {error, Error}
-%% @doc Start cameron server.
-start_link(Ticket) ->
-  WorkerName = cameron_worker_sup:which_child(Ticket),
-  gen_server:start_link({local, WorkerName}, ?MODULE, [Ticket], []).
+%% @spec start_link(Promise) -> {ok, Pid} | ignore | {error, Error}
+%% @doc Start a cameron_worker server.
+start_link(Promise) ->
+  WorkerName = cameron_worker_sup:which_child(Promise),
+  gen_server:start_link({local, WorkerName}, ?MODULE, [Promise], []).
 
 %% @spec stop() -> ok
 %% @doc Manually stops the server.
-stop(Ticket) ->
-  WorkerName = get_name(Ticket),
+stop(Promise) ->
+  WorkerName = get_name(Promise),
   gen_server:cast(WorkerName, stop).
 
 %%
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec spawn_new(Ticket) -> ok
+%% @spec pay_it(Promise) -> ok
 %% @doc Create a new process, child of cameron_worker_sup, and then make a complete diagnostic (in
-%%      parallel, of course) to the ticket given.
-spawn_new(#workflow_ticket{uuid = TicketUUID} = Ticket) ->
-  case cameron_worker_sup:start_child(TicketUUID) of
+%%      parallel, of course) to the promise given.
+pay_it(#promise{uuid = PromiseUUID} = Promise) ->
+  case cameron_worker_sup:start_child(PromiseUUID) of
     {ok, _Pid} ->
-      WorkerName = get_name(TicketUUID),
-      ok = gen_server:cast(WorkerName, {spawn_new, Ticket});
+      WorkerName = get_name(PromiseUUID),
+      ok = gen_server:cast(WorkerName, {pay_it, Promise});
     {error, {already_started, _Pid}} ->
       ok
   end,
   ok.
 
-%% @spec get_name(TicketUUID) -> WorkerName
-%% @doc Which worker is handling a ticket given.
-get_name(TicketUUID) ->
-  cameron_worker_sup:which_child(TicketUUID).
+%% @spec get_name(PromiseUUID) -> WorkerName
+%% @doc Which worker is handling a promise given.
+get_name(PromiseUUID) ->
+  cameron_worker_sup:which_child(PromiseUUID).
 
 %%
 %% Gen_Server Callbacks ---------------------------------------------------------------------------
@@ -67,10 +67,10 @@ get_name(TicketUUID) ->
 
 %% @spec init(_Options) -> {ok, State} | {ok, State, Timeout} | ignore | {stop, Reason}
 %% @doc Initiates the server.
-init(Ticket) ->
-  {ok, #state{ticket = Ticket}}.
+init(PromiseUUID) ->
+  {ok, #state{promise_uuid = PromiseUUID}}.
 
-%% @spec handle_call(Request, From, State) ->
+%% @spec handle_call(Promise, From, State) ->
 %%                  {reply, Reply, State} | {reply, Reply, State, Timeout} | {noreply, State} |
 %%                  {noreply, State, Timeout} | {stop, Reason, Reply, State} | {stop, Reason, State}
 %% @doc Handling call messages.
@@ -84,53 +84,46 @@ handle_call(_Request, _From, State) ->
 %% @doc Handling cast messages.
 
 % wake up to run a workflow
-handle_cast({spawn_new, #workflow_ticket{workflow_name = WorkflowName, uuid = TicketUUID} = Ticket}, State) ->
-  io:format("~n--- [cameron_worker] running // Ticket: ~w~n", [Ticket]),
+handle_cast({pay_it, #promise{uuid = PromiseUUID} = Promise}, State) ->
+  io:format("~n--- [cameron_worker] paying // Promise: ~w~n", [Promise]),
   
-  CloudInput = #workflow_step_input{workflow_name = WorkflowName,
-                                    ticket_uuid   = TicketUUID,
-                                    name          = "cloud_zabbix",
-                                    url           = "http://localhost:9292/workflow/v0.0.1/cloud/zabbix",
-                                    payload       = "x",
-                                    worker_name   = get_name(TicketUUID)},
+  CloudInput = #step_input{promise     = Promise,
+                           name        = "cloud_zabbix",
+                           url         = "http://localhost:9292/workflow/v0.0.1/cloud/zabbix",
+                           payload     = "xxx",
+                           worker_name = get_name(PromiseUUID)},
   
   spawn(?MODULE, work, [1, CloudInput]),
   
-  HostInput = #workflow_step_input{workflow_name = WorkflowName,
-                                   ticket_uuid   = TicketUUID,
-                                   name          = "hosting_zabbix",
-                                   url           = "http://localhost:9292/workflow/v0.0.1/hosting/zabbix",
-                                   payload       = "y",
-                                   worker_name   = get_name(TicketUUID)},
+  HostInput = #step_input{promise     = Promise,
+                          name        = "hosting_zabbix",
+                          url         = "http://localhost:9292/workflow/v0.0.1/hosting/zabbix",
+                          payload     = "yyy",
+                          worker_name = get_name(PromiseUUID)},
   
   spawn(?MODULE, work, [2, HostInput]),
   
-  SqlServerInput = #workflow_step_input{workflow_name = WorkflowName,
-                                        ticket_uuid   = TicketUUID,
-                                        name          = "sqlserver_zabbix",
-                                        url           = "http://localhost:9292/workflow/v0.0.1/sqlserver/zabbix",
-                                        payload       = "z",
-                                        worker_name   = get_name(TicketUUID)},
+  SqlServerInput = #step_input{promise     = Promise,
+                               name        = "sqlserver_zabbix",
+                               url         = "http://localhost:9292/workflow/v0.0.1/sqlserver/zabbix",
+                               payload     = "zzz",
+                               worker_name = get_name(PromiseUUID)},
   
   spawn(?MODULE, work, [3, SqlServerInput]),
   
   {noreply, State#state{countdown = 3}};
 
 % notify when a individual diagnostic is done
-handle_cast({notify_done, Index, #workflow_step_output{workflow_name = _WorkflowName,
-                                                       ticket_uuid   = _TicketUUID,
-                                                       name          = Name,
-                                                       url           = _URL,
-                                                       payload       = _Payload,
-                                                       output        = _Output,
-                                                       worker_name   = WorkerName} = StepOutput}, State) ->
-  io:format("--- [~s] Index: ~w, WorkerName: ~s // Notified its work is done~n", [Name, Index, WorkerName]),
+handle_cast({notify_done, Index, #step_output{step_input = StepInput} = StepOutput}, State) ->
+  io:format("--- [~s] Index: ~w, WorkerName: ~s // Notified its work is done~n", [StepInput#step_input.name,
+                                                                                  Index,
+                                                                                  StepInput#step_input.worker_name]),
   
-  {ok, Ticket} = cameron_ticket:save_output(StepOutput),
+  {ok, Promise} = cameron_workflow:save_progress(StepOutput),
 
   case State#state.countdown of
     1 ->
-      {ok, Ticket} = cameron_ticket:close(Ticket),
+      {ok, Promise} = cameron_workflow:mark_as_paid(Promise),
       NewState = State#state{countdown = 0},
       {stop, normal, NewState};
     N ->
@@ -158,7 +151,7 @@ handle_info(_Info, State) ->
 %% @doc This function is called by a gen_server when it is about to terminate. When it returns,
 %%      the gen_server terminates with Reason. The return value is ignored.
 terminate(Reason, State) ->
-  io:format("~n--- [cameron_worker] terminating // Ticket: ~s, Reason: ~w~n", [State#state.ticket, Reason]),
+  io:format("~n--- [cameron_worker] terminating // Promise: ~s, Reason: ~w~n", [State#state.promise_uuid, Reason]),
   terminated.
 
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
@@ -170,13 +163,16 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-work(Index, #workflow_step_input{workflow_name  = WorkflowName,
-                                 ticket_uuid    = TicketUUID,
-                                 name           = Name,
-                                 url            = URL,
-                                 payload        = _Payload,
-                                 worker_name    = WorkerName}) ->
-  io:format("--- [(~w) cameron_worker_~s] Index: ~w, WorkerName: ~s, Name: ~s~n", [self(), TicketUUID, Index, WorkerName, Name]),
+work(Index, #step_input{promise     = Promise,
+                        name        = Name,
+                        url         = URL,
+                        payload     = _Payload,
+                        worker_name = WorkerName} = StepInput) ->
+  io:format("--- [(~w) cameron_worker_~s] Index: ~w, WorkerName: ~s, Name: ~s~n", [self(),
+                                                                                   Promise#promise.uuid,
+                                                                                   Index, 
+                                                                                   WorkerName, 
+                                                                                   Name]),
 
   % {ok, {{"HTTP/1.1", 200, "OK"},
   %       [_, _, _, _, _, _, _, _, _, _, _],
@@ -184,26 +180,20 @@ work(Index, #workflow_step_input{workflow_name  = WorkflowName,
 
   {ok, {{"HTTP/1.1", 200, _}, _, Output}} = http_helper:http_get(URL),
          
-  StepOutput = #workflow_step_output{workflow_name = WorkflowName,
-                                     ticket_uuid   = TicketUUID,
-                                     name          = Name,
-                                     url           = URL,
-                                     payload       = _Payload,
-                                     output        = Output,
-                                     worker_name   = WorkerName},
+  StepOutput = #step_output{step_input = StepInput, output = Output},
 
-  io:format("--- [(~w) cameron_worker_~s] Index: ~w, WorkerName: ~s, Name: ~s // Done~n", [self(), TicketUUID, Index, WorkerName, Name]),
+  io:format("--- [(~w) cameron_worker_~s] Index: ~w, WorkerName: ~s, Name: ~s // Paid~n", [self(),
+                                                                                           Promise#promise.uuid,
+                                                                                           Index, 
+                                                                                           WorkerName, 
+                                                                                           Name]),
   
   notify_done(Index, StepOutput),
   ok.
   
-notify_done(Index, #workflow_step_output{workflow_name = _WorkflowName,
-                                         ticket_uuid   = TicketUUID,
-                                         name          = _Name,
-                                         url           = _URL,
-                                         payload       = _Payload,
-                                         output        = _Output,
-                                         worker_name   = WorkerName} = StepOutput) ->
-  WorkerName = get_name(TicketUUID),
+notify_done(Index, #step_output{step_input = StepInput} = StepOutput) ->
+  Promise = StepInput#step_input.promise,
+  
+  WorkerName = get_name(Promise#promise.uuid),
   ok = gen_server:cast(WorkerName, {notify_done, Index, StepOutput}).
   
