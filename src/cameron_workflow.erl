@@ -59,6 +59,8 @@ accept_request(#request{} = Request) ->
 %% @doc Create a new process, child of cameron_workflow_sup, and then run the workflow (in
 %%      parallel, of course) to the promise given.
 start_payment(#promise{uuid = PromiseUUID} = Promise) ->
+  io:format("~n~n--- [cameron_workflow] start payment~n"),
+
   case cameron_workflow_sup:start_child(Promise) of
     {ok, _Pid} ->
       Pname = pname_for(PromiseUUID),

@@ -31,6 +31,8 @@ handle_http('POST', ["api", "workflow", WorkflowName, "start"], HttpRequest) ->
 
   case cameron_workflow_catalog:lookup(WorkflowName) of
     undefined ->
+      io:format("~n~n--- [cameron_web_api] responding 404~n"),
+
       HttpRequest:respond(404, [{"Content-Type", "application/json"}],
                                  "{\"payload\":\"~s\"}", [Payload]);
     Workflow ->
@@ -38,6 +40,8 @@ handle_http('POST', ["api", "workflow", WorkflowName, "start"], HttpRequest) ->
   
       {ok, Promise} = cameron_workflow:accept_request(Request),
   
+      io:format("~n~n--- [cameron_web_api] responding 201~n"),
+      
       HttpRequest:respond(201, [{"Content-Type", "application/json"},
                                 {"Location", ["http://localhost:8080/api/workflow/", WorkflowName,
                                               "/key/", Request#request.key,
