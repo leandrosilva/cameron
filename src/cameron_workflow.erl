@@ -21,7 +21,7 @@
 
 -include("include/cameron.hrl").
 
--record(state, {promise_uuid, countdown}).
+-record(state, {promise, countdown}).
 
 %%
 %% Admin API --------------------------------------------------------------------------------------
@@ -63,19 +63,19 @@ accept_request(#request{} = Request) ->
   
   {ok, Promise} = cameron_workflow_keeper:accept_new_request(Request),
   
-  case pay_it(Promise) of
+  case start_payment(Promise) of
     ok              -> {ok, Promise};
     {error, Reason} -> {error, Reason}
   end.
 
-%% @spec pay_it(Promise) -> ok
-%% @doc Create a new process, child of cameron_workflow_sup, and then make a complete diagnostic (in
+%% @spec start_to_pay_promise(Promise) -> ok
+%% @doc Create a new process, child of cameron_workflow_sup, and then run the workflow (in
 %%      parallel, of course) to the promise given.
-pay_it(#promise{uuid = PromiseUUID} = Promise) ->
-  case cameron_workflow_sup:start_child(PromiseUUID) of
+start_payment(#promise{uuid = PromiseUUID} = Promise) ->
+  case cameron_workflow_sup:start_child(Promise) of
     {ok, _Pid} ->
       Pname = pname_for(PromiseUUID),
-      ok = gen_server:cast(Pname, {pay_it, Promise});
+      ok = gen_server:cast(Pname, {start_payment, Promise});
     {error, {already_started, _Pid}} ->
       ok
   end,
@@ -85,10 +85,10 @@ pay_it(#promise{uuid = PromiseUUID} = Promise) ->
 %% Gen_Server Callbacks ---------------------------------------------------------------------------
 %%
 
-%% @spec init(_Options) -> {ok, State} | {ok, State, Timeout} | ignore | {stop, Reason}
+%% @spec init([Promise]) -> {ok, State} | {ok, State, Timeout} | ignore | {stop, Reason}
 %% @doc Initiates the server.
-init(PromiseUUID) ->
-  {ok, #state{promise_uuid = PromiseUUID}}.
+init([Promise]) ->
+  {ok, #state{promise = Promise}}.
 
 %% @spec handle_call(Promise, From, State) ->
 %%                  {reply, Reply, State} | {reply, Reply, State, Timeout} | {noreply, State} |
@@ -104,8 +104,10 @@ handle_call(_Request, _From, State) ->
 %% @doc Handling cast messages.
 
 % wake up to run a workflow
-handle_cast({pay_it, #promise{uuid = PromiseUUID} = Promise}, State) ->
+handle_cast({start_payment, #promise{uuid = PromiseUUID} = Promise}, State) ->
   io:format("~n--- [cameron_workflow] paying // Promise: ~w~n", [Promise]),
+  
+  {ok, Promise} = cameron_workflow_keeper:start_to_pay_promise(Promise),
   
   CloudInput = #step_input{promise = Promise,
                            name    = "cloud_zabbix",
@@ -171,7 +173,10 @@ handle_info(_Info, State) ->
 %% @doc This function is called by a gen_server when it is about to terminate. When it returns,
 %%      the gen_server terminates with Reason. The return value is ignored.
 terminate(Reason, State) ->
-  io:format("~n--- [cameron_workflow] terminating // Promise: ~s, Reason: ~w~n", [State#state.promise_uuid, Reason]),
+  #promise{uuid = PromiseUUID} = State#state.promise,
+  
+  io:format("~n--- [cameron_workflow] terminating // Promise: ~s, Reason: ~w~n", [PromiseUUID, Reason]),
+  
   terminated.
 
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}

@@ -16,6 +16,12 @@
 -export([init/1]).
 
 %%
+%% Includes and Records ---------------------------------------------------------------------------
+%%
+
+-include("include/cameron.hrl").
+
+%%
 %% Admin API --------------------------------------------------------------------------------------
 %%
 
@@ -33,26 +39,26 @@ upgrade() ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec start_child(PromiseUUID) -> {ok, ChildPid} | {ok, ChildPid, Info} | {error, Error}
-%% @dynamic Start a cameron_workflow_{PromiseUUID} process to diagnostic a PromiseUUID given.
-start_child(PromiseUUID) ->
-  WorkflowName = build_worker_name(PromiseUUID),
+%% @spec start_child(Promise) -> {ok, ChildPid} | {ok, ChildPid, Info} | {error, Error}
+%% @dynamic Start a cameron_workflow_{Promise} process to diagnostic a Promise given.
+start_child(Promise) ->
+  Pname = build_pname(Promise),
 
-  WorkflowSpec = {WorkflowName, {cameron_workflow, start_link, [PromiseUUID]}, temporary, 5000, worker, dynamic},
+  WorkflowSpec = {Pname, {cameron_workflow, start_link, [Promise]}, temporary, 5000, worker, dynamic},
   supervisor:start_child(cameron_workflow_sup, WorkflowSpec).
 
-%% @spec stop_child(PromiseUUID) -> ok | {error, Error}
-%% @dynamic Stop a cameron_workflow_{PromiseUUID}.
-stop_child(PromiseUUID) ->
-  WorkflowName = build_worker_name(PromiseUUID),
+%% @spec stop_child(Promise) -> ok | {error, Error}
+%% @dynamic Stop a cameron_workflow_{Promise}.
+stop_child(Promise) ->
+  Pname = build_pname(Promise),
   
-  supervisor:terminate_child(cameron_workflow_sup, WorkflowName),
-  supervisor:delete_child(cameron_workflow_sup, WorkflowName).
+  supervisor:terminate_child(cameron_workflow_sup, Pname),
+  supervisor:delete_child(cameron_workflow_sup, Pname).
 
-%% @spec which_chil(PromiseUUID) -> WorkflowName | {error, Error}
+%% @spec which_chil(Promise) -> Pname | {error, Error}
 %% @dynamic Which worker is handling a request given.
-which_child(PromiseUUID) ->
-  build_worker_name(PromiseUUID).
+which_child(Promise) ->
+  build_pname(Promise).
 
 %% @spec which_children() -> [ChildSpec] | {error, Error}
 %% @dynamic List of children workers.
@@ -78,7 +84,10 @@ init([]) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-build_worker_name(PromiseUUID) ->
-  WorkflowName = "cameron_workflow_" ++ PromiseUUID,
-  list_to_atom(WorkflowName).
+build_pname(#promise{uuid = PromiseUUID}) ->
+  build_pname(PromiseUUID);
+
+build_pname(PromiseUUID) ->
+  Pname = "cameron_workflow_" ++ PromiseUUID,
+  list_to_atom(Pname).
   

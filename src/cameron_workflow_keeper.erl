@@ -83,8 +83,6 @@ mark_promise_as_paid(#promise{} = Promise) ->
 %%
 
 redis(Command) ->
-  io:format("[redis] Command: ~w~n", [Command]),
-  
   Output = redo:cmd(cameron_redo, Command),
   maybe_ok(maybe_string(Output)).
 
