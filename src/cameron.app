@@ -8,9 +8,8 @@
     cameron,
     cameron_app,
     cameron_sup,
-    cameron_dispatcher,
-    cameron_worker,
     cameron_workflow,
+    cameron_workflow_keeper,
     cameron_web_server,
     cameron_web_api,
     cameron_deps

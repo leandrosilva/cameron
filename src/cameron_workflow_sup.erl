@@ -3,7 +3,7 @@
 
 %% @doc Supervisor for the workers of the Cameron application.
 
--module(cameron_worker_sup).
+-module(cameron_workflow_sup).
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 -behaviour(supervisor).
@@ -34,22 +34,22 @@ upgrade() ->
 %%
 
 %% @spec start_child(PromiseUUID) -> {ok, ChildPid} | {ok, ChildPid, Info} | {error, Error}
-%% @dynamic Start a cameron_worker_{PromiseUUID} process to diagnostic a PromiseUUID given.
+%% @dynamic Start a cameron_workflow_{PromiseUUID} process to diagnostic a PromiseUUID given.
 start_child(PromiseUUID) ->
-  WorkerName = build_worker_name(PromiseUUID),
+  WorkflowName = build_worker_name(PromiseUUID),
 
-  WorkerSpec = {WorkerName, {cameron_worker, start_link, [PromiseUUID]}, temporary, 5000, worker, dynamic},
-  supervisor:start_child(cameron_worker_sup, WorkerSpec).
+  WorkflowSpec = {WorkflowName, {cameron_workflow, start_link, [PromiseUUID]}, temporary, 5000, worker, dynamic},
+  supervisor:start_child(cameron_workflow_sup, WorkflowSpec).
 
 %% @spec stop_child(PromiseUUID) -> ok | {error, Error}
-%% @dynamic Stop a cameron_worker_{PromiseUUID}.
+%% @dynamic Stop a cameron_workflow_{PromiseUUID}.
 stop_child(PromiseUUID) ->
-  WorkerName = build_worker_name(PromiseUUID),
+  WorkflowName = build_worker_name(PromiseUUID),
   
-  supervisor:terminate_child(cameron_worker_sup, WorkerName),
-  supervisor:delete_child(cameron_worker_sup, WorkerName).
+  supervisor:terminate_child(cameron_workflow_sup, WorkflowName),
+  supervisor:delete_child(cameron_workflow_sup, WorkflowName).
 
-%% @spec which_chil(PromiseUUID) -> WorkerName | {error, Error}
+%% @spec which_chil(PromiseUUID) -> WorkflowName | {error, Error}
 %% @dynamic Which worker is handling a request given.
 which_child(PromiseUUID) ->
   build_worker_name(PromiseUUID).
@@ -57,7 +57,7 @@ which_child(PromiseUUID) ->
 %% @spec which_children() -> [ChildSpec] | {error, Error}
 %% @dynamic List of children workers.
 which_children() ->
-  supervisor:which_children(cameron_worker_sup).
+  supervisor:which_children(cameron_workflow_sup).
   
 %%
 %% Supervisor Callback ----------------------------------------------------------------------------
@@ -79,6 +79,6 @@ init([]) ->
 %%
 
 build_worker_name(PromiseUUID) ->
-  WorkerName = "cameron_worker_" ++ PromiseUUID,
-  list_to_atom(WorkerName).
+  WorkflowName = "cameron_workflow_" ++ PromiseUUID,
+  list_to_atom(WorkflowName).
   

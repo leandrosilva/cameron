@@ -37,7 +37,7 @@ Oops! So, to be idiomatic, there is a record for workflow request:
     {workflows, [{bar, {start_url, "http://foo.com/workflow/bar/start/{key}"}},
                  {zar, {start_url, "http://foo.com/workflow/zar/start/{key}"}}]}.
 
-1.2.exists.1.) It generates a request, thru **cameron_workflow** module, which is a kind of UUID for that request
+1.2.exists.1.) It generates a request, thru **cameron_workflow_keeper** module, which is a kind of UUID for that request
 
 In Redis, a **Request UUID** is stored like this:
 
@@ -79,8 +79,8 @@ Yay. That's fun, isn't that?
           request.key           {from request payload}
           request.data          {from request payload}
           request.from          {from request payload}
-          status.current        enqueued
-          status.enqueued.time  {now}
+          status.current        promised
+          status.promised.time  {now}
 
 1.2.exists.4.) Notifies **cameron_dispatcher** process which is responsible to pass that request/request away:
 
@@ -113,7 +113,7 @@ Yay. That's fun, isn't that?
 
 2.3.) Spawns a new worker to handle that workflow/request
 
-    {ok, WorkerPid} = cameron_worker:pay_it(WorkflowName, Request)
+    {ok, WorkerPid} = cameron_workflow:pay_it(WorkflowName, Request)
 
 3.) **cameron\_worker** is a *gen_server* which is created/spawned by the **cameron_dispatcher** on demand. In other words, one new process per request/request
 
@@ -121,7 +121,7 @@ Its state record is like that:
 
     -record(state, {name, request, countdown, request}).
 
-And there is also a **cameron_worker** supervisor, that's **cameron_worker_sup**.
+And there is also a **cameron_workflow** supervisor, that's **cameron_workflow_sup**.
 
 3.1.) So, when a worker receives a request to move on thru a workflow given, it starts by POST the payload's key to workflow's start_url
 
@@ -165,7 +165,7 @@ This response really means:
           step.xar.url         {xar.url}
           step.xar.payload     {xar.payload}
 
-3.3.) For each step **cameron_worker** spawn a new process passing a record as parameter:
+3.3.) For each step **cameron_workflow** spawn a new process passing a record as parameter:
 
     -record(step_input, {workflow_name, request_short_uuid, name, url, payload, worker_name}).
 
@@ -181,7 +181,7 @@ And updates request's hash:
           status.current   wip
           status.wip.time  {now}
 
-3.5.) Once a **slaver** process finish its work, it notifies its **cameron_worker** owner and past to that a record with result of its work:
+3.5.) Once a **slaver** process finish its work, it notifies its **cameron_workflow** owner and past to that a record with result of its work:
 
     -record(step_output, {workflow_name, request_short_uuid, name, url, payload, output, worker_name}).
 
@@ -192,7 +192,7 @@ And updates request's hash:
           step.{name}.status.done.time  {now}
           step.{name}.output            {output}
 
-3.6.) **cameron_worker** has a kind of countdown in its process state, as we saw above, which is used to know when its whole work is done. And when its done:
+3.6.) **cameron_workflow** has a kind of countdown in its process state, as we saw above, which is used to know when its whole work is done. And when its done:
 
 It updates request's hash:
 

@@ -16,7 +16,7 @@
                      name,
                      url,
                      payload,
-                     worker_name}).
+                     pname}).
 
 -record(step_output, {step_input = #step_input{},
                       output}).

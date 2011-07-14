@@ -32,17 +32,17 @@ handle_http('POST', ["api", "workflow", WorkflowName, "start"], HttpRequest) ->
   case cameron_workflow:lookup(WorkflowName) of
     undefined ->
       HttpRequest:respond(404, [{"Content-Type", "application/json"}],
-                       "{\"payload\":\"~s\"}", [Payload]);
+                                 "{\"payload\":\"~s\"}", [Payload]);
     Workflow ->
       Request = build_request(Workflow, Payload),
   
-      {ok, Promise} = cameron_dispatcher:dispatch_request(Request),
+      {ok, Promise} = cameron_workflow:accept_request(Request),
   
       HttpRequest:respond(201, [{"Content-Type", "application/json"},
-                        {"Location", ["http://localhost:8080/api/workflow/", WorkflowName,
-                                      "/key/", Request#request.key,
-                                      "/promise/", Promise#promise.uuid]}],
-                       "{\"payload\":\"~s\"}", [Payload])
+                                {"Location", ["http://localhost:8080/api/workflow/", WorkflowName,
+                                              "/key/", Request#request.key,
+                                              "/promise/", Promise#promise.uuid]}],
+                               "{\"payload\":\"~s\"}", [Payload])
   end;
 
 % handle the 404 page not found
