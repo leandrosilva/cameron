@@ -82,6 +82,8 @@ mark_promise_as_paid(#promise{} = Promise) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
+%% redis
+
 redis(Command) ->
   Output = redo:cmd(cameron_redo, Command),
   maybe_ok(maybe_string(Output)).
@@ -104,8 +106,12 @@ redis_promise_tag_for(#promise{uuid = PromiseUUID} = Promise) ->
   
   redis_promise_tag_for(WorkflowName, RequestKey, PromiseUUID).
   
+%% promise
+
 new_promise_uuid() ->
   uuid_helper:new().
+
+%% helpers
 
 maybe_padding(Number) when is_integer(Number) and (Number < 10) ->
   "0" ++ integer_to_list(Number);

@@ -41,14 +41,14 @@ upgrade() ->
 %% @doc supervisor callback.
 init([]) ->
   WorkflowSup = {cameron_workflow_sup, {cameron_workflow_sup, start_link, []},
-                                   permanent, 5000, supervisor, dynamic},
+                                        permanent, 5000, supervisor, dynamic},
 
   WebServerConfig = cameron:get_web_server_config(),
   WebServer = {cameron_web_server, {cameron_web_server, start_link, [WebServerConfig]},
-                                   permanent, 5000, worker, dynamic},
+                                    permanent, 5000, worker, dynamic},
 
   RedoConfig = cameron:get_redis_server_config(),
   Redo = {cameron_redo, {redo, start_link, [cameron_redo, RedoConfig]},
-                        permanent, 5000, worker, dynamic},
+                         permanent, 5000, worker, dynamic},
 
   {ok, {{one_for_one, 10, 10}, [WorkflowSup, WebServer, Redo]}}.
