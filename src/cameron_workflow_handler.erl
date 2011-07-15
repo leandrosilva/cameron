@@ -1,9 +1,9 @@
 %% @author Leandro Silva <leandrodoze@gmail.com>
 %% @copyright 2011 Leandro Silva.
 
-%% @doc The worker gen_server, the responsable to make diagnostic.
+%% @doc The gen_server responsable to execute a workflow.
 
--module(cameron_workflow).
+-module(cameron_workflow_handler).
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 -behaviour(gen_server).

@@ -46,7 +46,7 @@ stop() ->
 %% @spec dispatch_new_request(Request) -> {ok, Promise} | {error, Reason}
 %% @doc It triggers an async dispatch of a resquest to run a workflow an pay a promise.
 dispatch_new_request(#request{} = Request) ->
-  {ok, Promise} = cameron_workflow:accept_new_request(Request),
+  {ok, Promise} = cameron_workflow_handler:accept_new_request(Request),
   ok = gen_server:cast(?MODULE, {dispatch_new_promise, Promise}),
   {ok, Promise}.
 
@@ -74,7 +74,7 @@ handle_call(_Request, _From, State) ->
 
 % dispatches new promise to be paid
 handle_cast({dispatch_new_promise, Promise}, State) ->
-  {ok, Promise} = cameron_workflow:start_promise_payment(Promise),
+  {ok, Promise} = cameron_workflow_handler:start_promise_payment(Promise),
   {noreply, State};
 
 % manual shutdown

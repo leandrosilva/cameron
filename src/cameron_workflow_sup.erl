@@ -44,7 +44,7 @@ upgrade() ->
 start_child(Promise) ->
   Pname = build_pname(Promise),
 
-  WorkflowSpec = {Pname, {cameron_workflow, start_link, [Promise]}, temporary, 5000, worker, dynamic},
+  WorkflowSpec = {Pname, {cameron_workflow_handler, start_link, [Promise]}, temporary, 5000, worker, dynamic},
   supervisor:start_child(cameron_workflow_sup, WorkflowSpec).
 
 %% @spec stop_child(Promise) -> ok | {error, Error}

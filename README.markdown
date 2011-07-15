@@ -113,7 +113,7 @@ Yay. That's fun, isn't that?
 
 2.3.) Spawns a new worker to handle that workflow/request
 
-    {ok, WorkerPid} = cameron_workflow:pay_it(WorkflowName, Request)
+    {ok, WorkerPid} = cameron_workflow_handler:pay_it(WorkflowName, Request)
 
 3.) **cameron\_worker** is a *gen_server* which is created/spawned by the **cameron_workflow_dispatcher** on demand. In other words, one new process per request/request
 
