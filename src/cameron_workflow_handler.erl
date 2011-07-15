@@ -11,7 +11,7 @@
 % admin api
 -export([start_link/1, stop/1]).
 % public api
--export([accept_new_request/1, start_promise_payment/1, work/2]).
+-export([handle_request/1, handle_promise/1, work/2]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -43,19 +43,19 @@ stop(Promise) ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec accept_new_request(Request) -> {ok, Promise} | {error, Reason}
+%% @spec handle_request(Request) -> {ok, Promise} | {error, Reason}
 %% @doc It triggers an async dispatch of a resquest to run a workflow an pay a promise.
-accept_new_request(#request{} = Request) ->
-  {ok, _Promise} = cameron_workflow_keeper:accept_new_request(Request).
+handle_request(#request{} = Request) ->
+  {ok, _Promise} = cameron_workflow_persistence:save_new_request(Request).
 
-%% @spec start_to_pay_promise(Promise) -> ok
+%% @spec mark_promise_as_dispatched(Promise) -> ok
 %% @doc Create a new process, child of cameron_workflow_sup, and then run the workflow (in
 %%      parallel, of course) to the promise given.
-start_promise_payment(#promise{uuid = PromiseUUID} = Promise) ->
+handle_promise(#promise{uuid = PromiseUUID} = Promise) ->
   case cameron_workflow_sup:start_child(Promise) of
     {ok, _Pid} ->
       Pname = pname_for(PromiseUUID),
-      ok = gen_server:cast(Pname, {start_promise_payment, Promise}),
+      ok = gen_server:cast(Pname, {handle_promise, Promise}),
       {ok, Promise};
     {error, {already_started, _Pid}} ->
       {ok, Promise}
@@ -84,8 +84,8 @@ handle_call(_Request, _From, State) ->
 %% @doc Handling cast messages.
 
 % wake up to run a workflow
-handle_cast({start_promise_payment, #promise{uuid = PromiseUUID} = Promise}, State) ->
-  {ok, Promise} = cameron_workflow_keeper:start_to_pay_promise(Promise),
+handle_cast({handle_promise, #promise{uuid = PromiseUUID} = Promise}, State) ->
+  {ok, Promise} = cameron_workflow_persistence:mark_promise_as_dispatched(Promise),
   
   CloudInput = #step_input{promise = Promise,
                            name    = "cloud_zabbix",
@@ -115,11 +115,11 @@ handle_cast({start_promise_payment, #promise{uuid = PromiseUUID} = Promise}, Sta
 
 % notify when a individual promise is done
 handle_cast({notify_paid, _Index, #step_output{step_input = _StepInput} = StepOutput}, State) ->
-  {ok, Promise} = cameron_workflow_keeper:save_promise_payment_progress(StepOutput),
+  {ok, Promise} = cameron_workflow_persistence:save_promise_progress(StepOutput),
 
   case State#state.countdown of
     1 ->
-      {ok, Promise} = cameron_workflow_keeper:mark_promise_as_paid(Promise),
+      {ok, Promise} = cameron_workflow_persistence:mark_promise_as_paid(Promise),
       NewState = State#state{countdown = 0},
       {stop, normal, NewState};
     N ->
@@ -129,11 +129,11 @@ handle_cast({notify_paid, _Index, #step_output{step_input = _StepInput} = StepOu
 
 % notify when a individual promise fail
 handle_cast({notify_error, _Index, #step_output{step_input = _StepInput} = StepOutput}, State) ->
-  {ok, Promise} = cameron_workflow_keeper:save_error_on_promise_payment_progress(StepOutput),
+  {ok, Promise} = cameron_workflow_persistence:save_error_on_promise_progress(StepOutput),
 
   case State#state.countdown of
     1 ->
-      {ok, Promise} = cameron_workflow_keeper:mark_promise_as_paid(Promise),
+      {ok, Promise} = cameron_workflow_persistence:mark_promise_as_paid(Promise),
       NewState = State#state{countdown = 0},
       {stop, normal, NewState};
     N ->

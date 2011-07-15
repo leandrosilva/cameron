@@ -13,7 +13,7 @@
 % admin api
 -export([start_link/0, stop/0]).
 % public api
--export([dispatch_new_request/1]).
+-export([dispatch/1]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -43,10 +43,10 @@ stop() ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec dispatch_new_request(Request) -> {ok, Promise} | {error, Reason}
+%% @spec dispatch(Request) -> {ok, Promise} | {error, Reason}
 %% @doc It triggers an async dispatch of a resquest to run a workflow an pay a promise.
-dispatch_new_request(#request{} = Request) ->
-  {ok, Promise} = cameron_workflow_handler:accept_new_request(Request),
+dispatch(#request{} = Request) ->
+  {ok, Promise} = cameron_workflow_handler:handle_request(Request),
   ok = gen_server:cast(?MODULE, {dispatch_new_promise, Promise}),
   {ok, Promise}.
 
@@ -74,7 +74,7 @@ handle_call(_Request, _From, State) ->
 
 % dispatches new promise to be paid
 handle_cast({dispatch_new_promise, Promise}, State) ->
-  {ok, Promise} = cameron_workflow_handler:start_promise_payment(Promise),
+  {ok, Promise} = cameron_workflow_handler:handle_promise(Promise),
   {noreply, State};
 
 % manual shutdown

@@ -36,7 +36,7 @@ handle_http('POST', ["api", "workflow", WorkflowName, "start"], HttpRequest) ->
     Workflow ->
       Request = build_request(Workflow, Payload),
   
-      {ok, Promise} = cameron_workflow_dispatcher:dispatch_new_request(Request),
+      {ok, Promise} = cameron_workflow_dispatcher:dispatch(Request),
       
       HttpRequest:respond(201, [{"Content-Type", "application/json"},
                                 {"Location", ["http://localhost:8080/api/workflow/", WorkflowName,

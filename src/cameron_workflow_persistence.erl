@@ -5,13 +5,13 @@
 %%      request that refers to a request to run a workflow. And in this case, it stores those steps
 %%      in a Redis server.
 
--module(cameron_workflow_keeper).
+-module(cameron_workflow_persistence).
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 % public api
--export([accept_new_request/1, start_to_pay_promise/1]).
--export([save_promise_payment_progress/1, mark_promise_as_paid/1]).
--export([save_error_on_promise_payment_progress/1]).
+-export([save_new_request/1, mark_promise_as_dispatched/1]).
+-export([save_promise_progress/1, mark_promise_as_paid/1]).
+-export([save_error_on_promise_progress/1]).
 
 %%
 %% Includes ---------------------------------------------------------------------------------------
@@ -23,12 +23,12 @@
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec accept_new_request(Request) -> {ok, Promise} | {error, Reason}
+%% @spec save_new_request(Request) -> {ok, Promise} | {error, Reason}
 %% @doc The first step of the whole process is accept a request and create a promise which should
 %%      be payed, and based on that, one can keep track of workflow execution state and get any
 %%      related data at any time in the future.
 %%      Status: promised.
-accept_new_request(#request{workflow = Workflow, key = RequestKey, data = Data, from = From} = Request) ->
+save_new_request(#request{workflow = Workflow, key = RequestKey, data = Data, from = From} = Request) ->
   WorkflowName = Workflow#workflow.name,
 
   NewPromiseUUID = new_promise_uuid(),
@@ -45,9 +45,9 @@ accept_new_request(#request{workflow = Workflow, key = RequestKey, data = Data, 
   
   {ok, #promise{uuid = NewPromiseUUID, request = Request}}.
 
-%% @spec start_to_pay_promise(Promise) -> {ok, Promise} | {error, Reason}
+%% @spec mark_promise_as_dispatched(Promise) -> {ok, Promise} | {error, Reason}
 %% @doc Status: dispatched, which means it's work in progress.
-start_to_pay_promise(#promise{} = Promise) ->
+mark_promise_as_dispatched(#promise{} = Promise) ->
   PromiseUUIDTag = redis_promise_tag_for(Promise),
 
   ok = redis(["hmset", PromiseUUIDTag,
@@ -57,10 +57,10 @@ start_to_pay_promise(#promise{} = Promise) ->
   
   {ok, Promise}.
 
-%% @spec save_promise_payment_progress(WorkflowStepOutput) -> {ok, Promise} | {error, Reason}
+%% @spec save_promise_progress(WorkflowStepOutput) -> {ok, Promise} | {error, Reason}
 %% @doc Save to Redis a workflow execution output.
 %%      Status: paid, for this particular step.
-save_promise_payment_progress(#step_output{step_input = StepInput, output = Output}) ->
+save_promise_progress(#step_output{step_input = StepInput, output = Output}) ->
   Promise = StepInput#step_input.promise,
   PromiseUUIDTag = redis_promise_tag_for(Promise),
 
@@ -87,9 +87,9 @@ mark_promise_as_paid(#promise{} = Promise) ->
 
   {ok, Promise}.
   
-%% @spec save_error_on_promise_payment_progress(WorkflowStepOutput) -> {ok, Request} | {error, Reason}
+%% @spec save_error_on_promise_progress(WorkflowStepOutput) -> {ok, Request} | {error, Reason}
 %% @doc Status: error, this promise is done.
-save_error_on_promise_payment_progress(#step_output{step_input = StepInput, output = Output}) ->
+save_error_on_promise_progress(#step_output{step_input = StepInput, output = Output}) ->
   Promise = StepInput#step_input.promise,
   PromiseUUIDTag = redis_promise_tag_for(Promise),
 

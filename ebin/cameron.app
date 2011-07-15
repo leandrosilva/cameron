@@ -11,7 +11,7 @@
     cameron_workflow,
     cameron_workflow_catalog,
     cameron_workflow_dispatcher,
-    cameron_workflow_keeper,
+    cameron_workflow_persistence,
     cameron_workflow_sup,
     cameron_web_server,
     cameron_web_api,

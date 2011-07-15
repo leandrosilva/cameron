@@ -37,7 +37,7 @@ Oops! So, to be idiomatic, there is a record for workflow request:
     {workflows, [{bar, {start_url, "http://foo.com/workflow/bar/start/{key}"}},
                  {zar, {start_url, "http://foo.com/workflow/zar/start/{key}"}}]}.
 
-1.2.exists.1.) It generates a request, thru **cameron_workflow_keeper** module, which is a kind of UUID for that request
+1.2.exists.1.) It generates a request, thru **cameron_workflow_persistence** module, which is a kind of UUID for that request
 
 In Redis, a **Request UUID** is stored like this:
 
