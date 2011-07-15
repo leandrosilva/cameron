@@ -9,7 +9,7 @@
 -behaviour(gen_server).
 
 % admin api
--export([start_link/1, stop/1]).
+-export([start_link/2, stop/1]).
 % public api
 -export([handle_request/1, handle_promise/1, work/2]).
 % gen_server callbacks
@@ -27,16 +27,14 @@
 %% Admin API --------------------------------------------------------------------------------------
 %%
 
-%% @spec start_link(Promise) -> {ok, Pid} | ignore | {error, Error}
+%% @spec start_link(Pname, Promise) -> {ok, Pid} | ignore | {error, Error}
 %% @doc Start a cameron_workflow server.
-start_link(Promise) ->
-  Pname = cameron_workflow_sup:which_child(Promise),
+start_link(Pname, Promise) ->
   gen_server:start_link({local, Pname}, ?MODULE, [Promise], []).
 
-%% @spec stop() -> ok
+%% @spec stop(Pname) -> ok
 %% @doc Manually stops the server.
-stop(Promise) ->
-  Pname = pname_for(Promise),
+stop(Pname) ->
   gen_server:cast(Pname, stop).
 
 %%
@@ -54,8 +52,7 @@ handle_request(#request{} = Request) ->
 handle_promise(#promise{uuid = PromiseUUID} = Promise) ->
   case cameron_workflow_sup:start_child(Promise) of
     {ok, _Pid} ->
-      Pname = pname_for(PromiseUUID),
-      ok = gen_server:cast(Pname, {handle_promise, Promise});
+      ok = gen_server:cast(?Pname(PromiseUUID), {handle_promise, Promise});
     {error, {already_started, _Pid}} ->
       ok
   end.
@@ -90,7 +87,7 @@ handle_cast({handle_promise, #promise{uuid = PromiseUUID} = Promise}, State) ->
                            name    = "cloud_zabbix",
                            url     = "http://localhost:9292/workflow/v0.0.1/cloud/zabbix",
                            payload = "xxx",
-                           pname   = pname_for(PromiseUUID)},
+                           pname   = ?Pname(PromiseUUID)},
   
   spawn(?MODULE, work, [1, CloudInput]),
   
@@ -98,7 +95,7 @@ handle_cast({handle_promise, #promise{uuid = PromiseUUID} = Promise}, State) ->
                           name    = "hosting_zabbix",
                           url     = "http://localhost:9292/workflow/v0.0.1/hosting/zabbix",
                           payload = "yyy",
-                          pname   = pname_for(PromiseUUID)},
+                          pname   = ?Pname(PromiseUUID)},
   
   spawn(?MODULE, work, [2, HostInput]),
   
@@ -106,7 +103,7 @@ handle_cast({handle_promise, #promise{uuid = PromiseUUID} = Promise}, State) ->
                                name    = "sqlserver_zabbix",
                                url     = "http://localhost:9292/workflow/v0.0.1/sqlserver/zabbix",
                                payload = "zzz",
-                               pname   = pname_for(PromiseUUID)},
+                               pname   = ?Pname(PromiseUUID)},
   
   spawn(?MODULE, work, [3, SqlServerInput]),
   
@@ -168,11 +165,16 @@ handle_info(_Info, State) ->
 %%      the gen_server terminates with Reason. The return value is ignored.
 
 % no problem, that's ok
+terminate(normal, State) ->
+  #promise{uuid = PromiseUUID} = State#state.promise,
+  io:format("[cameron_workflow_handler] PromiseUUID: ~s // Terminate: normal~n", [PromiseUUID]),
+  terminated;
+
+% other reason
 terminate(Reason, State) ->
   #promise{uuid = PromiseUUID} = State#state.promise,
-  io:format("--- Paid: ~s // Reason: ~w~n", [PromiseUUID, Reason]),
-  
-  terminated.
+  io:format("[cameron_workflow_handler] PromiseUUID: ~s // Terminate: ~w~n", [PromiseUUID, Reason]),
+  terminate.
 
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
 %% @doc Convert process state when code is changed.
@@ -183,9 +185,6 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-pname_for(PromiseUUID) ->
-  cameron_workflow_sup:which_child(PromiseUUID).
-
 work(Index, #step_input{promise = _Promise,
                         name    = _Name,
                         url     = URL,
@@ -195,7 +194,7 @@ work(Index, #step_input{promise = _Promise,
   % {ok, {{"HTTP/1.1", 200, "OK"},
   %       [_, _, _, _, _, _, _, _, _, _, _],
   %       Result}} = http_helper:http_get(URL),
-
+  
   case http_helper:http_get(URL) of
     {ok, {{"HTTP/1.1", 200, _}, _, Output}} ->
       StepOutput = #step_output{step_input = StepInput, output = Output},
@@ -216,7 +215,7 @@ work(Index, #step_input{promise = _Promise,
 notify(What, {Index, #step_output{step_input = StepInput} = StepOutput}) ->
   Promise = StepInput#step_input.promise,
 
-  Pname = pname_for(Promise#promise.uuid),
+  Pname = ?Pname(Promise#promise.uuid),
   ok = gen_server:cast(Pname, {What, Index, StepOutput}).
 
 notify_paid(Index, #step_output{} = StepOutput) ->

@@ -11,7 +11,7 @@
 % admin api
 -export([start_link/0, upgrade/0]).
 % public api
--export([start_child/1, stop_child/1, which_child/1, which_children/0]).
+-export([start_child/1, stop_child/1, which_children/0]).
 % supervisor callback
 -export([init/1]).
 
@@ -41,25 +41,24 @@ upgrade() ->
 
 %% @spec start_child(Promise) -> {ok, ChildPid} | {ok, ChildPid, Info} | {error, Error}
 %% @dynamic Start a cameron_workflow_{Promise} process to diagnostic a Promise given.
-start_child(Promise) ->
-  Pname = build_pname(Promise),
+start_child(#promise{} = Promise) ->
+  Pname = pname(Promise),
 
-  WorkflowSpec = {Pname, {cameron_workflow_handler, start_link, [Promise]}, temporary, 5000, worker, dynamic},
+  WorkflowSpec = {Pname, {cameron_workflow_handler, start_link, [Pname, Promise]}, temporary, 5000, worker, dynamic},
   supervisor:start_child(cameron_workflow_sup, WorkflowSpec).
 
 %% @spec stop_child(Promise) -> ok | {error, Error}
 %% @dynamic Stop a cameron_workflow_{Promise}.
-stop_child(Promise) ->
-  Pname = build_pname(Promise),
-  
+stop_child(#promise{} = Promise) ->
+  stop_child(pname(Promise));
+
+stop_child(PromiseUUID) when is_list(PromiseUUID) ->
+  stop_child(pname(PromiseUUID));
+
+stop_child(Pname) when is_atom(Pname) ->
   supervisor:terminate_child(cameron_workflow_sup, Pname),
   supervisor:delete_child(cameron_workflow_sup, Pname).
-
-%% @spec which_chil(Promise) -> Pname | {error, Error}
-%% @dynamic Which worker is handling a request given.
-which_child(Promise) ->
-  build_pname(Promise).
-
+  
 %% @spec which_children() -> [ChildSpec] | {error, Error}
 %% @dynamic List of children workers.
 which_children() ->
@@ -91,10 +90,9 @@ init([]) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-build_pname(#promise{uuid = PromiseUUID}) ->
-  build_pname(PromiseUUID);
+pname(#promise{uuid = PromiseUUID}) ->
+  pname(PromiseUUID);
 
-build_pname(PromiseUUID) ->
-  Pname = "cameron_workflow_" ++ PromiseUUID,
-  list_to_atom(Pname).
+pname(PromiseUUID) when is_list(PromiseUUID) ->
+  ?Pname(PromiseUUID).
   
