@@ -55,10 +55,9 @@ handle_promise(#promise{uuid = PromiseUUID} = Promise) ->
   case cameron_workflow_sup:start_child(Promise) of
     {ok, _Pid} ->
       Pname = pname_for(PromiseUUID),
-      ok = gen_server:cast(Pname, {handle_promise, Promise}),
-      {ok, Promise};
+      ok = gen_server:cast(Pname, {handle_promise, Promise});
     {error, {already_started, _Pid}} ->
-      {ok, Promise}
+      ok
   end.
 
 %%
@@ -208,20 +207,21 @@ work(Index, #step_input{promise = _Promise,
       StepOutput = #step_output{step_input = StepInput, output = "{connect_failed, emfile}"},
       notify_error(Index, StepOutput);
     {error, _Reason} ->
-      StepOutput = #step_output{step_input = StepInput, output = "error"},
+      StepOutput = #step_output{step_input = StepInput, output = "unknown_error"},
       notify_error(Index, StepOutput)
   end,
   
   ok.
   
-notify_paid(Index, #step_output{step_input = StepInput} = StepOutput) ->
+notify(What, {Index, #step_output{step_input = StepInput} = StepOutput}) ->
   Promise = StepInput#step_input.promise,
+
+  Pname = pname_for(Promise#promise.uuid),
+  ok = gen_server:cast(Pname, {What, Index, StepOutput}).
+
+notify_paid(Index, #step_output{} = StepOutput) ->
+  notify(notify_paid, {Index, StepOutput}).
+
+notify_error(Index, #step_output{} = StepOutput) ->
+  notify(notify_error, {Index, StepOutput}).
   
-  Pname = pname_for(Promise#promise.uuid),
-  ok = gen_server:cast(Pname, {notify_paid, Index, StepOutput}).
-
-notify_error(Index, #step_output{step_input = StepInput} = StepOutput) ->
-  Promise = StepInput#step_input.promise,
-
-  Pname = pname_for(Promise#promise.uuid),
-  ok = gen_server:cast(Pname, {notify_error, Index, StepOutput}).

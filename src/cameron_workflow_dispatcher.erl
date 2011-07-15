@@ -74,7 +74,7 @@ handle_call(_Request, _From, State) ->
 
 % dispatches new promise to be paid
 handle_cast({dispatch_new_promise, Promise}, State) ->
-  {ok, Promise} = cameron_workflow_handler:handle_promise(Promise),
+  ok = cameron_workflow_handler:handle_promise(Promise),
   {noreply, State};
 
 % manual shutdown
