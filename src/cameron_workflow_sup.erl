@@ -94,5 +94,5 @@ pname(#promise{uuid = PromiseUUID}) ->
   pname(PromiseUUID);
 
 pname(PromiseUUID) when is_list(PromiseUUID) ->
-  ?Pname(PromiseUUID).
+  ?pname(PromiseUUID).
   

@@ -52,7 +52,7 @@ handle_request(#request{} = Request) ->
 handle_promise(#promise{uuid = PromiseUUID} = Promise) ->
   case cameron_workflow_sup:start_child(Promise) of
     {ok, _Pid} ->
-      ok = gen_server:cast(?Pname(PromiseUUID), {handle_promise, Promise});
+      ok = gen_server:cast(?pname(PromiseUUID), {handle_promise, Promise});
     {error, {already_started, _Pid}} ->
       ok
   end.
@@ -87,7 +87,7 @@ handle_cast({handle_promise, #promise{uuid = PromiseUUID} = Promise}, State) ->
                            name    = "cloud_zabbix",
                            url     = "http://localhost:9292/workflow/v0.0.1/cloud/zabbix",
                            payload = "xxx",
-                           pname   = ?Pname(PromiseUUID)},
+                           pname   = ?pname(PromiseUUID)},
   
   spawn(?MODULE, work, [1, CloudInput]),
   
@@ -95,7 +95,7 @@ handle_cast({handle_promise, #promise{uuid = PromiseUUID} = Promise}, State) ->
                           name    = "hosting_zabbix",
                           url     = "http://localhost:9292/workflow/v0.0.1/hosting/zabbix",
                           payload = "yyy",
-                          pname   = ?Pname(PromiseUUID)},
+                          pname   = ?pname(PromiseUUID)},
   
   spawn(?MODULE, work, [2, HostInput]),
   
@@ -103,7 +103,7 @@ handle_cast({handle_promise, #promise{uuid = PromiseUUID} = Promise}, State) ->
                                name    = "sqlserver_zabbix",
                                url     = "http://localhost:9292/workflow/v0.0.1/sqlserver/zabbix",
                                payload = "zzz",
-                               pname   = ?Pname(PromiseUUID)},
+                               pname   = ?pname(PromiseUUID)},
   
   spawn(?MODULE, work, [3, SqlServerInput]),
   
@@ -215,7 +215,7 @@ work(Index, #step_input{promise = _Promise,
 notify(What, {Index, #step_output{step_input = StepInput} = StepOutput}) ->
   Promise = StepInput#step_input.promise,
 
-  Pname = ?Pname(Promise#promise.uuid),
+  Pname = ?pname(Promise#promise.uuid),
   ok = gen_server:cast(Pname, {What, Index, StepOutput}).
 
 notify_paid(Index, #step_output{} = StepOutput) ->

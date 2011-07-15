@@ -1,7 +1,7 @@
 %% @author Leandro Silva <leandrodoze@gmail.com>
 %% @copyright 2011 Leandro Silva.
 
--define(Pname(UUID), list_to_atom("cameron_" ++ UUID)).
+-define(pname(UUID), list_to_atom("cameron_" ++ UUID)).
 
 -record(workflow, {name,
                    start_url}).
