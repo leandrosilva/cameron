@@ -85,7 +85,7 @@ handle_call(_Request, _From, State) ->
 
 % wake up to run a workflow
 handle_cast({handle_promise, #promise{uuid = PromiseUUID} = Promise}, State) ->
-  {ok, Promise} = cameron_workflow_persistence:mark_promise_as_dispatched(Promise),
+  ok = cameron_workflow_persistence:mark_promise_as_dispatched(Promise),
   
   CloudInput = #step_input{promise = Promise,
                            name    = "cloud_zabbix",
@@ -115,11 +115,11 @@ handle_cast({handle_promise, #promise{uuid = PromiseUUID} = Promise}, State) ->
 
 % notify when a individual promise is done
 handle_cast({notify_paid, _Index, #step_output{step_input = _StepInput} = StepOutput}, State) ->
-  {ok, Promise} = cameron_workflow_persistence:save_promise_progress(StepOutput),
+  ok = cameron_workflow_persistence:save_promise_progress(StepOutput),
 
   case State#state.countdown of
     1 ->
-      {ok, Promise} = cameron_workflow_persistence:mark_promise_as_paid(Promise),
+      ok = cameron_workflow_persistence:mark_promise_as_paid(State#state.promise),
       NewState = State#state{countdown = 0},
       {stop, normal, NewState};
     N ->
@@ -129,11 +129,11 @@ handle_cast({notify_paid, _Index, #step_output{step_input = _StepInput} = StepOu
 
 % notify when a individual promise fail
 handle_cast({notify_error, _Index, #step_output{step_input = _StepInput} = StepOutput}, State) ->
-  {ok, Promise} = cameron_workflow_persistence:save_error_on_promise_progress(StepOutput),
+  ok = cameron_workflow_persistence:save_error_on_promise_progress(StepOutput),
 
   case State#state.countdown of
     1 ->
-      {ok, Promise} = cameron_workflow_persistence:mark_promise_as_paid(Promise),
+      ok = cameron_workflow_persistence:mark_promise_as_paid(State#state.promise),
       NewState = State#state{countdown = 0},
       {stop, normal, NewState};
     N ->

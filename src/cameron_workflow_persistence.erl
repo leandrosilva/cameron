@@ -10,8 +10,7 @@
 
 % public api
 -export([save_new_request/1, mark_promise_as_dispatched/1]).
--export([save_promise_progress/1, mark_promise_as_paid/1]).
--export([save_error_on_promise_progress/1]).
+-export([save_promise_progress/1, save_error_on_promise_progress/1, mark_promise_as_paid/1]).
 
 %%
 %% Includes ---------------------------------------------------------------------------------------
@@ -45,19 +44,16 @@ save_new_request(#request{workflow = Workflow, key = RequestKey, data = Data, fr
   
   {ok, #promise{uuid = NewPromiseUUID, request = Request}}.
 
-%% @spec mark_promise_as_dispatched(Promise) -> {ok, Promise} | {error, Reason}
+%% @spec mark_promise_as_dispatched(Promise) -> ok | {error, Reason}
 %% @doc Status: dispatched, which means it's work in progress.
 mark_promise_as_dispatched(#promise{} = Promise) ->
   PromiseUUIDTag = redis_promise_tag_for(Promise),
 
   ok = redis(["hmset", PromiseUUIDTag,
                        "status.current",         "dispatched",
-                       "status.dispatched.time", datetime()]),
+                       "status.dispatched.time", datetime()]).
 
-  
-  {ok, Promise}.
-
-%% @spec save_promise_progress(WorkflowStepOutput) -> {ok, Promise} | {error, Reason}
+%% @spec save_promise_progress(WorkflowStepOutput) -> ok | {error, Reason}
 %% @doc Save to Redis a workflow execution output.
 %%      Status: paid, for this particular step.
 save_promise_progress(#step_output{step_input = StepInput, output = Output}) ->
@@ -69,11 +65,24 @@ save_promise_progress(#step_output{step_input = StepInput, output = Output}) ->
   ok = redis(["hmset", PromiseUUIDTag,
                        "step." ++ StepName ++ ".status.current",   "paid",
                        "step." ++ StepName ++ ".status.paid.time", datetime(),
+                       "step." ++ StepName ++ ".output",           Output]).
+
+%% @spec save_error_on_promise_progress(WorkflowStepOutput) -> ok | {error, Reason}
+%% @doc Status: error, this promise is done.
+save_error_on_promise_progress(#step_output{step_input = StepInput, output = Output}) ->
+  Promise = StepInput#step_input.promise,
+  PromiseUUIDTag = redis_promise_tag_for(Promise),
+
+  StepName = StepInput#step_input.name,
+
+  ok = redis(["hmset", PromiseUUIDTag,
+                       "step." ++ StepName ++ ".status.current",   "error",
+                       "step." ++ StepName ++ ".status.error.time", datetime(),
                        "step." ++ StepName ++ ".output",           Output]),
 
-  {ok, Promise}.
+  ok = redis(["set", redis_error_tag_for(PromiseUUIDTag, StepName), Output]).
 
-%% @spec mark_promise_as_paid(Promise) -> {ok, Request} | {error, Reason}
+%% @spec mark_promise_as_paid(Promise) -> ok | {error, Reason}
 %% @doc Status: paid, this promise is done.
 mark_promise_as_paid(#promise{} = Promise) ->
   PromiseUUIDTag = redis_promise_tag_for(Promise),
@@ -83,26 +92,7 @@ mark_promise_as_paid(#promise{} = Promise) ->
                        "status.paid.time", datetime()]),
 
   1 = redis(["del", redis_tag_as_pending(PromiseUUIDTag)]),
-  ok = redis(["set", redis_tag_as_paid(PromiseUUIDTag), PromiseUUIDTag]),
-
-  {ok, Promise}.
-  
-%% @spec save_error_on_promise_progress(WorkflowStepOutput) -> {ok, Request} | {error, Reason}
-%% @doc Status: error, this promise is done.
-save_error_on_promise_progress(#step_output{step_input = StepInput, output = Output}) ->
-  Promise = StepInput#step_input.promise,
-  PromiseUUIDTag = redis_promise_tag_for(Promise),
-
-  StepName = StepInput#step_input.name,
-  
-  ok = redis(["hmset", PromiseUUIDTag,
-                       "step." ++ StepName ++ ".status.current",   "error",
-                       "step." ++ StepName ++ ".status.error.time", datetime(),
-                       "step." ++ StepName ++ ".output",           Output]),
-
-  ok = redis(["set", redis_error_tag_for(PromiseUUIDTag, StepName), Output]),
-  
-  {ok, Promise}.
+  ok = redis(["set", redis_tag_as_paid(PromiseUUIDTag), PromiseUUIDTag]).
   
 %%
 %% Internal Functions -----------------------------------------------------------------------------
