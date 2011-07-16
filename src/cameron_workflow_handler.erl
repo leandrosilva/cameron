@@ -86,27 +86,30 @@ handle_cast({handle_promise, #promise{uuid = PromiseUUID} = Promise}, State) ->
   
   CloudInput = #step_input{promise = Promise,
                            name    = "cloud_zabbix",
-                           url     = "http://localhost:9292/workflow/v0.0.1/cloud/zabbix",
+                           url     = "http://eumoroemguarulhos.appspot.com",
                            payload = "xxx",
                            pname   = ?pname(PromiseUUID)},
   
-  spawn_link(?MODULE, work, [1, CloudInput]),
+  Pid1 = spawn_link(?MODULE, work, [1, CloudInput]),
+  io:format("[cameron_workflow_handler] PromiseUUID: ~s // Cloud Pid: ~w~n", [PromiseUUID, Pid1]),
   
   HostInput = #step_input{promise = Promise,
                           name    = "hosting_zabbix",
-                          url     = "http://localhost:9292/workflow/v0.0.1/hosting/zabbix",
+                          url     = "http://eumoroemguarulhos.appspot.com",
                           payload = "yyy",
                           pname   = ?pname(PromiseUUID)},
   
-  spawn_link(?MODULE, work, [2, HostInput]),
+  Pid2 = spawn_link(?MODULE, work, [2, HostInput]),
+  io:format("[cameron_workflow_handler] PromiseUUID: ~s // Host Pid: ~w~n", [PromiseUUID, Pid2]),
   
   SqlServerInput = #step_input{promise = Promise,
                                name    = "sqlserver_zabbix",
-                               url     = "http://localhost:9292/workflow/v0.0.1/sqlserver/zabbix",
+                               url     = "http://eumoroemguarulhos.appspot.com",
                                payload = "zzz",
                                pname   = ?pname(PromiseUUID)},
   
-  spawn_link(?MODULE, work, [3, SqlServerInput]),
+  Pid3 = spawn_link(?MODULE, work, [3, SqlServerInput]),
+  io:format("[cameron_workflow_handler] PromiseUUID: ~s // SqlServer Pid: ~w~n", [PromiseUUID, Pid3]),
   
   {noreply, State#state{countdown = 3}};
 
