@@ -64,6 +64,7 @@ handle_promise(#promise{uuid = PromiseUUID} = Promise) ->
 %% @spec init([Promise]) -> {ok, State} | {ok, State, Timeout} | ignore | {stop, Reason}
 %% @doc Initiates the server.
 init([Promise]) ->
+  process_flag(trap_exit, true),
   {ok, #state{promise = Promise}}.
 
 %% @spec handle_call(Promise, From, State) ->
@@ -89,7 +90,7 @@ handle_cast({handle_promise, #promise{uuid = PromiseUUID} = Promise}, State) ->
                            payload = "xxx",
                            pname   = ?pname(PromiseUUID)},
   
-  spawn(?MODULE, work, [1, CloudInput]),
+  spawn_link(?MODULE, work, [1, CloudInput]),
   
   HostInput = #step_input{promise = Promise,
                           name    = "hosting_zabbix",
@@ -97,7 +98,7 @@ handle_cast({handle_promise, #promise{uuid = PromiseUUID} = Promise}, State) ->
                           payload = "yyy",
                           pname   = ?pname(PromiseUUID)},
   
-  spawn(?MODULE, work, [2, HostInput]),
+  spawn_link(?MODULE, work, [2, HostInput]),
   
   SqlServerInput = #step_input{promise = Promise,
                                name    = "sqlserver_zabbix",
@@ -105,7 +106,7 @@ handle_cast({handle_promise, #promise{uuid = PromiseUUID} = Promise}, State) ->
                                payload = "zzz",
                                pname   = ?pname(PromiseUUID)},
   
-  spawn(?MODULE, work, [3, SqlServerInput]),
+  spawn_link(?MODULE, work, [3, SqlServerInput]),
   
   {noreply, State#state{countdown = 3}};
 
@@ -149,12 +150,17 @@ handle_cast(_Msg, State) ->
 %%                  {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
 %% @doc Handling all non call/cast messages.
 
-% handle_info generic fallback (ignore)
-% fail
-handle_info({'EXIT', _, _}, State) ->
+% exit // any reason
+handle_info({'EXIT', Pid, Reason}, State) ->
+  % i could do 'countdown' and mark_promise_as_paid here, couldn't i?
+  #promise{uuid = PromiseUUID} = State#state.promise,
+  io:format("[cameron_workflow_handler] PromiseUUID: ~s // EXIT: ~w ~w~n", [PromiseUUID, Pid, Reason]),
   {noreply, State};
   
-handle_info({'DOWN', _, _, _Pid, _}, State) ->
+% down
+handle_info({'DOWN',  Ref, Type, Pid, Info}, State) ->
+  #promise{uuid = PromiseUUID} = State#state.promise,
+  io:format("[cameron_workflow_handler] PromiseUUID: ~s // EXIT: ~w ~w ~w ~w~n", [PromiseUUID, Ref, Type, Pid, Info]),
   {noreply, State};
   
 handle_info(_Info, State) ->
@@ -170,7 +176,7 @@ terminate(normal, State) ->
   io:format("[cameron_workflow_handler] PromiseUUID: ~s // Terminate: normal~n", [PromiseUUID]),
   terminated;
 
-% other reason
+% handle_info generic fallback (ignore) // any reason, i.e: cameron_workflow_sup:stop_child
 terminate(Reason, State) ->
   #promise{uuid = PromiseUUID} = State#state.promise,
   io:format("[cameron_workflow_handler] PromiseUUID: ~s // Terminate: ~w~n", [PromiseUUID, Reason]),
@@ -194,7 +200,7 @@ work(Index, #step_input{promise = _Promise,
   % {ok, {{"HTTP/1.1", 200, "OK"},
   %       [_, _, _, _, _, _, _, _, _, _, _],
   %       Result}} = http_helper:http_get(URL),
-  
+
   case http_helper:http_get(URL) of
     {ok, {{"HTTP/1.1", 200, _}, _, Output}} ->
       StepOutput = #step_output{step_input = StepInput, output = Output},
