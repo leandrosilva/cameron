@@ -11,7 +11,7 @@
 % admin api
 -export([start_link/2, stop/1]).
 % public api
--export([handle_request/1, handle_promise/1, work/2]).
+-export([handle_request/1, handle_promise/1, handle/2]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -83,33 +83,18 @@ handle_call(_Request, _From, State) ->
 % wake up to run a workflow
 handle_cast({handle_promise, #promise{uuid = PromiseUUID} = Promise}, State) ->
   ok = cameron_workflow_persistence:mark_promise_as_dispatched(Promise),
+
+  Request = Promise#promise.request,
+  Workflow = Request#request.workflow,
   
-  CloudInput = #step_input{promise = Promise,
-                           name    = "cloud_zabbix",
-                           url     = "http://eumoroemguarulhos.appspot.com",
-                           payload = "xxx",
+  StartInput = #step_input{promise = Promise,
+                           name    = "start",
+                           url     = build_start_url(Workflow#workflow.start_url, Request#request.key),
+                           payload = Request#request.data,
                            pname   = ?pname(PromiseUUID)},
   
-  Pid1 = spawn_link(?MODULE, work, [1, CloudInput]),
-  io:format("[cameron_workflow_handler] PromiseUUID: ~s // Cloud Pid: ~w~n", [PromiseUUID, Pid1]),
-  
-  HostInput = #step_input{promise = Promise,
-                          name    = "hosting_zabbix",
-                          url     = "http://eumoroemguarulhos.appspot.com",
-                          payload = "yyy",
-                          pname   = ?pname(PromiseUUID)},
-  
-  Pid2 = spawn_link(?MODULE, work, [2, HostInput]),
-  io:format("[cameron_workflow_handler] PromiseUUID: ~s // Host Pid: ~w~n", [PromiseUUID, Pid2]),
-  
-  SqlServerInput = #step_input{promise = Promise,
-                               name    = "sqlserver_zabbix",
-                               url     = "http://eumoroemguarulhos.appspot.com",
-                               payload = "zzz",
-                               pname   = ?pname(PromiseUUID)},
-  
-  Pid3 = spawn_link(?MODULE, work, [3, SqlServerInput]),
-  io:format("[cameron_workflow_handler] PromiseUUID: ~s // SqlServer Pid: ~w~n", [PromiseUUID, Pid3]),
+  HandlerPid = spawn_link(?MODULE, handle, [1, StartInput]),
+  io:format("[cameron_workflow_handler] handling :: PromiseUUID: ~s // HandlerPid: ~w~n", [PromiseUUID, HandlerPid]),
   
   {noreply, State#state{countdown = 3}};
 
@@ -157,13 +142,13 @@ handle_cast(_Msg, State) ->
 handle_info({'EXIT', Pid, Reason}, State) ->
   % i could do 'countdown' and mark_promise_as_paid here, couldn't i?
   #promise{uuid = PromiseUUID} = State#state.promise,
-  io:format("[cameron_workflow_handler] PromiseUUID: ~s // EXIT: ~w ~w~n", [PromiseUUID, Pid, Reason]),
+  io:format("[cameron_workflow_handler] info :: PromiseUUID: ~s // EXIT: ~w ~w~n", [PromiseUUID, Pid, Reason]),
   {noreply, State};
   
 % down
 handle_info({'DOWN',  Ref, Type, Pid, Info}, State) ->
   #promise{uuid = PromiseUUID} = State#state.promise,
-  io:format("[cameron_workflow_handler] PromiseUUID: ~s // EXIT: ~w ~w ~w ~w~n", [PromiseUUID, Ref, Type, Pid, Info]),
+  io:format("[cameron_workflow_handler] info :: PromiseUUID: ~s // DOWN: ~w ~w ~w ~w~n", [PromiseUUID, Ref, Type, Pid, Info]),
   {noreply, State};
   
 handle_info(_Info, State) ->
@@ -176,13 +161,13 @@ handle_info(_Info, State) ->
 % no problem, that's ok
 terminate(normal, State) ->
   #promise{uuid = PromiseUUID} = State#state.promise,
-  io:format("[cameron_workflow_handler] PromiseUUID: ~s // Terminate: normal~n", [PromiseUUID]),
+  io:format("[cameron_workflow_handler] terminating :: PromiseUUID: ~s // normal~n", [PromiseUUID]),
   terminated;
 
 % handle_info generic fallback (ignore) // any reason, i.e: cameron_workflow_sup:stop_child
 terminate(Reason, State) ->
   #promise{uuid = PromiseUUID} = State#state.promise,
-  io:format("[cameron_workflow_handler] PromiseUUID: ~s // Terminate: ~w~n", [PromiseUUID, Reason]),
+  io:format("[cameron_workflow_handler] terminating :: PromiseUUID: ~s // ~w~n", [PromiseUUID, Reason]),
   terminate.
 
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
@@ -194,17 +179,17 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-work(Index, #step_input{promise = _Promise,
-                        name    = _Name,
-                        url     = URL,
-                        payload = _Payload,
-                        pname   = _Pname} = StepInput) ->
+handle(Index, #step_input{promise = _Promise,
+                          name    = _Name,
+                          url     = URL,
+                          payload = Payload,
+                          pname   = _Pname} = StepInput) ->
 
   % {ok, {{"HTTP/1.1", 200, "OK"},
   %       [_, _, _, _, _, _, _, _, _, _, _],
   %       Result}} = http_helper:http_get(URL),
 
-  case http_helper:http_get(URL) of
+  case http_helper:http_post(URL, Payload) of
     {ok, {{"HTTP/1.1", 200, _}, _, Output}} ->
       StepOutput = #step_output{step_input = StepInput, output = Output},
       notify_paid(Index, StepOutput);
@@ -214,7 +199,8 @@ work(Index, #step_input{promise = _Promise,
     {error, {connect_failed, emfile}} ->
       StepOutput = #step_output{step_input = StepInput, output = "{connect_failed, emfile}"},
       notify_error(Index, StepOutput);
-    {error, _Reason} ->
+    {error, Reason} ->
+      io:format("Reason = ~w~n", [Reason]),
       StepOutput = #step_output{step_input = StepInput, output = "unknown_error"},
       notify_error(Index, StepOutput)
   end,
@@ -232,4 +218,8 @@ notify_paid(Index, #step_output{} = StepOutput) ->
 
 notify_error(Index, #step_output{} = StepOutput) ->
   notify(notify_error, {Index, StepOutput}).
+  
+build_start_url(URL, Key) ->
+  NewURL = string:left(URL, string:len(URL) - 5),
+  string:concat(NewURL, Key).
   
