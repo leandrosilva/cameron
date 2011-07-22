@@ -8,15 +8,35 @@
 -module(cameron_workflow_persistence).
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
+% admin api
+-export([start_link/0, stop/0]).
 % public api
 -export([save_new_request/1, mark_promise_as_dispatched/1]).
 -export([save_promise_progress/1, save_error_on_promise_progress/1, mark_promise_as_paid/1]).
+% gen_server callbacks
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 %%
 %% Includes ---------------------------------------------------------------------------------------
 %%
 
 -include("include/cameron.hrl").
+
+-record(state, {}).
+
+%%
+%% Admin API --------------------------------------------------------------------------------------
+%%
+
+%% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
+%% @doc Start cameron server.
+start_link() ->
+  gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
+%% @spec stop() -> ok
+%% @doc Manually stops the server.
+stop() ->
+  gen_server:cast(?MODULE, stop).
 
 %%
 %% Public API -------------------------------------------------------------------------------------
@@ -27,22 +47,12 @@
 %%      be payed, and based on that, one can keep track of workflow execution state and get any
 %%      related data at any time in the future.
 %%      Status: promised.
-save_new_request(#request{workflow = Workflow, key = RequestKey, data = Data, from = From} = Request) ->
-  WorkflowName = Workflow#workflow.name,
-
-  NewPromiseUUID = new_promise_uuid(),
-  PromiseUUIDTag = redis_promise_tag_for(WorkflowName, RequestKey, NewPromiseUUID),
-
-  ok = redis(["hmset", PromiseUUIDTag,
-                       "request.key",     RequestKey,
-                       "request.data",    Data,
-                       "request.from",    From,
-                       "status.current",  "promised",
-                       "status.promised", datetime()]),
+save_new_request(#request{} = Request) ->
+  NewPromise = #promise{uuid = new_promise_uuid(), request = Request},
   
-  ok = redis(["set", redis_tag_as_pending(PromiseUUIDTag), PromiseUUIDTag]),
-  
-  {ok, #promise{uuid = NewPromiseUUID, request = Request}}.
+  ok = gen_server:cast(?MODULE, {save_new_promise, NewPromise}),
+
+  {ok, NewPromise}.
 
 %% @spec mark_promise_as_dispatched(Promise) -> ok | {error, Reason}
 %% @doc Status: dispatched, which means it's work in progress.
@@ -93,7 +103,76 @@ mark_promise_as_paid(#promise{} = Promise) ->
 
   1 = redis(["del", redis_tag_as_pending(PromiseUUIDTag)]),
   ok = redis(["set", redis_tag_as_paid(PromiseUUIDTag), PromiseUUIDTag]).
+
+%%
+%% Gen_Server Callbacks ---------------------------------------------------------------------------
+%%
+
+%% @spec init(_Options) -> {ok, State} | {ok, State, Timeout} | ignore | {stop, Reason}
+%% @doc Initiates the server.
+init(_Options) ->
+  {ok, #state{}}.
+
+%% @spec handle_call(Request, From, State) ->
+%%                  {reply, Reply, State} | {reply, Reply, State, Timeout} | {noreply, State} |
+%%                  {noreply, State, Timeout} | {stop, Reason, Reply, State} | {stop, Reason, State}
+%% @doc Handling call messages.
+
+% handle_call generic fallback
+handle_call(_Request, _From, State) ->
+  {reply, undefined, State}.
+
+%% @spec handle_cast(Msg, State) ->
+%%                  {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
+%% @doc Handling cast messages.
+
+% save a new promise
+handle_cast({save_new_promise, #promise{uuid = PromiseUUID, request = Request}}, State) ->
+  #request{workflow = #workflow{name = WorkflowName},
+           key      = RequestKey,
+           data     = RequestData,
+           from     = RequestFrom} = Request,
   
+  PromiseUUIDTag = redis_promise_tag_for(WorkflowName, RequestKey, PromiseUUID),
+
+  ok = redis(["hmset", PromiseUUIDTag,
+                       "request.key",     RequestKey,
+                       "request.data",    RequestData,
+                       "request.from",    RequestFrom,
+                       "status.current",  "promised",
+                       "status.promised", datetime()]),
+  
+  ok = redis(["set", redis_tag_as_pending(PromiseUUIDTag), PromiseUUIDTag]),
+  
+  {noreply, State};
+
+% manual shutdown
+handle_cast(stop, State) ->
+  {stop, normal, State};
+
+% handle_cast generic fallback (ignore)
+handle_cast(_Msg, State) ->
+  {noreply, State}.
+
+%% @spec handle_info(Info, State) ->
+%%                  {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
+%% @doc Handling all non call/cast messages.
+
+% handle_info generic fallback (ignore)
+handle_info(_Info, State) ->
+  {noreply, State}.
+
+%% @spec terminate(Reason, State) -> void()
+%% @doc This function is called by a gen_server when it is about to terminate. When it returns,
+%%      the gen_server terminates with Reason. The return value is ignored.
+terminate(_Reason, _State) ->
+  terminated.
+
+%% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
+%% @doc Convert process state when code is changed.
+code_change(_OldVsn, State, _Extra) ->
+  {ok, State}.
+
 %%
 %% Internal Functions -----------------------------------------------------------------------------
 %%
