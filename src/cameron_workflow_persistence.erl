@@ -57,52 +57,23 @@ save_new_request(#request{} = Request) ->
 %% @spec mark_promise_as_dispatched(Promise) -> ok | {error, Reason}
 %% @doc Status: dispatched, which means it's work in progress.
 mark_promise_as_dispatched(#promise{} = Promise) ->
-  PromiseUUIDTag = redis_promise_tag_for(Promise),
-
-  ok = redis(["hmset", PromiseUUIDTag,
-                       "status.current",         "dispatched",
-                       "status.dispatched.time", datetime()]).
+  ok = gen_server:cast(?MODULE, {mark_promise_as_dispatched, Promise}).
 
 %% @spec save_promise_progress(WorkflowStepOutput) -> ok | {error, Reason}
 %% @doc Save to Redis a workflow execution output.
 %%      Status: paid, for this particular step.
-save_promise_progress(#step_output{step_input = StepInput, output = Output}) ->
-  Promise = StepInput#step_input.promise,
-  PromiseUUIDTag = redis_promise_tag_for(Promise),
-
-  StepName = StepInput#step_input.name,
-
-  ok = redis(["hmset", PromiseUUIDTag,
-                       "step." ++ StepName ++ ".status.current",   "paid",
-                       "step." ++ StepName ++ ".status.paid.time", datetime(),
-                       "step." ++ StepName ++ ".output",           Output]).
+save_promise_progress(#step_output{} = StepOuput) ->
+  ok = gen_server:cast(?MODULE, {save_promise_progress, StepOuput}).
 
 %% @spec save_error_on_promise_progress(WorkflowStepOutput) -> ok | {error, Reason}
 %% @doc Status: error, this promise is done.
-save_error_on_promise_progress(#step_output{step_input = StepInput, output = Output}) ->
-  Promise = StepInput#step_input.promise,
-  PromiseUUIDTag = redis_promise_tag_for(Promise),
-
-  StepName = StepInput#step_input.name,
-
-  ok = redis(["hmset", PromiseUUIDTag,
-                       "step." ++ StepName ++ ".status.current",   "error",
-                       "step." ++ StepName ++ ".status.error.time", datetime(),
-                       "step." ++ StepName ++ ".output",           Output]),
-
-  ok = redis(["set", redis_error_tag_for(PromiseUUIDTag, StepName), Output]).
+save_error_on_promise_progress(#step_output{} = StepOuput) ->
+  ok = gen_server:cast(?MODULE, {save_promise_progress, StepOuput}).
 
 %% @spec mark_promise_as_paid(Promise) -> ok | {error, Reason}
 %% @doc Status: paid, this promise is done.
 mark_promise_as_paid(#promise{} = Promise) ->
-  PromiseUUIDTag = redis_promise_tag_for(Promise),
-
-  ok = redis(["hmset", PromiseUUIDTag,
-                       "status.current",   "paid",
-                       "status.paid.time", datetime()]),
-
-  1 = redis(["del", redis_tag_as_pending(PromiseUUIDTag)]),
-  ok = redis(["set", redis_tag_as_paid(PromiseUUIDTag), PromiseUUIDTag]).
+  ok = gen_server:cast(?MODULE, {mark_promise_as_paid, Promise}).
 
 %%
 %% Gen_Server Callbacks ---------------------------------------------------------------------------
@@ -144,6 +115,59 @@ handle_cast({save_new_promise, #promise{uuid = PromiseUUID, request = Request}},
   
   ok = redis(["set", redis_tag_as_pending(PromiseUUIDTag), PromiseUUIDTag]),
   
+  {noreply, State};
+
+% mark a new promise as dispatched
+handle_cast({mark_promise_as_dispatched, #promise{} = Promise}, State) ->
+  PromiseUUIDTag = redis_promise_tag_for(Promise),
+
+  ok = redis(["hmset", PromiseUUIDTag,
+                       "status.current",         "dispatched",
+                       "status.dispatched.time", datetime()]),
+
+  {noreply, State};
+
+% save the progress of a promise given
+handle_cast({save_promise_progress, #step_output{step_input = StepInput, output = Output}}, State) ->
+  Promise = StepInput#step_input.promise,
+  PromiseUUIDTag = redis_promise_tag_for(Promise),
+
+  StepName = StepInput#step_input.name,
+
+  ok = redis(["hmset", PromiseUUIDTag,
+                       "step." ++ StepName ++ ".status.current",   "paid",
+                       "step." ++ StepName ++ ".status.paid.time", datetime(),
+                       "step." ++ StepName ++ ".output",           Output]),
+
+  {noreply, State};
+
+% save an error message happened in a promise payment process
+handle_cast({save_error_on_promise_progress, #step_output{step_input = StepInput, output = Output}}, State) ->
+  Promise = StepInput#step_input.promise,
+  PromiseUUIDTag = redis_promise_tag_for(Promise),
+
+  StepName = StepInput#step_input.name,
+
+  ok = redis(["hmset", PromiseUUIDTag,
+                       "step." ++ StepName ++ ".status.current",   "error",
+                       "step." ++ StepName ++ ".status.error.time", datetime(),
+                       "step." ++ StepName ++ ".output",           Output]),
+
+  ok = redis(["set", redis_error_tag_for(PromiseUUIDTag, StepName), Output]),
+
+  {noreply, State};
+
+% mark a promise as paid
+handle_cast({mark_promise_as_paid, #promise{} = Promise}, State) ->
+  PromiseUUIDTag = redis_promise_tag_for(Promise),
+
+  ok = redis(["hmset", PromiseUUIDTag,
+                       "status.current",   "paid",
+                       "status.paid.time", datetime()]),
+
+  1 = redis(["del", redis_tag_as_pending(PromiseUUIDTag)]),
+  ok = redis(["set", redis_tag_as_paid(PromiseUUIDTag), PromiseUUIDTag]),
+
   {noreply, State};
 
 % manual shutdown
