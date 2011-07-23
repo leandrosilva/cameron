@@ -11,8 +11,8 @@
 % admin api
 -export([start_link/0, stop/0]).
 % public api
--export([save_new_request/1, mark_job_as_dispatched/1]).
--export([save_job_progress/1, save_error_on_job_progress/1, mark_job_as_done/1]).
+-export([save_new_request/1, mark_job_as_running/1]).
+-export([save_task_result/1, save_error_on_task_execution/1, mark_job_as_done/1]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -54,21 +54,21 @@ save_new_request(#request{} = Request) ->
 
   {ok, NewJob}.
 
-%% @spec mark_job_as_dispatched(Job) -> ok | {error, Reason}
-%% @doc Status: dispatched, which means it's work in progress.
-mark_job_as_dispatched(#job{} = Job) ->
-  ok = gen_server:cast(?MODULE, {mark_job_as_dispatched, Job}).
+%% @spec mark_job_as_running(Job) -> ok | {error, Reason}
+%% @doc Status: running, which means it's work in progress.
+mark_job_as_running(#job{} = Job) ->
+  ok = gen_server:cast(?MODULE, {mark_job_as_running, Job}).
 
-%% @spec save_job_progress(TaskOutput) -> ok | {error, Reason}
+%% @spec save_task_result(TaskOutput) -> ok | {error, Reason}
 %% @doc Save to Redis a workflow execution output.
 %%      Status: done, for this particular task.
-save_job_progress(#task_output{} = TaskOuput) ->
-  ok = gen_server:cast(?MODULE, {save_job_progress, TaskOuput}).
+save_task_result(#task_output{} = TaskOuput) ->
+  ok = gen_server:cast(?MODULE, {save_task_result, TaskOuput}).
 
-%% @spec save_error_on_job_progress(TaskOutput) -> ok | {error, Reason}
+%% @spec save_error_on_task_execution(TaskOutput) -> ok | {error, Reason}
 %% @doc Status: error, this job is done.
-save_error_on_job_progress(#task_output{} = TaskOuput) ->
-  ok = gen_server:cast(?MODULE, {save_job_progress, TaskOuput}).
+save_error_on_task_execution(#task_output{} = TaskOuput) ->
+  ok = gen_server:cast(?MODULE, {save_task_result, TaskOuput}).
 
 %% @spec mark_job_as_done(Job) -> ok | {error, Reason}
 %% @doc Status: done, this job is done.
@@ -117,18 +117,18 @@ handle_cast({save_new_job, #job{uuid = JobUUID, request = Request}}, State) ->
   
   {noreply, State};
 
-% mark a new job as dispatched
-handle_cast({mark_job_as_dispatched, #job{} = Job}, State) ->
+% mark a new job as running
+handle_cast({mark_job_as_running, #job{} = Job}, State) ->
   JobUUIDTag = redis_job_tag_for(Job),
 
   ok = redis(["hmset", JobUUIDTag,
-                       "status.current",         "dispatched",
-                       "status.dispatched.time", datetime()]),
+                       "status.current",      "running",
+                       "status.running.time", datetime()]),
 
   {noreply, State};
 
-% save the progress of a job given
-handle_cast({save_job_progress, #task_output{task_input = TaskInput, output = Output}}, State) ->
+% save the result of a task given
+handle_cast({save_task_result, #task_output{task_input = TaskInput, output = Output}}, State) ->
   Job = TaskInput#task_input.job,
   JobUUIDTag = redis_job_tag_for(Job),
 
@@ -142,7 +142,7 @@ handle_cast({save_job_progress, #task_output{task_input = TaskInput, output = Ou
   {noreply, State};
 
 % save an error message happened in a job payment process
-handle_cast({save_error_on_job_progress, #task_output{task_input = TaskInput, output = Output}}, State) ->
+handle_cast({save_error_on_task_execution, #task_output{task_input = TaskInput, output = Output}}, State) ->
   Job = TaskInput#task_input.job,
   JobUUIDTag = redis_job_tag_for(Job),
 
@@ -164,7 +164,9 @@ handle_cast({mark_job_as_done, #job{} = Job}, State) ->
   ok = redis(["hmset", JobUUIDTag,
                        "status.current",   "done",
                        "status.done.time", datetime()]),
-io:format("~n~n-------------------------~n~n"),
+                       
+  io:format("~n~n----- NOW JOB IS MARKED AS DONE -----~n~n"),
+
   1 = redis(["del", redis_tag_as_pending(JobUUIDTag)]),
   ok = redis(["set", redis_tag_as_done(JobUUIDTag), JobUUIDTag]),
 
