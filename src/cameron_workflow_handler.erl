@@ -84,13 +84,8 @@ handle_call(_Request, _From, State) ->
 handle_cast({handle_promise, #promise{uuid = PromiseUUID} = Promise}, State) ->
   ok = cameron_workflow_persistence:mark_promise_as_dispatched(Promise),
 
-  Request = Promise#promise.request,
-  Workflow = Request#request.workflow,
-  
   StartInput = #step_input{promise = Promise,
                            name    = "start",
-                           url     = build_start_url(Workflow#workflow.start_url, Request#request.key),
-                           payload = Request#request.data,
                            pname   = ?pname(PromiseUUID)},
   
   HandlerPid = spawn_link(?MODULE, handle, [1, StartInput]),
@@ -179,17 +174,20 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-handle(Index, #step_input{promise = _Promise,
+handle(Index, #step_input{promise = Promise,
                           name    = _Name,
-                          url     = URL,
-                          payload = Payload,
                           pname   = _Pname} = StepInput) ->
 
-  % {ok, {{"HTTP/1.1", 200, "OK"},
-  %       [_, _, _, _, _, _, _, _, _, _, _],
-  %       Result}} = http_helper:http_get(URL),
+  #request{workflow = #workflow{start_url = StartURL},
+           key      = RequestKey,
+           data     = RequestData,
+           from     = RequestFrom} = Promise#promise.request,
+  
+  Payload = struct:to_json({struct, [{<<"key">>,  list_to_binary(RequestKey)},
+                                     {<<"data">>, list_to_binary(RequestData)},
+                                     {<<"from">>, list_to_binary(RequestFrom)}]}),
 
-  case http_helper:http_post(URL, Payload) of
+  case http_helper:http_post(StartURL, unicode:characters_to_list(Payload)) of
     {ok, {{"HTTP/1.1", 200, _}, _, Output}} ->
       StepOutput = #step_output{step_input = StepInput, output = Output},
       notify_paid(Index, StepOutput);
@@ -218,8 +216,4 @@ notify_paid(Index, #step_output{} = StepOutput) ->
 
 notify_error(Index, #step_output{} = StepOutput) ->
   notify(notify_error, {Index, StepOutput}).
-  
-build_start_url(URL, Key) ->
-  NewURL = string:left(URL, string:len(URL) - 5),
-  string:concat(NewURL, Key).
   

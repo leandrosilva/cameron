@@ -16,8 +16,6 @@
 
 -record(step_input, {promise = #promise{},
                      name,
-                     url,
-                     payload,
                      pname}).
 
 -record(step_output, {step_input = #step_input{},

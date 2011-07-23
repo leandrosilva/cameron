@@ -7,15 +7,18 @@ Rack::API.app do
   respond_to :json
   
   version "v0.0.1" do
-    post "/start/:key" do
-      puts "[Request] Key: #{params[:key]} // Payload: #{request.body.read}"
+    post "/start" do
+      body = request.body.read
+      payload = JSON.parse(body)
+      
+      puts "[Request] #{payload}"
       
       {
         workflow_name: "diagnostic",
         step_name:     "start_point",
         step_type:     "parallel",
         
-        step_data:     { customer_id:           params[:key],
+        step_data:     { customer_id:           payload["key"],
                          customer_name:         "Leandro Silva",
                          customer_login:        "leandrosilva.codezone",
                          customer_web_info:     { blog:    "http://leandrosilva.com.br",

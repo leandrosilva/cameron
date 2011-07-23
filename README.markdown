@@ -34,8 +34,8 @@ Oops! So, to be idiomatic, there is a record for workflow request:
 
 1.1.) It verifies whether that workflow exists or not, by look to a configuration file where is recorded any existent workflow. The layout of that configuration file is like that:
 
-    {workflows, [{bar, {start_url, "http://foo.com/workflow/bar/start/{key}"}},
-                 {zar, {start_url, "http://foo.com/workflow/zar/start/{key}"}}]}.
+    {workflows, [{bar, {start_url, "http://foo.com/workflow/bar/start"}},
+                 {zar, {start_url, "http://foo.com/workflow/zar/start"}}]}.
 
 1.2.exists.1.) It generates a request, thru **cameron_workflow_persistence** module, which is a kind of UUID for that request
 
@@ -127,8 +127,8 @@ And there is also a **cameron_workflow** supervisor, that's **cameron_workflow_s
 
 Just to remember, this start_url resides inside **priv/workflows/{environment}.config**, as we already saw before:
 
-    {workflows, [{bar, {start_url, "http://foo.com/workflow/bar/start/{key}"}},
-                 {zar, {start_url, "http://foo.com/workflow/zar/start/{key}"}}]}.
+    {workflows, [{bar, {start_url, "http://foo.com/workflow/bar/start"}},
+                 {zar, {start_url, "http://foo.com/workflow/zar/start"}}]}.
 
 And so, that **start_url**, when receives a HTTP POST, must respond something like this:
 
