@@ -3,7 +3,7 @@
 # Diagnostic is a fake workflow used to test stuffs.
 #
 Rack::API.app do
-  prefix     "workflow"
+  prefix     "diagnostic"
   respond_to :json
   
   version "v0.0.1" do
@@ -25,18 +25,18 @@ Rack::API.app do
                                              twitter: "codezone" },
                     customer_billing_info: { prefered_payment_method: "creditcard",
                                              prefered_due_date:       "on 5 of each month" }},
-        next_tasks:
+        work_list:
           [
             { name: "cloud_zabbix",
-              url:  "http://localhost:9292/workflow/cloud/zabbix" },
+              url:  "http://localhost:9292/diagnostic/cloud/zabbix" },
             { name: "cloud_product",
-              url:  "http://localhost:9292/workflow/cloud/product" },
+              url:  "http://localhost:9292/diagnostic/cloud/product" },
             { name: "hosting_zabbix",
-              url:  "http://localhost:9292/workflow/hosting/zabbix" },
+              url:  "http://localhost:9292/diagnostic/hosting/zabbix" },
             { name: "hosting_product",
-              url:  "http://localhost:9292/workflow/hosting/product" },
+              url:  "http://localhost:9292/diagnostic/hosting/product" },
             { name: "sqlserver_zabbix",
-              url:  "http://localhost:9292/workflow/sqlserver/zabbix" }
+              url:  "http://localhost:9292/diagnostic/sqlserver/zabbix" }
           ]
       }
     end
@@ -50,7 +50,7 @@ Rack::API.app do
                 server_info:  { ip:           "192.02.12.10.12",
                                 vlan:         "vl001",
                                 last_stop_at: "01/02/2011" }},
-        next_tasks: []
+        work_list: []
       }
     end
     
@@ -61,7 +61,7 @@ Rack::API.app do
 
         data: { plan:   "linux pro - debian",
                 status: "delivered"},
-        next_tasks: []
+        work_list: []
       }
     end
 
@@ -74,7 +74,7 @@ Rack::API.app do
                 server_info:  { ip:           "192.01.12.03.11",
                                 vlan:         "vl002",
                                 last_stop_at: "01/05/2011" }},
-        next_tasks: []
+        work_list: []
       }
     end
 
@@ -85,7 +85,7 @@ Rack::API.app do
 
         data: { plan:   "pro windows",
                 status: "delivered"},
-        next_tasks: []
+        work_list: []
       }
     end
 
@@ -98,7 +98,7 @@ Rack::API.app do
                 server_info:  { ip:           "192.11.14.11.02",
                                 vlan:         "vl002",
                                 last_stop_at: "01/04/2011" }},
-        next_tasks: []
+        work_list: []
       }
     end
   end

@@ -91,6 +91,7 @@ handle_cast({handle_job, #job{uuid = JobUUID} = Job}, State) ->
   HandlerPid = spawn_link(?MODULE, handle, [1, StartInput]),
   io:format("[cameron_workflow_handler] handling :: JobUUID: ~s // HandlerPid: ~w~n", [JobUUID, HandlerPid]),
   
+  % WARNING => countdown = ?
   {noreply, State#state{countdown = 3}};
 
 % notify when a individual job is done

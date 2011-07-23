@@ -107,11 +107,11 @@ handle_cast({save_new_job, #job{uuid = JobUUID, request = Request}}, State) ->
   JobUUIDTag = redis_job_tag_for(WorkflowName, RequestKey, JobUUID),
 
   ok = redis(["hmset", JobUUIDTag,
-                       "request.key",     RequestKey,
-                       "request.data",    RequestData,
-                       "request.from",    RequestFrom,
-                       "status.current",  "jobd",
-                       "status.jobd", datetime()]),
+                       "request.key",      RequestKey,
+                       "request.data",     RequestData,
+                       "request.from",     RequestFrom,
+                       "status.current",   "scheduled",
+                       "status.scheduled", datetime()]),
   
   ok = redis(["set", redis_tag_as_pending(JobUUIDTag), JobUUIDTag]),
   
@@ -164,7 +164,7 @@ handle_cast({mark_job_as_done, #job{} = Job}, State) ->
   ok = redis(["hmset", JobUUIDTag,
                        "status.current",   "done",
                        "status.done.time", datetime()]),
-
+io:format("~n~n-------------------------~n~n"),
   1 = redis(["del", redis_tag_as_pending(JobUUIDTag)]),
   ok = redis(["set", redis_tag_as_done(JobUUIDTag), JobUUIDTag]),
 
