@@ -5,7 +5,7 @@
 %%      request that refers to a request to run a workflow. And in this case, it stores those tasks
 %%      in a Redis server.
 
--module(cameron_workflow_persistence).
+-module(cameron_workflow_data).
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 % admin api

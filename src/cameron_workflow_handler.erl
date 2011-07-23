@@ -44,7 +44,7 @@ stop(Pname) ->
 %% @spec handle_request(Request) -> {ok, Job} | {error, Reason}
 %% @doc It triggers an async dispatch of a resquest to run a workflow an pay a job.
 handle_request(#request{} = Request) ->
-  {ok, _Job} = cameron_workflow_persistence:save_new_request(Request).
+  {ok, _Job} = cameron_workflow_data:save_new_request(Request).
 
 %% @spec mark_job_as_dispatched(Job) -> ok
 %% @doc Create a new process, child of cameron_workflow_sup, and then run the workflow (in
@@ -82,7 +82,7 @@ handle_call(_Request, _From, State) ->
 
 % wake up to run a workflow
 handle_cast({handle_job, #job{uuid = JobUUID} = Job}, State) ->
-  ok = cameron_workflow_persistence:mark_job_as_dispatched(Job),
+  ok = cameron_workflow_data:mark_job_as_dispatched(Job),
 
   StartInput = #task_input{job = Job,
                            name    = "start",
@@ -96,11 +96,11 @@ handle_cast({handle_job, #job{uuid = JobUUID} = Job}, State) ->
 
 % notify when a individual job is done
 handle_cast({notify_done, _Index, #task_output{task_input = _TaskInput} = TaskOutput}, State) ->
-  ok = cameron_workflow_persistence:save_job_progress(TaskOutput),
+  ok = cameron_workflow_data:save_job_progress(TaskOutput),
 
   case State#state.countdown of
     1 ->
-      ok = cameron_workflow_persistence:mark_job_as_done(State#state.job),
+      ok = cameron_workflow_data:mark_job_as_done(State#state.job),
       NewState = State#state{countdown = 0},
       {stop, normal, NewState};
     N ->
@@ -110,11 +110,11 @@ handle_cast({notify_done, _Index, #task_output{task_input = _TaskInput} = TaskOu
 
 % notify when a individual job fail
 handle_cast({notify_error, _Index, #task_output{task_input = _TaskInput} = TaskOutput}, State) ->
-  ok = cameron_workflow_persistence:save_error_on_job_progress(TaskOutput),
+  ok = cameron_workflow_data:save_error_on_job_progress(TaskOutput),
 
   case State#state.countdown of
     1 ->
-      ok = cameron_workflow_persistence:mark_job_as_done(State#state.job),
+      ok = cameron_workflow_data:mark_job_as_done(State#state.job),
       NewState = State#state{countdown = 0},
       {stop, normal, NewState};
     N ->

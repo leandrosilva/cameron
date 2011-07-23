@@ -77,7 +77,7 @@ which_children() ->
 %%
 %% @doc supervisor callback.
 init([]) ->
-  WorkflowPersistence = {cameron_workflow_persistence, {cameron_workflow_persistence, start_link, []},
+  WorkflowData = {cameron_workflow_data, {cameron_workflow_data, start_link, []},
                                                        permanent, 5000, worker, dynamic},
 
   WorkflowCatalogConfig = cameron:get_workflows_config(),
@@ -87,7 +87,7 @@ init([]) ->
   WorkflowDispatcher = {cameron_workflow_dispatcher, {cameron_workflow_dispatcher, start_link, []},
                                                       permanent, 5000, worker, dynamic},
                                                       
-  {ok, {{one_for_one, 10, 10}, [WorkflowPersistence, WorkflowCatalog, WorkflowDispatcher]}}.
+  {ok, {{one_for_one, 10, 10}, [WorkflowData, WorkflowCatalog, WorkflowDispatcher]}}.
 
 %%
 %% Internal Functions -----------------------------------------------------------------------------
