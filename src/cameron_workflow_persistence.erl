@@ -11,8 +11,8 @@
 % admin api
 -export([start_link/0, stop/0]).
 % public api
--export([save_new_request/1, mark_promise_as_dispatched/1]).
--export([save_promise_progress/1, save_error_on_promise_progress/1, mark_promise_as_paid/1]).
+-export([save_new_request/1, mark_job_as_dispatched/1]).
+-export([save_job_progress/1, save_error_on_job_progress/1, mark_job_as_done/1]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -42,38 +42,38 @@ stop() ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec save_new_request(Request) -> {ok, Promise} | {error, Reason}
-%% @doc The first step of the whole process is accept a request and create a promise which should
+%% @spec save_new_request(Request) -> {ok, Job} | {error, Reason}
+%% @doc The first step of the whole process is accept a request and create a job which should
 %%      be payed, and based on that, one can keep track of workflow execution state and get any
 %%      related data at any time in the future.
-%%      Status: promised.
+%%      Status: jobd.
 save_new_request(#request{} = Request) ->
-  NewPromise = #promise{uuid = new_promise_uuid(), request = Request},
+  NewJob = #job{uuid = new_job_uuid(), request = Request},
   
-  ok = gen_server:cast(?MODULE, {save_new_promise, NewPromise}),
+  ok = gen_server:cast(?MODULE, {save_new_job, NewJob}),
 
-  {ok, NewPromise}.
+  {ok, NewJob}.
 
-%% @spec mark_promise_as_dispatched(Promise) -> ok | {error, Reason}
+%% @spec mark_job_as_dispatched(Job) -> ok | {error, Reason}
 %% @doc Status: dispatched, which means it's work in progress.
-mark_promise_as_dispatched(#promise{} = Promise) ->
-  ok = gen_server:cast(?MODULE, {mark_promise_as_dispatched, Promise}).
+mark_job_as_dispatched(#job{} = Job) ->
+  ok = gen_server:cast(?MODULE, {mark_job_as_dispatched, Job}).
 
-%% @spec save_promise_progress(WorkflowStepOutput) -> ok | {error, Reason}
+%% @spec save_job_progress(WorkflowStepOutput) -> ok | {error, Reason}
 %% @doc Save to Redis a workflow execution output.
-%%      Status: paid, for this particular step.
-save_promise_progress(#step_output{} = StepOuput) ->
-  ok = gen_server:cast(?MODULE, {save_promise_progress, StepOuput}).
+%%      Status: done, for this particular step.
+save_job_progress(#step_output{} = StepOuput) ->
+  ok = gen_server:cast(?MODULE, {save_job_progress, StepOuput}).
 
-%% @spec save_error_on_promise_progress(WorkflowStepOutput) -> ok | {error, Reason}
-%% @doc Status: error, this promise is done.
-save_error_on_promise_progress(#step_output{} = StepOuput) ->
-  ok = gen_server:cast(?MODULE, {save_promise_progress, StepOuput}).
+%% @spec save_error_on_job_progress(WorkflowStepOutput) -> ok | {error, Reason}
+%% @doc Status: error, this job is done.
+save_error_on_job_progress(#step_output{} = StepOuput) ->
+  ok = gen_server:cast(?MODULE, {save_job_progress, StepOuput}).
 
-%% @spec mark_promise_as_paid(Promise) -> ok | {error, Reason}
-%% @doc Status: paid, this promise is done.
-mark_promise_as_paid(#promise{} = Promise) ->
-  ok = gen_server:cast(?MODULE, {mark_promise_as_paid, Promise}).
+%% @spec mark_job_as_done(Job) -> ok | {error, Reason}
+%% @doc Status: done, this job is done.
+mark_job_as_done(#job{} = Job) ->
+  ok = gen_server:cast(?MODULE, {mark_job_as_done, Job}).
 
 %%
 %% Gen_Server Callbacks ---------------------------------------------------------------------------
@@ -97,76 +97,76 @@ handle_call(_Request, _From, State) ->
 %%                  {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
 %% @doc Handling cast messages.
 
-% save a new promise
-handle_cast({save_new_promise, #promise{uuid = PromiseUUID, request = Request}}, State) ->
+% save a new job
+handle_cast({save_new_job, #job{uuid = JobUUID, request = Request}}, State) ->
   #request{workflow = #workflow{name = WorkflowName},
            key      = RequestKey,
            data     = RequestData,
            from     = RequestFrom} = Request,
   
-  PromiseUUIDTag = redis_promise_tag_for(WorkflowName, RequestKey, PromiseUUID),
+  JobUUIDTag = redis_job_tag_for(WorkflowName, RequestKey, JobUUID),
 
-  ok = redis(["hmset", PromiseUUIDTag,
+  ok = redis(["hmset", JobUUIDTag,
                        "request.key",     RequestKey,
                        "request.data",    RequestData,
                        "request.from",    RequestFrom,
-                       "status.current",  "promised",
-                       "status.promised", datetime()]),
+                       "status.current",  "jobd",
+                       "status.jobd", datetime()]),
   
-  ok = redis(["set", redis_tag_as_pending(PromiseUUIDTag), PromiseUUIDTag]),
+  ok = redis(["set", redis_tag_as_pending(JobUUIDTag), JobUUIDTag]),
   
   {noreply, State};
 
-% mark a new promise as dispatched
-handle_cast({mark_promise_as_dispatched, #promise{} = Promise}, State) ->
-  PromiseUUIDTag = redis_promise_tag_for(Promise),
+% mark a new job as dispatched
+handle_cast({mark_job_as_dispatched, #job{} = Job}, State) ->
+  JobUUIDTag = redis_job_tag_for(Job),
 
-  ok = redis(["hmset", PromiseUUIDTag,
+  ok = redis(["hmset", JobUUIDTag,
                        "status.current",         "dispatched",
                        "status.dispatched.time", datetime()]),
 
   {noreply, State};
 
-% save the progress of a promise given
-handle_cast({save_promise_progress, #step_output{step_input = StepInput, output = Output}}, State) ->
-  Promise = StepInput#step_input.promise,
-  PromiseUUIDTag = redis_promise_tag_for(Promise),
+% save the progress of a job given
+handle_cast({save_job_progress, #step_output{step_input = StepInput, output = Output}}, State) ->
+  Job = StepInput#step_input.job,
+  JobUUIDTag = redis_job_tag_for(Job),
 
   StepName = StepInput#step_input.name,
 
-  ok = redis(["hmset", PromiseUUIDTag,
-                       "step." ++ StepName ++ ".status.current",   "paid",
-                       "step." ++ StepName ++ ".status.paid.time", datetime(),
+  ok = redis(["hmset", JobUUIDTag,
+                       "step." ++ StepName ++ ".status.current",   "done",
+                       "step." ++ StepName ++ ".status.done.time", datetime(),
                        "step." ++ StepName ++ ".output",           Output]),
 
   {noreply, State};
 
-% save an error message happened in a promise payment process
-handle_cast({save_error_on_promise_progress, #step_output{step_input = StepInput, output = Output}}, State) ->
-  Promise = StepInput#step_input.promise,
-  PromiseUUIDTag = redis_promise_tag_for(Promise),
+% save an error message happened in a job payment process
+handle_cast({save_error_on_job_progress, #step_output{step_input = StepInput, output = Output}}, State) ->
+  Job = StepInput#step_input.job,
+  JobUUIDTag = redis_job_tag_for(Job),
 
   StepName = StepInput#step_input.name,
 
-  ok = redis(["hmset", PromiseUUIDTag,
+  ok = redis(["hmset", JobUUIDTag,
                        "step." ++ StepName ++ ".status.current",   "error",
                        "step." ++ StepName ++ ".status.error.time", datetime(),
                        "step." ++ StepName ++ ".output",           Output]),
 
-  ok = redis(["set", redis_error_tag_for(PromiseUUIDTag, StepName), Output]),
+  ok = redis(["set", redis_error_tag_for(JobUUIDTag, StepName), Output]),
 
   {noreply, State};
 
-% mark a promise as paid
-handle_cast({mark_promise_as_paid, #promise{} = Promise}, State) ->
-  PromiseUUIDTag = redis_promise_tag_for(Promise),
+% mark a job as done
+handle_cast({mark_job_as_done, #job{} = Job}, State) ->
+  JobUUIDTag = redis_job_tag_for(Job),
 
-  ok = redis(["hmset", PromiseUUIDTag,
-                       "status.current",   "paid",
-                       "status.paid.time", datetime()]),
+  ok = redis(["hmset", JobUUIDTag,
+                       "status.current",   "done",
+                       "status.done.time", datetime()]),
 
-  1 = redis(["del", redis_tag_as_pending(PromiseUUIDTag)]),
-  ok = redis(["set", redis_tag_as_paid(PromiseUUIDTag), PromiseUUIDTag]),
+  1 = redis(["del", redis_tag_as_pending(JobUUIDTag)]),
+  ok = redis(["set", redis_tag_as_done(JobUUIDTag), JobUUIDTag]),
 
   {noreply, State};
 
@@ -211,32 +211,32 @@ redis_workflow_tag_for(WorkflowName) ->
   % cameron:workflow:{name}:
   re:replace("cameron:workflow:{name}:", "{name}", maybe_string(WorkflowName), [{return, list}]).
 
-redis_promise_tag_for(WorkflowName, RequestKey, PromiseUUID) ->
-  % cameron:workflow:{name}:key:{key}:promise:{uuid}
-  redis_workflow_tag_for(WorkflowName) ++ "key:" ++ RequestKey ++ ":promise:" ++ PromiseUUID.
+redis_job_tag_for(WorkflowName, RequestKey, JobUUID) ->
+  % cameron:workflow:{name}:key:{key}:job:{uuid}
+  redis_workflow_tag_for(WorkflowName) ++ "key:" ++ RequestKey ++ ":job:" ++ JobUUID.
   
-redis_promise_tag_for(#promise{uuid = PromiseUUID} = Promise) ->
-  Request = Promise#promise.request,
+redis_job_tag_for(#job{uuid = JobUUID} = Job) ->
+  Request = Job#job.request,
   Workflow = Request#request.workflow,
 
   WorkflowName = Workflow#workflow.name,
-  PromiseUUID = Promise#promise.uuid,
+  JobUUID = Job#job.uuid,
   RequestKey = Request#request.key,
   
-  redis_promise_tag_for(WorkflowName, RequestKey, PromiseUUID).
+  redis_job_tag_for(WorkflowName, RequestKey, JobUUID).
 
 redis_tag_as_pending(AnyTag) ->
   AnyTag ++ ":pending".
 
-redis_tag_as_paid(AnyTag) ->
-  AnyTag ++ ":paid".
+redis_tag_as_done(AnyTag) ->
+  AnyTag ++ ":done".
 
-redis_error_tag_for(PromiseUUIDTag, Step) ->
-  PromiseUUIDTag ++ ":" ++ Step ++ ":error".
+redis_error_tag_for(JobUUIDTag, Step) ->
+  JobUUIDTag ++ ":" ++ Step ++ ":error".
 
-%% promise
+%% job
 
-new_promise_uuid() ->
+new_job_uuid() ->
   uuid_helper:new().
 
 %% helpers

@@ -43,12 +43,12 @@ stop() ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec dispatch(Request) -> {ok, Promise} | {error, Reason}
-%% @doc It triggers an async dispatch of a resquest to run a workflow an pay a promise.
+%% @spec dispatch(Request) -> {ok, Job} | {error, Reason}
+%% @doc It triggers an async dispatch of a resquest to run a workflow an pay a job.
 dispatch(#request{} = Request) ->
-  {ok, Promise} = cameron_workflow_handler:handle_request(Request),
-  ok = gen_server:cast(?MODULE, {dispatch_new_promise, Promise}),
-  {ok, Promise}.
+  {ok, Job} = cameron_workflow_handler:handle_request(Request),
+  ok = gen_server:cast(?MODULE, {dispatch_new_job, Job}),
+  {ok, Job}.
 
 %%
 %% Gen_Server Callbacks ---------------------------------------------------------------------------
@@ -72,9 +72,9 @@ handle_call(_Request, _From, State) ->
 %%                  {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
 %% @doc Handling cast messages.
 
-% dispatches new promise to be paid
-handle_cast({dispatch_new_promise, Promise}, State) ->
-  ok = cameron_workflow_handler:handle_promise(Promise),
+% dispatches new job to be done
+handle_cast({dispatch_new_job, Job}, State) ->
+  ok = cameron_workflow_handler:handle_job(Job),
   {noreply, State};
 
 % manual shutdown

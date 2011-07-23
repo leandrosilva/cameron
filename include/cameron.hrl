@@ -11,10 +11,10 @@
                       data,
                       from}).
 
--record(promise,     {uuid,
+-record(job,     {uuid,
                       request = #request{}}).
 
--record(step_input,  {promise = #promise{},
+-record(step_input,  {job = #job{},
                       name,
                       pname}).
 

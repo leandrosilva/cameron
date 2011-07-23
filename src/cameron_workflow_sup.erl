@@ -39,21 +39,21 @@ upgrade() ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec start_child(Promise) -> {ok, ChildPid} | {ok, ChildPid, Info} | {error, Error}
-%% @dynamic Start a cameron_workflow_{Promise} process to diagnostic a Promise given.
-start_child(#promise{} = Promise) ->
-  Pname = pname(Promise),
+%% @spec start_child(Job) -> {ok, ChildPid} | {ok, ChildPid, Info} | {error, Error}
+%% @dynamic Start a cameron_workflow_{Job} process to diagnostic a Job given.
+start_child(#job{} = Job) ->
+  Pname = pname(Job),
 
-  WorkflowSpec = {Pname, {cameron_workflow_handler, start_link, [Pname, Promise]}, temporary, 5000, worker, dynamic},
+  WorkflowSpec = {Pname, {cameron_workflow_handler, start_link, [Pname, Job]}, temporary, 5000, worker, dynamic},
   supervisor:start_child(cameron_workflow_sup, WorkflowSpec).
 
-%% @spec stop_child(Promise) -> ok | {error, Error}
-%% @dynamic Stop a cameron_workflow_{Promise}.
-stop_child(#promise{} = Promise) ->
-  stop_child(pname(Promise));
+%% @spec stop_child(Job) -> ok | {error, Error}
+%% @dynamic Stop a cameron_workflow_{Job}.
+stop_child(#job{} = Job) ->
+  stop_child(pname(Job));
 
-stop_child(PromiseUUID) when is_list(PromiseUUID) ->
-  stop_child(pname(PromiseUUID));
+stop_child(JobUUID) when is_list(JobUUID) ->
+  stop_child(pname(JobUUID));
 
 stop_child(Pname) when is_atom(Pname) ->
   supervisor:terminate_child(cameron_workflow_sup, Pname),
@@ -93,9 +93,9 @@ init([]) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-pname(#promise{uuid = PromiseUUID}) ->
-  pname(PromiseUUID);
+pname(#job{uuid = JobUUID}) ->
+  pname(JobUUID);
 
-pname(PromiseUUID) when is_list(PromiseUUID) ->
-  ?pname(PromiseUUID).
+pname(JobUUID) when is_list(JobUUID) ->
+  ?pname(JobUUID).
   
