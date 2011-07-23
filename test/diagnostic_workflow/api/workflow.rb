@@ -15,7 +15,7 @@ Rack::API.app do
       
       {
         workflow_name: "diagnostic",
-        step_name:     "start_point",
+        step_name:     "start",
         step_type:     "parallel",
         
         step_data:     { customer_id:           payload["key"],
