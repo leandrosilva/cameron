@@ -60,12 +60,12 @@ get_redis_server_config() ->
 
 %% @spec get_processes_config() -> {processes, [{process, {name, Name},
 %%                                                         {start_url, URL}}]}
-%% @doc Processs configuration.
+%% @doc Processes configuration.
 get_processes_config() ->
-  {ok, [[ProcesssConfigFile]]} = init:get_argument(processes),
-  {ok, [{processes, ProcesssConfig}]} = file:consult(ProcesssConfigFile),
+  {ok, [[ProcessesConfigFile]]} = init:get_argument(processes),
+  {ok, [{processes, ProcessesConfig}]} = file:consult(ProcessesConfigFile),
   
-  ProcesssConfig.
+  ProcessesConfig.
   
 %%
 %% Internal Functions -----------------------------------------------------------------------------

@@ -29,8 +29,8 @@
 
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @doc Start cameron server.
-start_link(Processs) ->
-  gen_server:start_link({local, ?MODULE}, ?MODULE, [Processs], []).
+start_link(Processes) ->
+  gen_server:start_link({local, ?MODULE}, ?MODULE, [Processes], []).
 
 %% @spec stop() -> ok
 %% @doc Manually stops the server.
@@ -53,10 +53,10 @@ lookup(Name) when is_list(Name) ->
 %% Gen_Server Callbacks ---------------------------------------------------------------------------
 %%
 
-%% @spec init(Processs) -> {ok, State} | {ok, State, Timeout} | ignore | {stop, Reason}
+%% @spec init(Processes) -> {ok, State} | {ok, State, Timeout} | ignore | {stop, Reason}
 %% @doc Initiates the server.
-init([Processs]) ->
-  {ok, #state{processes = Processs}}.
+init([Processes]) ->
+  {ok, #state{processes = Processes}}.
 
 %% @spec handle_call(Request, From, State) ->
 %%                  {reply, Reply, State} | {reply, Reply, State, Timeout} | {noreply, State} |

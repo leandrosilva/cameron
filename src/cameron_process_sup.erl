@@ -78,14 +78,14 @@ which_children() ->
 %% @doc supervisor callback.
 init([]) ->
   ProcessData = {cameron_process_data, {cameron_process_data, start_link, []},
-                                                       permanent, 5000, worker, dynamic},
+                                       permanent, 5000, worker, dynamic},
 
   ProcessCatalogConfig = cameron:get_processes_config(),
   ProcessCatalog = {cameron_process_catalog, {cameron_process_catalog, start_link, [ProcessCatalogConfig]},
-                                                permanent, 5000, worker, dynamic},
+                                             permanent, 5000, worker, dynamic},
 
   ProcessDispatcher = {cameron_process_dispatcher, {cameron_process_dispatcher, start_link, []},
-                                                      permanent, 5000, worker, dynamic},
+                                                   permanent, 5000, worker, dynamic},
                                                       
   {ok, {{one_for_one, 10, 10}, [ProcessData, ProcessCatalog, ProcessDispatcher]}}.
 
