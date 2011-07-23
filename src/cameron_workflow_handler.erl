@@ -183,11 +183,9 @@ handle(Index, #step_input{promise = Promise,
            data     = RequestData,
            from     = RequestFrom} = Promise#promise.request,
   
-  Payload = struct:to_json({struct, [{<<"key">>,  list_to_binary(RequestKey)},
-                                     {<<"data">>, list_to_binary(RequestData)},
-                                     {<<"from">>, list_to_binary(RequestFrom)}]}),
+  Payload = build_payload(RequestKey, RequestData, RequestFrom),
 
-  case http_helper:http_post(StartURL, unicode:characters_to_list(Payload)) of
+  case http_helper:http_post(StartURL, Payload) of
     {ok, {{"HTTP/1.1", 200, _}, _, Output}} ->
       StepOutput = #step_output{step_input = StepInput, output = Output},
       notify_paid(Index, StepOutput);
@@ -216,4 +214,11 @@ notify_paid(Index, #step_output{} = StepOutput) ->
 
 notify_error(Index, #step_output{} = StepOutput) ->
   notify(notify_error, {Index, StepOutput}).
+  
+build_payload(RequestKey, RequestData, RequestFrom) ->
+  Payload = struct:to_json({struct, [{<<"key">>,  list_to_binary(RequestKey)},
+                                     {<<"data">>, list_to_binary(RequestData)},
+                                     {<<"from">>, list_to_binary(RequestFrom)}]}),
+                                        
+  unicode:characters_to_list(Payload).
   
