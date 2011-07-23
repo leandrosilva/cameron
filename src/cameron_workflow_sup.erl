@@ -44,7 +44,7 @@ upgrade() ->
 start_child(#job{} = Job) ->
   Pname = pname(Job),
 
-  WorkflowSpec = {Pname, {cameron_workflow_handler, start_link, [Pname, Job]}, temporary, 5000, worker, dynamic},
+  WorkflowSpec = {Pname, {cameron_workflow_runner, start_link, [Pname, Job]}, temporary, 5000, worker, dynamic},
   supervisor:start_child(cameron_workflow_sup, WorkflowSpec).
 
 %% @spec stop_child(Job) -> ok | {error, Error}

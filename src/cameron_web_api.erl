@@ -36,12 +36,12 @@ handle_http('POST', ["api", "workflow", WorkflowName, "start"], HttpRequest) ->
     Workflow ->
       Request = build_request(Workflow, Payload),
   
-      {ok, Job} = cameron_workflow_dispatcher:dispatch(Request),
+      {ok, JobUUID} = cameron_workflow_dispatcher:dispatch(Request),
       
       HttpRequest:respond(201, [{"Content-Type", "application/json"},
                                 {"Location", ["http://localhost:8080/api/workflow/", WorkflowName,
                                               "/key/", Request#request.key,
-                                              "/job/", Job#job.uuid]}],
+                                              "/job/", JobUUID]}],
                                "{\"payload\":\"~s\"}", [Payload])
   end;
 

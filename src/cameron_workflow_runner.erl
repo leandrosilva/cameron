@@ -3,7 +3,7 @@
 
 %% @doc The gen_server responsable to execute a workflow.
 
--module(cameron_workflow_handler).
+-module(cameron_workflow_runner).
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 -behaviour(gen_server).
@@ -11,7 +11,7 @@
 % admin api
 -export([start_link/2, stop/1]).
 % public api
--export([handle_request/1, handle_job/1, handle/2]).
+-export([schedule_job/1, run_job/1, handle/2]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -41,18 +41,18 @@ stop(Pname) ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec handle_request(Request) -> {ok, Job} | {error, Reason}
+%% @spec schedule_job(Request) -> {ok, Job} | {error, Reason}
 %% @doc It triggers an async dispatch of a resquest to run a workflow an pay a job.
-handle_request(#request{} = Request) ->
-  {ok, _Job} = cameron_workflow_data:save_new_request(Request).
+schedule_job(#request{} = Request) ->
+  {ok, _Job} = cameron_workflow_data:create_new_job(Request).
 
 %% @spec mark_job_as_running(Job) -> ok
 %% @doc Create a new process, child of cameron_workflow_sup, and then run the workflow (in
 %%      parallel, of course) to the job given.
-handle_job(#job{uuid = JobUUID} = Job) ->
+run_job(#job{uuid = JobUUID} = Job) ->
   case cameron_workflow_sup:start_child(Job) of
     {ok, _Pid} ->
-      ok = gen_server:cast(?pname(JobUUID), {handle_job, Job});
+      ok = gen_server:cast(?pname(JobUUID), {run_job, Job});
     {error, {already_started, _Pid}} ->
       ok
   end.
@@ -81,7 +81,7 @@ handle_call(_Request, _From, State) ->
 %% @doc Handling cast messages.
 
 % wake up to run a workflow
-handle_cast({handle_job, #job{uuid = JobUUID} = Job}, State) ->
+handle_cast({run_job, #job{uuid = JobUUID} = Job}, State) ->
   ok = cameron_workflow_data:mark_job_as_running(Job),
 
   StartInput = #task_input{job   = Job,
@@ -89,7 +89,7 @@ handle_cast({handle_job, #job{uuid = JobUUID} = Job}, State) ->
                            pname = ?pname(JobUUID)},
   
   HandlerPid = spawn_link(?MODULE, handle, [1, StartInput]),
-  io:format("[cameron_workflow_handler] handling :: JobUUID: ~s // HandlerPid: ~w~n", [JobUUID, HandlerPid]),
+  io:format("[cameron_workflow_runner] handling :: JobUUID: ~s // HandlerPid: ~w~n", [JobUUID, HandlerPid]),
   
   % WARNING => countdown = ?
   {noreply, State#state{countdown = 3}};
@@ -138,13 +138,13 @@ handle_cast(_Msg, State) ->
 handle_info({'EXIT', Pid, Reason}, State) ->
   % i could do 'countdown' and mark_job_as_done here, couldn't i?
   #job{uuid = JobUUID} = State#state.job,
-  io:format("[cameron_workflow_handler] info :: JobUUID: ~s // EXIT: ~w ~w~n", [JobUUID, Pid, Reason]),
+  io:format("[cameron_workflow_runner] info :: JobUUID: ~s // EXIT: ~w ~w~n", [JobUUID, Pid, Reason]),
   {noreply, State};
   
 % down
 handle_info({'DOWN',  Ref, Type, Pid, Info}, State) ->
   #job{uuid = JobUUID} = State#state.job,
-  io:format("[cameron_workflow_handler] info :: JobUUID: ~s // DOWN: ~w ~w ~w ~w~n", [JobUUID, Ref, Type, Pid, Info]),
+  io:format("[cameron_workflow_runner] info :: JobUUID: ~s // DOWN: ~w ~w ~w ~w~n", [JobUUID, Ref, Type, Pid, Info]),
   {noreply, State};
   
 handle_info(_Info, State) ->
@@ -157,13 +157,13 @@ handle_info(_Info, State) ->
 % no problem, that's ok
 terminate(normal, State) ->
   #job{uuid = JobUUID} = State#state.job,
-  io:format("[cameron_workflow_handler] terminating :: JobUUID: ~s // normal~n", [JobUUID]),
+  io:format("[cameron_workflow_runner] terminating :: JobUUID: ~s // normal~n", [JobUUID]),
   terminated;
 
 % handle_info generic fallback (ignore) // any reason, i.e: cameron_workflow_sup:stop_child
 terminate(Reason, State) ->
   #job{uuid = JobUUID} = State#state.job,
-  io:format("[cameron_workflow_handler] terminating :: JobUUID: ~s // ~w~n", [JobUUID, Reason]),
+  io:format("[cameron_workflow_runner] terminating :: JobUUID: ~s // ~w~n", [JobUUID, Reason]),
   terminate.
 
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}

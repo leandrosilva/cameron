@@ -11,7 +11,7 @@
 % admin api
 -export([start_link/0, stop/0]).
 % public api
--export([save_new_request/1, mark_job_as_running/1]).
+-export([create_new_job/1, mark_job_as_running/1]).
 -export([save_task_result/1, save_error_on_task_execution/1, mark_job_as_done/1]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -42,15 +42,15 @@ stop() ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec save_new_request(Request) -> {ok, Job} | {error, Reason}
-%% @doc The first task of the whole process is accept a request and create a job which should
-%%      be payed, and based on that, one can keep track of workflow execution state and get any
-%%      related data at any time in the future.
-%%      Status: jobd.
-save_new_request(#request{} = Request) ->
+%% @spec create_new_job(Request) -> {ok, Job} | {error, Reason}
+%% @doc The first task of the whole process is accept a request and create a job which should run
+%%      and keep track of workflow execution state and get any related data at any time in the
+%%      future.
+%%      Status: scheduled.
+create_new_job(#request{} = Request) ->
   NewJob = #job{uuid = new_job_uuid(), request = Request},
   
-  ok = gen_server:cast(?MODULE, {save_new_job, NewJob}),
+  ok = gen_server:cast(?MODULE, {create_new_job, NewJob}),
 
   {ok, NewJob}.
 
@@ -98,7 +98,7 @@ handle_call(_Request, _From, State) ->
 %% @doc Handling cast messages.
 
 % save a new job
-handle_cast({save_new_job, #job{uuid = JobUUID, request = Request}}, State) ->
+handle_cast({create_new_job, #job{uuid = JobUUID, request = Request}}, State) ->
   #request{workflow = #workflow{name = WorkflowName},
            key      = RequestKey,
            data     = RequestData,

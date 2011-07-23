@@ -43,12 +43,12 @@ stop() ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec dispatch(Request) -> {ok, Job} | {error, Reason}
-%% @doc It triggers an async dispatch of a resquest to run a workflow an pay a job.
+%% @spec dispatch(Request) -> {ok, JobUUID} | {error, Reason}
+%% @doc It triggers an async dispatch of a resquest to create a job and run a workflow.
 dispatch(#request{} = Request) ->
-  {ok, Job} = cameron_workflow_handler:handle_request(Request),
+  {ok, Job} = cameron_workflow_runner:schedule_job(Request),
   ok = gen_server:cast(?MODULE, {dispatch_new_job, Job}),
-  {ok, Job}.
+  {ok, Job#job.uuid}.
 
 %%
 %% Gen_Server Callbacks ---------------------------------------------------------------------------
@@ -74,7 +74,7 @@ handle_call(_Request, _From, State) ->
 
 % dispatches new job to be done
 handle_cast({dispatch_new_job, Job}, State) ->
-  ok = cameron_workflow_handler:handle_job(Job),
+  ok = cameron_workflow_runner:run_job(Job),
   {noreply, State};
 
 % manual shutdown
