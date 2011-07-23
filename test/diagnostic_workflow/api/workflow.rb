@@ -43,62 +43,62 @@ Rack::API.app do
     
     get "/cloud/zabbix" do
       {
-        workflow_name: "diagnostic",
-        task_name:     "diagnostic_cloud_zabbix",
+        workflow: "diagnostic",
+        name:     "diagnostic_cloud_zabbix",
 
         data: { cluster_info: "up and running without any problem",
-                server_info:  { ip: "192.02.12.10.12",
-                                vlan: "vl001",
+                server_info:  { ip:           "192.02.12.10.12",
+                                vlan:         "vl001",
                                 last_stop_at: "01/02/2011" }},
-        next: []
+        next_tasks: []
       }
     end
     
     get "/cloud/product" do
       {
-        workflow_name: "diagnostic",
-        task_name:     "diagnostic_cloud_product",
+        workflow: "diagnostic",
+        name:     "diagnostic_cloud_product",
 
-        data: { plan: "linux pro - debian",
+        data: { plan:   "linux pro - debian",
                 status: "delivered"},
-        next: []
+        next_tasks: []
       }
     end
 
     get "/hosting/zabbix" do
       {
-        workflow_name: "diagnostic",
-        task_name:     "diagnostic_hosting_zabbix",
+        workflow: "diagnostic",
+        name:     "diagnostic_hosting_zabbix",
 
         data: { cluster_info: "up and running without any problem",
-                server_info:  { ip: "192.01.12.03.11",
-                                vlan: "vl002",
+                server_info:  { ip:           "192.01.12.03.11",
+                                vlan:         "vl002",
                                 last_stop_at: "01/05/2011" }},
-        next: []
+        next_tasks: []
       }
     end
 
     get "/hosting/product" do
       {
-        workflow_name: "diagnostic",
-        task_name:     "diagnostic_hosting_product",
+        workflow: "diagnostic",
+        name:     "diagnostic_hosting_product",
 
-        data: { plan: "pro windows",
+        data: { plan:   "pro windows",
                 status: "delivered"},
-        next: []
+        next_tasks: []
       }
     end
 
     get "/sqlserver/zabbix" do
       {
-        workflow_name: "diagnostic",
-        task_name:     "diagnostic_sqlserver_zabbix",
+        workflow: "diagnostic",
+        name:     "diagnostic_sqlserver_zabbix",
 
         data: { cluster_info: "up and running without any problem",
-                server_info:  { ip: "192.11.14.11.02",
-                                vlan: "vl002",
+                server_info:  { ip:           "192.11.14.11.02",
+                                vlan:         "vl002",
                                 last_stop_at: "01/04/2011" }},
-        next: []
+        next_tasks: []
       }
     end
   end
