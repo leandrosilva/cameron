@@ -1,8 +1,8 @@
 %% @author Leandro Silva <leandrodoze@gmail.com>
 %% @copyright 2011 Leandro Silva.
 
-%% @doc An abstraction for requests. It's used to keep track in a database every state (steps?) of a
-%%      request that refers to a request to run a workflow. And in this case, it stores those steps
+%% @doc An abstraction for requests. It's used to keep track in a database every state (activitys?) of a
+%%      request that refers to a request to run a workflow. And in this case, it stores those activitys
 %%      in a Redis server.
 
 -module(cameron_workflow_persistence).
@@ -43,7 +43,7 @@ stop() ->
 %%
 
 %% @spec save_new_request(Request) -> {ok, Job} | {error, Reason}
-%% @doc The first step of the whole process is accept a request and create a job which should
+%% @doc The first activity of the whole process is accept a request and create a job which should
 %%      be payed, and based on that, one can keep track of workflow execution state and get any
 %%      related data at any time in the future.
 %%      Status: jobd.
@@ -61,13 +61,13 @@ mark_job_as_dispatched(#job{} = Job) ->
 
 %% @spec save_job_progress(WorkflowStepOutput) -> ok | {error, Reason}
 %% @doc Save to Redis a workflow execution output.
-%%      Status: done, for this particular step.
-save_job_progress(#step_output{} = StepOuput) ->
+%%      Status: done, for this particular activity.
+save_job_progress(#activity_output{} = StepOuput) ->
   ok = gen_server:cast(?MODULE, {save_job_progress, StepOuput}).
 
 %% @spec save_error_on_job_progress(WorkflowStepOutput) -> ok | {error, Reason}
 %% @doc Status: error, this job is done.
-save_error_on_job_progress(#step_output{} = StepOuput) ->
+save_error_on_job_progress(#activity_output{} = StepOuput) ->
   ok = gen_server:cast(?MODULE, {save_job_progress, StepOuput}).
 
 %% @spec mark_job_as_done(Job) -> ok | {error, Reason}
@@ -128,30 +128,30 @@ handle_cast({mark_job_as_dispatched, #job{} = Job}, State) ->
   {noreply, State};
 
 % save the progress of a job given
-handle_cast({save_job_progress, #step_output{step_input = StepInput, output = Output}}, State) ->
-  Job = StepInput#step_input.job,
+handle_cast({save_job_progress, #activity_output{activity_input = StepInput, output = Output}}, State) ->
+  Job = StepInput#activity_input.job,
   JobUUIDTag = redis_job_tag_for(Job),
 
-  StepName = StepInput#step_input.name,
+  StepName = StepInput#activity_input.name,
 
   ok = redis(["hmset", JobUUIDTag,
-                       "step." ++ StepName ++ ".status.current",   "done",
-                       "step." ++ StepName ++ ".status.done.time", datetime(),
-                       "step." ++ StepName ++ ".output",           Output]),
+                       "activity." ++ StepName ++ ".status.current",   "done",
+                       "activity." ++ StepName ++ ".status.done.time", datetime(),
+                       "activity." ++ StepName ++ ".output",           Output]),
 
   {noreply, State};
 
 % save an error message happened in a job payment process
-handle_cast({save_error_on_job_progress, #step_output{step_input = StepInput, output = Output}}, State) ->
-  Job = StepInput#step_input.job,
+handle_cast({save_error_on_job_progress, #activity_output{activity_input = StepInput, output = Output}}, State) ->
+  Job = StepInput#activity_input.job,
   JobUUIDTag = redis_job_tag_for(Job),
 
-  StepName = StepInput#step_input.name,
+  StepName = StepInput#activity_input.name,
 
   ok = redis(["hmset", JobUUIDTag,
-                       "step." ++ StepName ++ ".status.current",   "error",
-                       "step." ++ StepName ++ ".status.error.time", datetime(),
-                       "step." ++ StepName ++ ".output",           Output]),
+                       "activity." ++ StepName ++ ".status.current",   "error",
+                       "activity." ++ StepName ++ ".status.error.time", datetime(),
+                       "activity." ++ StepName ++ ".output",           Output]),
 
   ok = redis(["set", redis_error_tag_for(JobUUIDTag, StepName), Output]),
 

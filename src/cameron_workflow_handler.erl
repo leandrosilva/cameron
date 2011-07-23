@@ -84,7 +84,7 @@ handle_call(_Request, _From, State) ->
 handle_cast({handle_job, #job{uuid = JobUUID} = Job}, State) ->
   ok = cameron_workflow_persistence:mark_job_as_dispatched(Job),
 
-  StartInput = #step_input{job = Job,
+  StartInput = #activity_input{job = Job,
                            name    = "start",
                            pname   = ?pname(JobUUID)},
   
@@ -94,7 +94,7 @@ handle_cast({handle_job, #job{uuid = JobUUID} = Job}, State) ->
   {noreply, State#state{countdown = 3}};
 
 % notify when a individual job is done
-handle_cast({notify_done, _Index, #step_output{step_input = _StepInput} = StepOutput}, State) ->
+handle_cast({notify_done, _Index, #activity_output{activity_input = _StepInput} = StepOutput}, State) ->
   ok = cameron_workflow_persistence:save_job_progress(StepOutput),
 
   case State#state.countdown of
@@ -108,7 +108,7 @@ handle_cast({notify_done, _Index, #step_output{step_input = _StepInput} = StepOu
   end;
 
 % notify when a individual job fail
-handle_cast({notify_error, _Index, #step_output{step_input = _StepInput} = StepOutput}, State) ->
+handle_cast({notify_error, _Index, #activity_output{activity_input = _StepInput} = StepOutput}, State) ->
   ok = cameron_workflow_persistence:save_error_on_job_progress(StepOutput),
 
   case State#state.countdown of
@@ -174,7 +174,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-handle(Index, #step_input{job = Job,
+handle(Index, #activity_input{job = Job,
                           name    = _Name,
                           pname   = _Pname} = StepInput) ->
 
@@ -187,32 +187,32 @@ handle(Index, #step_input{job = Job,
 
   case http_helper:http_post(StartURL, Payload) of
     {ok, {{"HTTP/1.1", 200, _}, _, Output}} ->
-      StepOutput = #step_output{step_input = StepInput, output = Output},
+      StepOutput = #activity_output{activity_input = StepInput, output = Output},
       notify_done(Index, StepOutput);
     {ok, {{"HTTP/1.1", _, _}, _, Output}} ->
-      StepOutput = #step_output{step_input = StepInput, output = Output},
+      StepOutput = #activity_output{activity_input = StepInput, output = Output},
       notify_error(Index, StepOutput);
     {error, {connect_failed, emfile}} ->
-      StepOutput = #step_output{step_input = StepInput, output = "{connect_failed, emfile}"},
+      StepOutput = #activity_output{activity_input = StepInput, output = "{connect_failed, emfile}"},
       notify_error(Index, StepOutput);
     {error, Reason} ->
       io:format("Reason = ~w~n", [Reason]),
-      StepOutput = #step_output{step_input = StepInput, output = "unknown_error"},
+      StepOutput = #activity_output{activity_input = StepInput, output = "unknown_error"},
       notify_error(Index, StepOutput)
   end,
   
   ok.
   
-notify(What, {Index, #step_output{step_input = StepInput} = StepOutput}) ->
-  Job = StepInput#step_input.job,
+notify(What, {Index, #activity_output{activity_input = StepInput} = StepOutput}) ->
+  Job = StepInput#activity_input.job,
 
   Pname = ?pname(Job#job.uuid),
   ok = gen_server:cast(Pname, {What, Index, StepOutput}).
 
-notify_done(Index, #step_output{} = StepOutput) ->
+notify_done(Index, #activity_output{} = StepOutput) ->
   notify(notify_done, {Index, StepOutput}).
 
-notify_error(Index, #step_output{} = StepOutput) ->
+notify_error(Index, #activity_output{} = StepOutput) ->
   notify(notify_error, {Index, StepOutput}).
   
 build_payload(RequestKey, RequestData, RequestFrom) ->
