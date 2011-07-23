@@ -15,7 +15,7 @@ Rack::API.app do
       
       {
         workflow: "diagnostic",
-        name:     "start",
+        name:     "whois",
         type:     "parallel",
         
         data:     { customer_id:           payload["key"],
@@ -25,23 +25,23 @@ Rack::API.app do
                                              twitter: "codezone" },
                     customer_billing_info: { prefered_payment_method: "creditcard",
                                              prefered_due_date:       "on 5 of each month" }},
-        work_list:
+        tasks:
           [
             { name: "cloud_zabbix",
-              url:  "http://localhost:9292/diagnostic/cloud/zabbix" },
+              url:  "http://localhost:9292/diagnostic/task/cloud/zabbix" },
             { name: "cloud_product",
-              url:  "http://localhost:9292/diagnostic/cloud/product" },
+              url:  "http://localhost:9292/diagnostic/task/cloud/product" },
             { name: "hosting_zabbix",
-              url:  "http://localhost:9292/diagnostic/hosting/zabbix" },
+              url:  "http://localhost:9292/diagnostic/task/hosting/zabbix" },
             { name: "hosting_product",
-              url:  "http://localhost:9292/diagnostic/hosting/product" },
+              url:  "http://localhost:9292/diagnostic/task/hosting/product" },
             { name: "sqlserver_zabbix",
-              url:  "http://localhost:9292/diagnostic/sqlserver/zabbix" }
+              url:  "http://localhost:9292/diagnostic/task/sqlserver/zabbix" }
           ]
       }
     end
     
-    get "/cloud/zabbix" do
+    post "/task/cloud/zabbix" do
       {
         workflow: "diagnostic",
         name:     "diagnostic_cloud_zabbix",
@@ -50,22 +50,22 @@ Rack::API.app do
                 server_info:  { ip:           "192.02.12.10.12",
                                 vlan:         "vl001",
                                 last_stop_at: "01/02/2011" }},
-        work_list: []
+        tasks: []
       }
     end
     
-    get "/cloud/product" do
+    post "/task/cloud/product" do
       {
         workflow: "diagnostic",
         name:     "diagnostic_cloud_product",
 
         data: { plan:   "linux pro - debian",
                 status: "delivered"},
-        work_list: []
+        tasks: []
       }
     end
 
-    get "/hosting/zabbix" do
+    post "/task/hosting/zabbix" do
       {
         workflow: "diagnostic",
         name:     "diagnostic_hosting_zabbix",
@@ -74,22 +74,22 @@ Rack::API.app do
                 server_info:  { ip:           "192.01.12.03.11",
                                 vlan:         "vl002",
                                 last_stop_at: "01/05/2011" }},
-        work_list: []
+        tasks: []
       }
     end
 
-    get "/hosting/product" do
+    post "/task/hosting/product" do
       {
         workflow: "diagnostic",
         name:     "diagnostic_hosting_product",
 
         data: { plan:   "pro windows",
                 status: "delivered"},
-        work_list: []
+        tasks: []
       }
     end
 
-    get "/sqlserver/zabbix" do
+    post "/task/sqlserver/zabbix" do
       {
         workflow: "diagnostic",
         name:     "diagnostic_sqlserver_zabbix",
@@ -98,7 +98,7 @@ Rack::API.app do
                 server_info:  { ip:           "192.11.14.11.02",
                                 vlan:         "vl002",
                                 last_stop_at: "01/04/2011" }},
-        work_list: []
+        tasks: []
       }
     end
   end
