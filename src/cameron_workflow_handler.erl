@@ -84,7 +84,7 @@ handle_call(_Request, _From, State) ->
 handle_cast({handle_job, #job{uuid = JobUUID} = Job}, State) ->
   ok = cameron_workflow_persistence:mark_job_as_dispatched(Job),
 
-  StartInput = #activity_input{job = Job,
+  StartInput = #task_input{job = Job,
                            name    = "start",
                            pname   = ?pname(JobUUID)},
   
@@ -94,8 +94,8 @@ handle_cast({handle_job, #job{uuid = JobUUID} = Job}, State) ->
   {noreply, State#state{countdown = 3}};
 
 % notify when a individual job is done
-handle_cast({notify_done, _Index, #activity_output{activity_input = _StepInput} = StepOutput}, State) ->
-  ok = cameron_workflow_persistence:save_job_progress(StepOutput),
+handle_cast({notify_done, _Index, #task_output{task_input = _TaskInput} = TaskOutput}, State) ->
+  ok = cameron_workflow_persistence:save_job_progress(TaskOutput),
 
   case State#state.countdown of
     1 ->
@@ -108,8 +108,8 @@ handle_cast({notify_done, _Index, #activity_output{activity_input = _StepInput} 
   end;
 
 % notify when a individual job fail
-handle_cast({notify_error, _Index, #activity_output{activity_input = _StepInput} = StepOutput}, State) ->
-  ok = cameron_workflow_persistence:save_error_on_job_progress(StepOutput),
+handle_cast({notify_error, _Index, #task_output{task_input = _TaskInput} = TaskOutput}, State) ->
+  ok = cameron_workflow_persistence:save_error_on_job_progress(TaskOutput),
 
   case State#state.countdown of
     1 ->
@@ -174,9 +174,9 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-handle(Index, #activity_input{job = Job,
+handle(Index, #task_input{job = Job,
                           name    = _Name,
-                          pname   = _Pname} = StepInput) ->
+                          pname   = _Pname} = TaskInput) ->
 
   #request{workflow = #workflow{start_url = StartURL},
            key      = RequestKey,
@@ -187,33 +187,33 @@ handle(Index, #activity_input{job = Job,
 
   case http_helper:http_post(StartURL, Payload) of
     {ok, {{"HTTP/1.1", 200, _}, _, Output}} ->
-      StepOutput = #activity_output{activity_input = StepInput, output = Output},
-      notify_done(Index, StepOutput);
+      TaskOutput = #task_output{task_input = TaskInput, output = Output},
+      notify_done(Index, TaskOutput);
     {ok, {{"HTTP/1.1", _, _}, _, Output}} ->
-      StepOutput = #activity_output{activity_input = StepInput, output = Output},
-      notify_error(Index, StepOutput);
+      TaskOutput = #task_output{task_input = TaskInput, output = Output},
+      notify_error(Index, TaskOutput);
     {error, {connect_failed, emfile}} ->
-      StepOutput = #activity_output{activity_input = StepInput, output = "{connect_failed, emfile}"},
-      notify_error(Index, StepOutput);
+      TaskOutput = #task_output{task_input = TaskInput, output = "{connect_failed, emfile}"},
+      notify_error(Index, TaskOutput);
     {error, Reason} ->
       io:format("Reason = ~w~n", [Reason]),
-      StepOutput = #activity_output{activity_input = StepInput, output = "unknown_error"},
-      notify_error(Index, StepOutput)
+      TaskOutput = #task_output{task_input = TaskInput, output = "unknown_error"},
+      notify_error(Index, TaskOutput)
   end,
   
   ok.
   
-notify(What, {Index, #activity_output{activity_input = StepInput} = StepOutput}) ->
-  Job = StepInput#activity_input.job,
+notify(What, {Index, #task_output{task_input = TaskInput} = TaskOutput}) ->
+  Job = TaskInput#task_input.job,
 
   Pname = ?pname(Job#job.uuid),
-  ok = gen_server:cast(Pname, {What, Index, StepOutput}).
+  ok = gen_server:cast(Pname, {What, Index, TaskOutput}).
 
-notify_done(Index, #activity_output{} = StepOutput) ->
-  notify(notify_done, {Index, StepOutput}).
+notify_done(Index, #task_output{} = TaskOutput) ->
+  notify(notify_done, {Index, TaskOutput}).
 
-notify_error(Index, #activity_output{} = StepOutput) ->
-  notify(notify_error, {Index, StepOutput}).
+notify_error(Index, #task_output{} = TaskOutput) ->
+  notify(notify_error, {Index, TaskOutput}).
   
 build_payload(RequestKey, RequestData, RequestFrom) ->
   Payload = struct:to_json({struct, [{<<"key">>,  list_to_binary(RequestKey)},

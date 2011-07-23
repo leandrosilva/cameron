@@ -14,18 +14,18 @@ Rack::API.app do
       puts "[Request] #{payload}"
       
       {
-        workflow_name: "diagnostic",
-        activity_name:     "start",
-        activity_type:     "parallel",
+        workflow: "diagnostic",
+        name:     "start",
+        type:     "parallel",
         
-        activity_data:     { customer_id:           payload["key"],
-                         customer_name:         "Leandro Silva",
-                         customer_login:        "leandrosilva.codezone",
-                         customer_web_info:     { blog:    "http://leandrosilva.com.br",
-                                                  twitter: "codezone" },
-                         customer_billing_info: { prefered_payment_method: "creditcard",
-                                                  prefered_due_date:       "on 5 of each month" }},
-        next_activitys:
+        data:     { customer_id:           payload["key"],
+                    customer_name:         "Leandro Silva",
+                    customer_login:        "leandrosilva.codezone",
+                    customer_web_info:     { blog:    "http://leandrosilva.com.br",
+                                             twitter: "codezone" },
+                    customer_billing_info: { prefered_payment_method: "creditcard",
+                                             prefered_due_date:       "on 5 of each month" }},
+        next_tasks:
           [
             { name: "cloud_zabbix",
               url:  "http://localhost:9292/workflow/cloud/zabbix" },
@@ -44,7 +44,7 @@ Rack::API.app do
     get "/cloud/zabbix" do
       {
         workflow_name: "diagnostic",
-        activity_name:     "diagnostic_cloud_zabbix",
+        task_name:     "diagnostic_cloud_zabbix",
 
         data: { cluster_info: "up and running without any problem",
                 server_info:  { ip: "192.02.12.10.12",
@@ -57,7 +57,7 @@ Rack::API.app do
     get "/cloud/product" do
       {
         workflow_name: "diagnostic",
-        activity_name:     "diagnostic_cloud_product",
+        task_name:     "diagnostic_cloud_product",
 
         data: { plan: "linux pro - debian",
                 status: "delivered"},
@@ -68,7 +68,7 @@ Rack::API.app do
     get "/hosting/zabbix" do
       {
         workflow_name: "diagnostic",
-        activity_name:     "diagnostic_hosting_zabbix",
+        task_name:     "diagnostic_hosting_zabbix",
 
         data: { cluster_info: "up and running without any problem",
                 server_info:  { ip: "192.01.12.03.11",
@@ -81,7 +81,7 @@ Rack::API.app do
     get "/hosting/product" do
       {
         workflow_name: "diagnostic",
-        activity_name:     "diagnostic_hosting_product",
+        task_name:     "diagnostic_hosting_product",
 
         data: { plan: "pro windows",
                 status: "delivered"},
@@ -92,7 +92,7 @@ Rack::API.app do
     get "/sqlserver/zabbix" do
       {
         workflow_name: "diagnostic",
-        activity_name:     "diagnostic_sqlserver_zabbix",
+        task_name:     "diagnostic_sqlserver_zabbix",
 
         data: { cluster_info: "up and running without any problem",
                 server_info:  { ip: "192.11.14.11.02",
