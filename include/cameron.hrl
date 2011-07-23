@@ -3,10 +3,10 @@
 
 -define(pname(UUID), list_to_atom("cameron_" ++ UUID)).
 
--record(workflow,    {name,
+-record(process,     {name,
                       start_url}).
                     
--record(request,     {workflow = #workflow{},
+-record(request,     {process = #process{},
                       key,
                       data,
                       from}).

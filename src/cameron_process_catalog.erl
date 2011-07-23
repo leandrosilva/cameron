@@ -1,9 +1,9 @@
 %% @author Leandro Silva <leandrodoze@gmail.com>
 %% @copyright 2011 Leandro Silva.
 
-%% @doc Catalog of available workflows.
+%% @doc Catalog of available processes.
 
--module(cameron_workflow_catalog).
+-module(cameron_process_catalog).
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 -behaviour(gen_server).
@@ -21,7 +21,7 @@
 
 -include("include/cameron.hrl").
 
--record(state, {workflows = []}).
+-record(state, {processes = []}).
 
 %%
 %% Admin API --------------------------------------------------------------------------------------
@@ -29,8 +29,8 @@
 
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @doc Start cameron server.
-start_link(Workflows) ->
-  gen_server:start_link({local, ?MODULE}, ?MODULE, [Workflows], []).
+start_link(Processs) ->
+  gen_server:start_link({local, ?MODULE}, ?MODULE, [Processs], []).
 
 %% @spec stop() -> ok
 %% @doc Manually stops the server.
@@ -41,8 +41,8 @@ stop() ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec lookup(Name) -> Workflow | undefined
-%% @doc Get a workflow configuration by name.
+%% @spec lookup(Name) -> Process | undefined
+%% @doc Get a process configuration by name.
 lookup(Name) when is_atom(Name) ->
   gen_server:call(?MODULE, {lookup, Name});
   
@@ -53,25 +53,25 @@ lookup(Name) when is_list(Name) ->
 %% Gen_Server Callbacks ---------------------------------------------------------------------------
 %%
 
-%% @spec init(Workflows) -> {ok, State} | {ok, State, Timeout} | ignore | {stop, Reason}
+%% @spec init(Processs) -> {ok, State} | {ok, State, Timeout} | ignore | {stop, Reason}
 %% @doc Initiates the server.
-init([Workflows]) ->
-  {ok, #state{workflows = Workflows}}.
+init([Processs]) ->
+  {ok, #state{processes = Processs}}.
 
 %% @spec handle_call(Request, From, State) ->
 %%                  {reply, Reply, State} | {reply, Reply, State, Timeout} | {noreply, State} |
 %%                  {noreply, State, Timeout} | {stop, Reason, Reply, State} | {stop, Reason, State}
 %% @doc Handling call messages.
 
-% get an available workflow by name
+% get an available process by name
 handle_call({lookup, Name}, _From, State) ->
-  Spec = proplists:get_value(Name, State#state.workflows, undefined),
+  Spec = proplists:get_value(Name, State#state.processes, undefined),
   
   case Spec of 
     undefined        ->
       {reply, undefined, State};
     {start_url, URL} ->
-      {reply, #workflow{name = Name, start_url = URL}, State}
+      {reply, #process{name = Name, start_url = URL}, State}
   end;
 
 % handle_call generic fallback

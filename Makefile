@@ -28,19 +28,19 @@ compile_test: compile
 run:
 	@erl -pa ebin/ deps/**/ebin/ -sname $(APP_NAME) -s $(APP_NAME) \
 	     -config priv/config/production \
-	     -workflows priv/workflows/production.config
+	     -processes priv/processes/production.config
 
 run_dev:
 	@erl -pa ebin/ deps/**/ebin/ -sname $(APP_NAME) \
 	     -boot start_sasl -s $(APP_NAME) \
 	     -config priv/config/development \
-	     -workflows priv/workflows/development.config
+	     -processes priv/processes/development.config
 
 run_test: compile_test
 	@erl -noshell -pa ebin/ deps/**/ebin/ -s $(APP_NAME) \
 	     -run $(MODULE) test -run init stop \
 	     -config priv/config/test \
- 	     -workflows priv/workflows/test.config
+ 	     -processes priv/processes/test.config
 
 run_all_tests: compile_test
 	@for fullfilename in `find ./test -name "*_test.erl"`; do \

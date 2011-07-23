@@ -25,21 +25,21 @@
 handle_http('GET', ["api"], HttpRequest) ->
   HttpRequest:ok([{"Content-Type", "text/plain"}], "Cameron Workflow System // Web API");
 
-% handle a GET on /api/workflow/{name}/start
-handle_http('POST', ["api", "workflow", WorkflowName, "start"], HttpRequest) ->
+% handle a GET on /api/process/{name}/start
+handle_http('POST', ["api", "process", ProcessName, "start"], HttpRequest) ->
   Payload = get_request_payload(HttpRequest),
 
-  case cameron_workflow_catalog:lookup(WorkflowName) of
+  case cameron_process_catalog:lookup(ProcessName) of
     undefined ->
       HttpRequest:respond(404, [{"Content-Type", "application/json"}],
                                  "{\"payload\":\"~s\"}", [Payload]);
-    Workflow ->
-      Request = build_request(Workflow, Payload),
+    Process ->
+      Request = build_request(Process, Payload),
   
-      {ok, JobUUID} = cameron_workflow_dispatcher:dispatch(Request),
+      {ok, JobUUID} = cameron_process_dispatcher:dispatch(Request),
       
       HttpRequest:respond(201, [{"Content-Type", "application/json"},
-                                {"Location", ["http://localhost:8080/api/workflow/", WorkflowName,
+                                {"Location", ["http://localhost:8080/api/process/", ProcessName,
                                               "/key/", Request#request.key,
                                               "/job/", JobUUID]}],
                                "{\"payload\":\"~s\"}", [Payload])
@@ -57,14 +57,14 @@ get_request_payload(HttpRequest) ->
   {req, _, _, _, _, _, _, _, _, _, _, _, _, Body} = HttpRequest:raw(),
   binary_to_list(Body).
 
-build_request(Workflow, Payload) ->
+build_request(Process, Payload) ->
   Struct = struct:from_json(Payload),
   
   Key = binary_to_list(struct:get_value(<<"key">>, Struct)),
   Data = binary_to_list(struct:get_value(<<"data">>, Struct)),
   From = binary_to_list(struct:get_value(<<"from">>, Struct)),
   
-  #request{workflow = Workflow,
+  #request{process = Process,
            key      = Key,
            data     = Data,
            from     = From}.

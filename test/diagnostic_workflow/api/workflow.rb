@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-# Diagnostic is a fake workflow used to test stuffs.
+# Diagnostic is a fake process used to test stuffs.
 #
 Rack::API.app do
   prefix     "diagnostic"
@@ -14,7 +14,7 @@ Rack::API.app do
       puts "[Request] #{payload}"
       
       {
-        workflow: "diagnostic",
+        process: "diagnostic",
         name:     "whois",
         type:     "parallel",
         
@@ -43,7 +43,7 @@ Rack::API.app do
     
     post "/task/cloud/zabbix" do
       {
-        workflow: "diagnostic",
+        process: "diagnostic",
         name:     "diagnostic_cloud_zabbix",
 
         data: { cluster_info: "up and running without any problem",
@@ -56,7 +56,7 @@ Rack::API.app do
     
     post "/task/cloud/product" do
       {
-        workflow: "diagnostic",
+        process: "diagnostic",
         name:     "diagnostic_cloud_product",
 
         data: { plan:   "linux pro - debian",
@@ -67,7 +67,7 @@ Rack::API.app do
 
     post "/task/hosting/zabbix" do
       {
-        workflow: "diagnostic",
+        process: "diagnostic",
         name:     "diagnostic_hosting_zabbix",
 
         data: { cluster_info: "up and running without any problem",
@@ -80,7 +80,7 @@ Rack::API.app do
 
     post "/task/hosting/product" do
       {
-        workflow: "diagnostic",
+        process: "diagnostic",
         name:     "diagnostic_hosting_product",
 
         data: { plan:   "pro windows",
@@ -91,7 +91,7 @@ Rack::API.app do
 
     post "/task/sqlserver/zabbix" do
       {
-        workflow: "diagnostic",
+        process: "diagnostic",
         name:     "diagnostic_sqlserver_zabbix",
 
         data: { cluster_info: "up and running without any problem",

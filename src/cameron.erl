@@ -10,7 +10,7 @@
 -export([start/0, stop/0, upgrade/0]).
 % public api
 -export([get_version/0, get_basedir/0, get_web_server_config/0, get_redis_server_config/0]).
--export([get_workflows_config/0]).
+-export([get_processes_config/0]).
 
 %%
 %% Admin API --------------------------------------------------------------------------------------
@@ -58,14 +58,14 @@ get_web_server_config() ->
 get_redis_server_config() ->
   get_env(redis_server).
 
-%% @spec get_workflows_config() -> {workflows, [{workflow, {name, Name},
+%% @spec get_processes_config() -> {processes, [{process, {name, Name},
 %%                                                         {start_url, URL}}]}
-%% @doc Workflows configuration.
-get_workflows_config() ->
-  {ok, [[WorkflowsConfigFile]]} = init:get_argument(workflows),
-  {ok, [{workflows, WorkflowsConfig}]} = file:consult(WorkflowsConfigFile),
+%% @doc Processs configuration.
+get_processes_config() ->
+  {ok, [[ProcesssConfigFile]]} = init:get_argument(processes),
+  {ok, [{processes, ProcesssConfig}]} = file:consult(ProcesssConfigFile),
   
-  WorkflowsConfig.
+  ProcesssConfig.
   
 %%
 %% Internal Functions -----------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 
 %% @doc Supervisor for the workers of the Cameron application.
 
--module(cameron_workflow_sup).
+-module(cameron_process_sup).
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 -behaviour(supervisor).
@@ -40,15 +40,15 @@ upgrade() ->
 %%
 
 %% @spec start_child(Job) -> {ok, ChildPid} | {ok, ChildPid, Info} | {error, Error}
-%% @dynamic Start a cameron_workflow_{Job} process to diagnostic a Job given.
+%% @dynamic Start a cameron_process_{Job} process to diagnostic a Job given.
 start_child(#job{} = Job) ->
   Pname = pname(Job),
 
-  WorkflowSpec = {Pname, {cameron_workflow_runner, start_link, [Pname, Job]}, temporary, 5000, worker, dynamic},
-  supervisor:start_child(cameron_workflow_sup, WorkflowSpec).
+  ProcessSpec = {Pname, {cameron_process_runner, start_link, [Pname, Job]}, temporary, 5000, worker, dynamic},
+  supervisor:start_child(cameron_process_sup, ProcessSpec).
 
 %% @spec stop_child(Job) -> ok | {error, Error}
-%% @dynamic Stop a cameron_workflow_{Job}.
+%% @dynamic Stop a cameron_process_{Job}.
 stop_child(#job{} = Job) ->
   stop_child(pname(Job));
 
@@ -56,13 +56,13 @@ stop_child(JobUUID) when is_list(JobUUID) ->
   stop_child(pname(JobUUID));
 
 stop_child(Pname) when is_atom(Pname) ->
-  supervisor:terminate_child(cameron_workflow_sup, Pname),
-  supervisor:delete_child(cameron_workflow_sup, Pname).
+  supervisor:terminate_child(cameron_process_sup, Pname),
+  supervisor:delete_child(cameron_process_sup, Pname).
   
 %% @spec which_children() -> [ChildSpec] | {error, Error}
 %% @dynamic List of children workers.
 which_children() ->
-  supervisor:which_children(cameron_workflow_sup).
+  supervisor:which_children(cameron_process_sup).
   
 %%
 %% Supervisor Callback ----------------------------------------------------------------------------
@@ -77,17 +77,17 @@ which_children() ->
 %%
 %% @doc supervisor callback.
 init([]) ->
-  WorkflowData = {cameron_workflow_data, {cameron_workflow_data, start_link, []},
+  ProcessData = {cameron_process_data, {cameron_process_data, start_link, []},
                                                        permanent, 5000, worker, dynamic},
 
-  WorkflowCatalogConfig = cameron:get_workflows_config(),
-  WorkflowCatalog = {cameron_workflow_catalog, {cameron_workflow_catalog, start_link, [WorkflowCatalogConfig]},
+  ProcessCatalogConfig = cameron:get_processes_config(),
+  ProcessCatalog = {cameron_process_catalog, {cameron_process_catalog, start_link, [ProcessCatalogConfig]},
                                                 permanent, 5000, worker, dynamic},
 
-  WorkflowDispatcher = {cameron_workflow_dispatcher, {cameron_workflow_dispatcher, start_link, []},
+  ProcessDispatcher = {cameron_process_dispatcher, {cameron_process_dispatcher, start_link, []},
                                                       permanent, 5000, worker, dynamic},
                                                       
-  {ok, {{one_for_one, 10, 10}, [WorkflowData, WorkflowCatalog, WorkflowDispatcher]}}.
+  {ok, {{one_for_one, 10, 10}, [ProcessData, ProcessCatalog, ProcessDispatcher]}}.
 
 %%
 %% Internal Functions -----------------------------------------------------------------------------

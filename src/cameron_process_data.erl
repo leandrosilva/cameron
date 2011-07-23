@@ -2,10 +2,10 @@
 %% @copyright 2011 Leandro Silva.
 
 %% @doc An abstraction for requests. It's used to keep track in a database every state (tasks?) of a
-%%      request that refers to a request to run a workflow. And in this case, it stores those tasks
+%%      request that refers to a request to run a process. And in this case, it stores those tasks
 %%      in a Redis server.
 
--module(cameron_workflow_data).
+-module(cameron_process_data).
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 % admin api
@@ -44,7 +44,7 @@ stop() ->
 
 %% @spec create_new_job(Request) -> {ok, Job} | {error, Reason}
 %% @doc The first task of the whole process is accept a request and create a job which should run
-%%      and keep track of workflow execution state and get any related data at any time in the
+%%      and keep track of process execution state and get any related data at any time in the
 %%      future.
 %%      Status: scheduled.
 create_new_job(#request{} = Request) ->
@@ -60,7 +60,7 @@ mark_job_as_running(#job{} = Job) ->
   ok = gen_server:cast(?MODULE, {mark_job_as_running, Job}).
 
 %% @spec save_task_result(TaskOutput) -> ok | {error, Reason}
-%% @doc Save to Redis a workflow execution output.
+%% @doc Save to Redis a process execution output.
 %%      Status: done, for this particular task.
 save_task_result(#task_output{} = TaskOuput) ->
   ok = gen_server:cast(?MODULE, {save_task_result, TaskOuput}).
@@ -99,12 +99,12 @@ handle_call(_Request, _From, State) ->
 
 % save a new job
 handle_cast({create_new_job, #job{uuid = JobUUID, request = Request}}, State) ->
-  #request{workflow = #workflow{name = WorkflowName},
+  #request{process = #process{name = ProcessName},
            key      = RequestKey,
            data     = RequestData,
            from     = RequestFrom} = Request,
   
-  JobUUIDTag = redis_job_tag_for(WorkflowName, RequestKey, JobUUID),
+  JobUUIDTag = redis_job_tag_for(ProcessName, RequestKey, JobUUID),
 
   ok = redis(["hmset", JobUUIDTag,
                        "request.key",      RequestKey,
@@ -209,23 +209,23 @@ redis(Command) ->
   Output = redo:cmd(cameron_redo, Command),
   maybe_ok(maybe_string(Output)).
 
-redis_workflow_tag_for(WorkflowName) ->
-  % cameron:workflow:{name}:
-  re:replace("cameron:workflow:{name}:", "{name}", maybe_string(WorkflowName), [{return, list}]).
+redis_process_tag_for(ProcessName) ->
+  % cameron:process:{name}:
+  re:replace("cameron:process:{name}:", "{name}", maybe_string(ProcessName), [{return, list}]).
 
-redis_job_tag_for(WorkflowName, RequestKey, JobUUID) ->
-  % cameron:workflow:{name}:key:{key}:job:{uuid}
-  redis_workflow_tag_for(WorkflowName) ++ "key:" ++ RequestKey ++ ":job:" ++ JobUUID.
+redis_job_tag_for(ProcessName, RequestKey, JobUUID) ->
+  % cameron:process:{name}:key:{key}:job:{uuid}
+  redis_process_tag_for(ProcessName) ++ "key:" ++ RequestKey ++ ":job:" ++ JobUUID.
   
 redis_job_tag_for(#job{uuid = JobUUID} = Job) ->
   Request = Job#job.request,
-  Workflow = Request#request.workflow,
+  Process = Request#request.process,
 
-  WorkflowName = Workflow#workflow.name,
+  ProcessName = Process#process.name,
   JobUUID = Job#job.uuid,
   RequestKey = Request#request.key,
   
-  redis_job_tag_for(WorkflowName, RequestKey, JobUUID).
+  redis_job_tag_for(ProcessName, RequestKey, JobUUID).
 
 redis_tag_as_pending(AnyTag) ->
   AnyTag ++ ":pending".

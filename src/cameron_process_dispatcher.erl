@@ -1,11 +1,11 @@
 %% @author Leandro Silva <leandrodoze@gmail.com>
 %% @copyright 2011 Leandro Silva.
 
-%% @doc The main gen_server, the "ear" of this workflow system which kind of subscribes to
+%% @doc The main gen_server, the "ear" of this process system which kind of subscribes to
 %%      "incoming queue" in order to be notifyed of every "request for diagnostic" and dispatch
 %%      it to a new cameron_worker gen_server.
 
--module(cameron_workflow_dispatcher).
+-module(cameron_process_dispatcher).
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 -behaviour(gen_server).
@@ -44,9 +44,9 @@ stop() ->
 %%
 
 %% @spec dispatch(Request) -> {ok, JobUUID} | {error, Reason}
-%% @doc It triggers an async dispatch of a resquest to create a job and run a workflow.
+%% @doc It triggers an async dispatch of a resquest to create a job and run a process.
 dispatch(#request{} = Request) ->
-  {ok, Job} = cameron_workflow_runner:schedule_job(Request),
+  {ok, Job} = cameron_process_runner:schedule_job(Request),
   ok = gen_server:cast(?MODULE, {dispatch_new_job, Job}),
   {ok, Job#job.uuid}.
 
@@ -74,7 +74,7 @@ handle_call(_Request, _From, State) ->
 
 % dispatches new job to be done
 handle_cast({dispatch_new_job, Job}, State) ->
-  ok = cameron_workflow_runner:run_job(Job),
+  ok = cameron_process_runner:run_job(Job),
   {noreply, State};
 
 % manual shutdown
