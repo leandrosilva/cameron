@@ -25,7 +25,7 @@ Rack::API.app do
                                              twitter: "codezone" },
                     customer_billing_info: { prefered_payment_method: "creditcard",
                                              prefered_due_date:       "on 5 of each month" }},
-        activitys:
+        activities:
           [
             { name: "cloud_zabbix",
               url:  "http://localhost:9292/diagnostic/activity/cloud/zabbix" },
@@ -50,7 +50,7 @@ Rack::API.app do
                 server_info:  { ip:           "192.02.12.10.12",
                                 vlan:         "vl001",
                                 last_stop_at: "01/02/2011" }},
-        activitys: []
+        activities: []
       }
     end
     
@@ -61,7 +61,7 @@ Rack::API.app do
 
         data: { plan:   "linux pro - debian",
                 status: "delivered"},
-        activitys: []
+        activities: []
       }
     end
 
@@ -74,7 +74,7 @@ Rack::API.app do
                 server_info:  { ip:           "192.01.12.03.11",
                                 vlan:         "vl002",
                                 last_stop_at: "01/05/2011" }},
-        activitys: []
+        activities: []
       }
     end
 
@@ -85,7 +85,7 @@ Rack::API.app do
 
         data: { plan:   "pro windows",
                 status: "delivered"},
-        activitys: []
+        activities: []
       }
     end
 
@@ -98,7 +98,7 @@ Rack::API.app do
                 server_info:  { ip:           "192.11.14.11.02",
                                 vlan:         "vl002",
                                 last_stop_at: "01/04/2011" }},
-        activitys: []
+        activities: []
       }
     end
   end

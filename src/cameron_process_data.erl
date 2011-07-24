@@ -1,8 +1,8 @@
 %% @author Leandro Silva <leandrodoze@gmail.com>
 %% @copyright 2011 Leandro Silva.
 
-%% @doc An abstraction for requests. It's used to keep track in a database every state (activitys?) of a
-%%      request that refers to a request to run a process. And in this case, it stores those activitys
+%% @doc An abstraction for requests. It's used to keep track in a database every state (activities?) of a
+%%      request that refers to a request to run a process. And in this case, it stores those activities
 %%      in a Redis server.
 
 -module(cameron_process_data).
