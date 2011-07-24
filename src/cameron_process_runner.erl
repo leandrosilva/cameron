@@ -11,7 +11,7 @@
 % admin api
 -export([start_link/2, stop/1]).
 % public api
--export([run_job/1, handle/2]).
+-export([run_job/1, handle_activity/2]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -76,23 +76,12 @@ handle_call(_Request, _From, State) ->
 %% @doc Handling cast messages.
 
 % wake up to run a process
-handle_cast({run_job, #job{} = Job}, State) ->
+handle_cast({run_job, #job{uuid = JobUUID} = Job}, State) ->
   ok = cameron_process_data:mark_job_as_running(Job),
 
-  #job{process   = Process,
-       uuid      = JobUUID,
-       key       = Key,
-       input     = Input,
-       requestor = Requestor} = Job,
+  StartActivity = build_start_activity(Job),
   
-  StartActivity = #activity{job       = Job,
-                            name      = "start",
-                            url       = Process#process.start_activity_url,
-                            key       = Key,
-                            input     = Input,
-                            requestor = Requestor},
-  
-  HandlerPid = run_activity(1, StartActivity),
+  HandlerPid = run_parallel_activity(1, StartActivity),
   io:format("[cameron_process_runner] running :: JobUUID: ~s // HandlerPid: ~w~n", [JobUUID, HandlerPid]),
   
   % WARNING => countdown = ?
@@ -179,37 +168,51 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-run_activity(Index, Activity) ->
-  spawn_link(?MODULE, handle, [Index, Activity]).
+build_start_activity(Job) ->
+  #job{process = #process_definition{start_activity = StartActivityDefinition},
+       input   = JobInput} = Job,
 
-handle(Index, #activity{} = Activity) ->
-  #activity{url       = URL,
-            key       = Key,
-            input     = Input,
-            requestor = Requestor} = Activity,
+  #job_input{key       = Key,
+             data      = Data,
+             requestor = Requestor} = JobInput,
   
-  Payload = build_payload(Key, Input, Requestor),
+  StartActivityInput = #activity_input{key       = Key,
+                                       data      = Data,
+                                       requestor = Requestor},
+  
+  #activity{definition  = StartActivityDefinition,
+            owner_job   = Job,
+            input       = StartActivityInput}.
+
+run_parallel_activity(Index, Activity) ->
+  spawn_link(?MODULE, handle_activity, [Index, Activity]).
+
+handle_activity(Index, #activity{} = Activity) ->
+  #activity{definition = #activity_definition{url = URL},
+            input      = #activity_input{key = Key, data = Data, requestor = Requestor}} = Activity,
+
+  Payload = build_payload(Key, Data, Requestor),
 
   case http_helper:http_post(URL, Payload) of
     {ok, {{"HTTP/1.1", 200, _}, _, Output}} ->
-      DoneActivity = Activity#activity{output = Output},
+      DoneActivity = Activity#activity{output = #activity_output{data = Output}},
       notify_done(Index, DoneActivity);
     {ok, {{"HTTP/1.1", _, _}, _, Output}} ->
-      FailedActivity = Activity#activity{output = Output, failed = yes},
+      FailedActivity = Activity#activity{output = #activity_output{data = Output}, failed = yes},
       notify_error(Index, FailedActivity);
     {error, {connect_failed, emfile}} ->
-      FailedActivity = Activity#activity{output = "{connect_failed, emfile}", failed = yes},
+      FailedActivity = Activity#activity{output = #activity_output{data = "{connect_failed, emfile}"}, failed = yes},
       notify_error(Index, FailedActivity);
     {error, Reason} ->
       io:format("Reason = ~w~n", [Reason]),
-      FailedActivity = Activity#activity{output = "unknown_error", failed = yes},
+      FailedActivity = Activity#activity{output = #activity_output{data = "unknown_error"}, failed = yes},
       notify_error(Index, FailedActivity)
   end,
   
   ok.
   
 notify(What, {Index, #activity{} = Activity}) ->
-  Job = Activity#activity.job,
+  Job = Activity#activity.owner_job,
 
   Pname = ?pname(Job#job.uuid),
   ok = gen_server:cast(Pname, {What, Index, Activity}).

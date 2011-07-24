@@ -3,11 +3,23 @@
 
 -define(pname(UUID), list_to_atom("cameron_" ++ UUID)).
 
-% a process definition
--record(process, {name, start_activity_url}).
+% activity and process definition
+-record(activity_definition, {name, url}).
+-record(process_definition,  {name, start_activity = #activity_definition{}}).
 
-% an instance of a process
--record(job, {process = #process{}, uuid, key, input, requestor}).
+% activity instance in/out parameters
+-record(job_input,       {key, data, requestor}).
+-record(activity_input,  {key, data, requestor}).
+-record(activity_output, {data, next_activities}).
 
-% an activity related to a job
--record(activity, {job = #job{}, name, url, key, input, requestor, output, failed = no}).
+% an instance of a process definition
+-record(job, {uuid,
+              process = #process_definition{},
+              input   = #job_input{}}).
+
+% an activity instance related to a job given
+-record(activity, {definition = #activity_definition{},
+                   owner_job  = #job{},
+                   input      = #activity_input{},
+                   output     = #activity_output{},
+                   failed     = no}).

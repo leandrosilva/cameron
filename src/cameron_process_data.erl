@@ -47,12 +47,14 @@ stop() ->
 %%      and keep track of process execution state and get any related data at any time in the
 %%      future.
 %%      Status: scheduled.
-create_new_job(Process, {Key, Input, Requestor}) ->
-  NewJob = #job{process   = Process,
-                uuid      = new_uuid(),
-                key       = Key,
-                input     = Input,
-                requestor = Requestor},
+create_new_job(Process, {Key, Data, Requestor}) ->
+  Input = #job_input{key       = Key,
+                     data      = Data,
+                     requestor = Requestor},
+                                      
+  NewJob = #job{uuid    = new_uuid(),
+                process = Process,
+                input   = Input},
   
   ok = gen_server:cast(?MODULE, {create_new_job, NewJob}),
 
@@ -103,18 +105,18 @@ handle_call(_Request, _From, State) ->
 
 % save a new job
 handle_cast({create_new_job, #job{} = NewJob}, State) ->
-  #job{key       = Key,
-       input     = Input,
-       requestor = Requestor} = NewJob,
+  #job_input{key       = Key,
+             data      = Data,
+             requestor = Requestor} = NewJob#job.input,
     
   UUIDTag = redis_job_tag_for(NewJob),
 
   ok = redis(["hmset", UUIDTag,
-                       "request.key",       Key,
-                       "request.input",     Input,
-                       "request.requestor", Requestor,
-                       "status.current",    "scheduled",
-                       "status.scheduled",  datetime()]),
+                       "job.key",          Key,
+                       "job.data",         Data,
+                       "job.requestor",    Requestor,
+                       "status.current",   "scheduled",
+                       "status.scheduled", datetime()]),
   
   ok = redis(["set", redis_pending_tag_for(UUIDTag), UUIDTag]),
   
@@ -132,35 +134,35 @@ handle_cast({mark_job_as_running, #job{} = Job}, State) ->
 
 % save the result of a activity given
 handle_cast({save_activity_output, #activity{} = Activity}, State) ->
-  #activity{job    = Job,
-            name   = Name,
-            output = Output,
-            failed = no} = Activity,
+  #activity{definition = #activity_definition{name = Name},
+            owner_job  = Job,
+            output     = #activity_output{data = Data, next_activities = _NextActivities},
+            failed     = no} = Activity,
   
   UUIDTag = redis_job_tag_for(Job),
 
   ok = redis(["hmset", UUIDTag,
                        "activity." ++ Name ++ ".status.current",   "done",
                        "activity." ++ Name ++ ".status.done.time", datetime(),
-                       "activity." ++ Name ++ ".output",           Output]),
+                       "activity." ++ Name ++ ".output.data",      Data]),
 
   {noreply, State};
 
 % save an error message happened in a job payment process
 handle_cast({save_error_on_activity_execution, #activity{} = Activity}, State) ->
-  #activity{job    = Job,
-            name   = Name,
-            output = Output,
-            failed = yes} = Activity,
+  #activity{definition = #activity_definition{name = Name},
+            owner_job  = Job,
+            output     = #activity_output{data = Data, next_activities = _NextActivities},
+            failed     = yes} = Activity,
 
   UUIDTag = redis_job_tag_for(Job),
 
   ok = redis(["hmset", UUIDTag,
                        "activity." ++ Name ++ ".status.current",    "error",
                        "activity." ++ Name ++ ".status.error.time", datetime(),
-                       "activity." ++ Name ++ ".output",            Output]),
+                       "activity." ++ Name ++ ".output.data",       Data]),
 
-  ok = redis(["set", redis_error_tag_for(UUIDTag, Name), Output]),
+  ok = redis(["set", redis_error_tag_for(UUIDTag, Name), Data]),
 
   {noreply, State};
 
@@ -225,11 +227,11 @@ redis_job_tag_for(ProcessName, Key, UUID) ->
   redis_process_tag_for(ProcessName) ++ "key:" ++ Key ++ ":job:" ++ UUID.
   
 redis_job_tag_for(#job{} = Job) ->
-  #job{process   = Process,
-       uuid      = UUID,
-       key       = Key} = Job,
+  #job{uuid    = UUID,
+       process = #process_definition{name = ProcessName},
+       input   = #job_input{key = Key}} = Job,
     
-  redis_job_tag_for(Process#process.name, Key, UUID).
+  redis_job_tag_for(ProcessName, Key, UUID).
 
 redis_pending_tag_for(AnyTag) ->
   % cameron:process:{name}:key:{key}:job:{uuid}:pending

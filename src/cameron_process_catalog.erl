@@ -71,7 +71,9 @@ handle_call({lookup, Name}, _From, State) ->
     undefined        ->
       {reply, undefined, State};
     {start_activity_url, URL} ->
-      {reply, #process{name = Name, start_activity_url = URL}, State}
+      {reply, #process_definition{name           = Name,
+                                  start_activity = #activity_definition{name = "start",
+                                                                        url  = URL}}, State}
   end;
 
 % handle_call generic fallback

@@ -43,10 +43,10 @@ stop() ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec schedule(Process, {Key, Input, Requestor}) -> {ok, NewJobUUID} | {error, Reason}
+%% @spec schedule(Process, {Key, Data, Requestor}) -> {ok, NewJobUUID} | {error, Reason}
 %% @doc It triggers an async schedule of a resquest to create a job and run a process.
-schedule(Process, {Key, Input, Requestor}) ->
-  {ok, NewJob} = cameron_process_data:create_new_job(Process, {Key, Input, Requestor}),
+schedule(Process, {Key, Data, Requestor}) ->
+  {ok, NewJob} = cameron_process_data:create_new_job(Process, {Key, Data, Requestor}),
   ok = gen_server:cast(?MODULE, {dispatch_new_job, NewJob}),
   {ok, NewJob#job.uuid}.
 

@@ -34,8 +34,8 @@ handle_http('POST', ["api", "process", ProcessName, "start"], HttpRequest) ->
       HttpRequest:respond(404, [{"Content-Type", "application/json"}],
                                  "{\"payload\":\"~s\"}", [Payload]);
     Process ->
-      {Key, Input, Requestor} = get_payload_data(Payload),
-      {ok, JobUUID} = cameron_process_scheduler:schedule(Process, {Key, Input, Requestor}),
+      {Key, Data, Requestor} = get_payload_data(Payload),
+      {ok, JobUUID} = cameron_process_scheduler:schedule(Process, {Key, Data, Requestor}),
       
       HttpRequest:respond(201, [{"Content-Type", "application/json"},
                                 {"Location", ["http://localhost:8080/api/process/", ProcessName,
@@ -60,7 +60,7 @@ get_payload_data(Payload) ->
   Struct = struct:from_json(Payload),
   
   Key = binary_to_list(struct:get_value(<<"key">>, Struct)),
-  Input = binary_to_list(struct:get_value(<<"input">>, Struct)),
+  Data = binary_to_list(struct:get_value(<<"data">>, Struct)),
   Requestor = binary_to_list(struct:get_value(<<"requestor">>, Struct)),
   
-  {Key, Input, Requestor}.
+  {Key, Data, Requestor}.
