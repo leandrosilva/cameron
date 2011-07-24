@@ -7,7 +7,7 @@
 -record(activity_definition, {name, url}).
 -record(process_definition,  {name, start_activity = #activity_definition{}}).
 
-% activity instance in/out parameters
+% job and activity instances in/out parameters
 -record(job_input,       {key, data, requestor}).
 -record(activity_input,  {key, data, requestor}).
 -record(activity_output, {data, next_activities}).
@@ -17,7 +17,7 @@
               process = #process_definition{},
               input   = #job_input{}}).
 
-% an activity instance related to a job given
+% an instance of an activity related to a job given
 -record(activity, {definition = #activity_definition{},
                    owner_job  = #job{},
                    input      = #activity_input{},
