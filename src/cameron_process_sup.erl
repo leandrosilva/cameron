@@ -84,7 +84,7 @@ init([]) ->
   ProcessCatalog = {cameron_process_catalog, {cameron_process_catalog, start_link, [ProcessCatalogConfig]},
                                              permanent, 5000, worker, dynamic},
 
-  ProcessDispatcher = {cameron_process_dispatcher, {cameron_process_dispatcher, start_link, []},
+  ProcessDispatcher = {cameron_process_scheduler, {cameron_process_scheduler, start_link, []},
                                                    permanent, 5000, worker, dynamic},
                                                       
   {ok, {{one_for_one, 10, 10}, [ProcessData, ProcessCatalog, ProcessDispatcher]}}.

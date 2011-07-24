@@ -11,7 +11,7 @@
 % admin api
 -export([start_link/2, stop/1]).
 % public api
--export([schedule_job/1, run_job/1, handle/2]).
+-export([run_job/1, handle/2]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -40,11 +40,6 @@ stop(Pname) ->
 %%
 %% Public API -------------------------------------------------------------------------------------
 %%
-
-%% @spec schedule_job(Request) -> {ok, Job} | {error, Reason}
-%% @doc It triggers an async dispatch of a resquest to run a process an pay a job.
-schedule_job(#request{} = Request) ->
-  {ok, _Job} = cameron_process_data:create_new_job(Request).
 
 %% @spec mark_job_as_running(Job) -> ok
 %% @doc Create a new process, child of cameron_process_sup, and then run the process (in
@@ -81,22 +76,31 @@ handle_call(_Request, _From, State) ->
 %% @doc Handling cast messages.
 
 % wake up to run a process
-handle_cast({run_job, #job{uuid = JobUUID} = Job}, State) ->
+handle_cast({run_job, #job{} = Job}, State) ->
   ok = cameron_process_data:mark_job_as_running(Job),
 
-  StartInput = #task_input{job   = Job,
-                           name  = "start",
-                           pname = ?pname(JobUUID)},
+  #job{process   = Process,
+       uuid      = JobUUID,
+       key       = Key,
+       input     = Input,
+       requestor = Requestor} = Job,
   
-  HandlerPid = spawn_link(?MODULE, handle, [1, StartInput]),
-  io:format("[cameron_process_runner] handling :: JobUUID: ~s // HandlerPid: ~w~n", [JobUUID, HandlerPid]),
+  StartActivity = #activity{job       = Job,
+                            name      = "start",
+                            url       = Process#process.start_activity_url,
+                            key       = Key,
+                            input     = Input,
+                            requestor = Requestor},
+  
+  HandlerPid = run_activity(1, StartActivity),
+  io:format("[cameron_process_runner] running :: JobUUID: ~s // HandlerPid: ~w~n", [JobUUID, HandlerPid]),
   
   % WARNING => countdown = ?
-  {noreply, State#state{countdown = 3}};
+  {noreply, State#state{job = Job, countdown = 1}};
 
 % notify when a individual job is done
-handle_cast({notify_done, _Index, #task_output{task_input = _TaskInput} = TaskOutput}, State) ->
-  ok = cameron_process_data:save_task_result(TaskOutput),
+handle_cast({notify_done, _Index, #activity{} = Activity}, State) ->
+  ok = cameron_process_data:save_activity_output(Activity),
 
   case State#state.countdown of
     1 ->
@@ -109,8 +113,8 @@ handle_cast({notify_done, _Index, #task_output{task_input = _TaskInput} = TaskOu
   end;
 
 % notify when a individual job fail
-handle_cast({notify_error, _Index, #task_output{task_input = _TaskInput} = TaskOutput}, State) ->
-  ok = cameron_process_data:save_error_on_task_execution(TaskOutput),
+handle_cast({notify_error, _Index, #activity{} = Activity}, State) ->
+  ok = cameron_process_data:save_error_on_activity_execution(Activity),
 
   case State#state.countdown of
     1 ->
@@ -175,51 +179,51 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-handle(Index, #task_input{job   = Job,
-                          name  = _Name,
-                          pname = _Pname} = TaskInput) ->
+run_activity(Index, Activity) ->
+  spawn_link(?MODULE, handle, [Index, Activity]).
 
-  #request{process = #process{start_task_url = StartTaskURL},
-           key      = RequestKey,
-           data     = RequestData,
-           from     = RequestFrom} = Job#job.request,
+handle(Index, #activity{} = Activity) ->
+  #activity{url       = URL,
+            key       = Key,
+            input     = Input,
+            requestor = Requestor} = Activity,
   
-  Payload = build_payload(RequestKey, RequestData, RequestFrom),
+  Payload = build_payload(Key, Input, Requestor),
 
-  case http_helper:http_post(StartTaskURL, Payload) of
+  case http_helper:http_post(URL, Payload) of
     {ok, {{"HTTP/1.1", 200, _}, _, Output}} ->
-      TaskOutput = #task_output{task_input = TaskInput, output = Output},
-      notify_done(Index, TaskOutput);
+      DoneActivity = Activity#activity{output = Output},
+      notify_done(Index, DoneActivity);
     {ok, {{"HTTP/1.1", _, _}, _, Output}} ->
-      TaskOutput = #task_output{task_input = TaskInput, output = Output},
-      notify_error(Index, TaskOutput);
+      FailedActivity = Activity#activity{output = Output, failed = yes},
+      notify_error(Index, FailedActivity);
     {error, {connect_failed, emfile}} ->
-      TaskOutput = #task_output{task_input = TaskInput, output = "{connect_failed, emfile}"},
-      notify_error(Index, TaskOutput);
+      FailedActivity = Activity#activity{output = "{connect_failed, emfile}", failed = yes},
+      notify_error(Index, FailedActivity);
     {error, Reason} ->
       io:format("Reason = ~w~n", [Reason]),
-      TaskOutput = #task_output{task_input = TaskInput, output = "unknown_error"},
-      notify_error(Index, TaskOutput)
+      FailedActivity = Activity#activity{output = "unknown_error", failed = yes},
+      notify_error(Index, FailedActivity)
   end,
   
   ok.
   
-notify(What, {Index, #task_output{task_input = TaskInput} = TaskOutput}) ->
-  Job = TaskInput#task_input.job,
+notify(What, {Index, #activity{} = Activity}) ->
+  Job = Activity#activity.job,
 
   Pname = ?pname(Job#job.uuid),
-  ok = gen_server:cast(Pname, {What, Index, TaskOutput}).
+  ok = gen_server:cast(Pname, {What, Index, Activity}).
 
-notify_done(Index, #task_output{} = TaskOutput) ->
-  notify(notify_done, {Index, TaskOutput}).
+notify_done(Index, #activity{} = Activity) ->
+  notify(notify_done, {Index, Activity}).
 
-notify_error(Index, #task_output{} = TaskOutput) ->
-  notify(notify_error, {Index, TaskOutput}).
+notify_error(Index, #activity{} = Activity) ->
+  notify(notify_error, {Index, Activity}).
   
-build_payload(RequestKey, RequestData, RequestFrom) ->
-  Payload = struct:to_json({struct, [{<<"key">>,  list_to_binary(RequestKey)},
-                                     {<<"data">>, list_to_binary(RequestData)},
-                                     {<<"from">>, list_to_binary(RequestFrom)}]}),
+build_payload(Key, Input, Requestor) ->
+  Payload = struct:to_json({struct, [{<<"key">>,  list_to_binary(Key)},
+                                     {<<"input">>, list_to_binary(Input)},
+                                     {<<"requestor">>, list_to_binary(Requestor)}]}),
                                         
   unicode:characters_to_list(Payload).
   

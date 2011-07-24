@@ -2,10 +2,10 @@
 %% @copyright 2011 Leandro Silva.
 
 %% @doc The main gen_server, the "ear" of this process system which kind of subscribes to
-%%      "incoming queue" in order to be notifyed of every "request for diagnostic" and dispatch
+%%      "incoming queue" in order to be notifyed of every "request for diagnostic" and schedule
 %%      it to a new cameron_worker gen_server.
 
--module(cameron_process_dispatcher).
+-module(cameron_process_scheduler).
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 -behaviour(gen_server).
@@ -13,7 +13,7 @@
 % admin api
 -export([start_link/0, stop/0]).
 % public api
--export([dispatch/1]).
+-export([schedule/2]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -43,12 +43,12 @@ stop() ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec dispatch(Request) -> {ok, JobUUID} | {error, Reason}
-%% @doc It triggers an async dispatch of a resquest to create a job and run a process.
-dispatch(#request{} = Request) ->
-  {ok, Job} = cameron_process_runner:schedule_job(Request),
-  ok = gen_server:cast(?MODULE, {dispatch_new_job, Job}),
-  {ok, Job#job.uuid}.
+%% @spec schedule(Process, {Key, Input, Requestor}) -> {ok, NewJobUUID} | {error, Reason}
+%% @doc It triggers an async schedule of a resquest to create a job and run a process.
+schedule(Process, {Key, Input, Requestor}) ->
+  {ok, NewJob} = cameron_process_data:create_new_job(Process, {Key, Input, Requestor}),
+  ok = gen_server:cast(?MODULE, {dispatch_new_job, NewJob}),
+  {ok, NewJob#job.uuid}.
 
 %%
 %% Gen_Server Callbacks ---------------------------------------------------------------------------
@@ -68,13 +68,12 @@ init(_Options) ->
 handle_call(_Request, _From, State) ->
   {reply, undefined, State}.
 
-%% @spec handle_cast(Msg, State) ->
-%%                  {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
+%% @spec handle_cast(Msg, State) -> {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
 %% @doc Handling cast messages.
 
-% dispatches new job to be done
-handle_cast({dispatch_new_job, Job}, State) ->
-  ok = cameron_process_runner:run_job(Job),
+% schedulees new job to be done
+handle_cast({dispatch_new_job, NewJob}, State) ->
+  ok = cameron_process_runner:run_job(NewJob),
   {noreply, State};
 
 % manual shutdown

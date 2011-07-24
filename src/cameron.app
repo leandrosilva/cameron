@@ -10,7 +10,7 @@
     cameron_sup,
     cameron_process,
     cameron_process_catalog,
-    cameron_process_dispatcher,
+    cameron_process_scheduler,
     cameron_process_data,
     cameron_process_sup,
     cameron_web_server,

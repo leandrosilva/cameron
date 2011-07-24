@@ -3,20 +3,11 @@
 
 -define(pname(UUID), list_to_atom("cameron_" ++ UUID)).
 
--record(process,     {name,
-                      start_task_url}).
-                    
--record(request,     {process = #process{},
-                      key,
-                      data,
-                      from}).
-                    
--record(job,         {uuid,
-                      request = #request{}}).
+% a process definition
+-record(process, {name, start_activity_url}).
 
--record(task_input,  {job = #job{},
-                      name,
-                      pname}).
+% an instance of a process
+-record(job, {process = #process{}, uuid, key, input, requestor}).
 
--record(task_output, {task_input = #task_input{},
-                      output}).
+% an activity related to a job
+-record(activity, {job = #job{}, name, url, key, input, requestor, output, failed = no}).
