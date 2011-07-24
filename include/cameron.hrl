@@ -4,7 +4,7 @@
 -define(pname(UUID), list_to_atom("cameron_" ++ UUID)).
 
 -record(process,     {name,
-                      start_url}).
+                      start_task_url}).
                     
 -record(request,     {process = #process{},
                       key,

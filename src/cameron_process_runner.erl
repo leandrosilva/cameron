@@ -179,14 +179,14 @@ handle(Index, #task_input{job   = Job,
                           name  = _Name,
                           pname = _Pname} = TaskInput) ->
 
-  #request{process = #process{start_url = StartURL},
+  #request{process = #process{start_task_url = StartTaskURL},
            key      = RequestKey,
            data     = RequestData,
            from     = RequestFrom} = Job#job.request,
   
   Payload = build_payload(RequestKey, RequestData, RequestFrom),
 
-  case http_helper:http_post(StartURL, Payload) of
+  case http_helper:http_post(StartTaskURL, Payload) of
     {ok, {{"HTTP/1.1", 200, _}, _, Output}} ->
       TaskOutput = #task_output{task_input = TaskInput, output = Output},
       notify_done(Index, TaskOutput);

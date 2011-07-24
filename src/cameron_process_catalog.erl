@@ -70,8 +70,8 @@ handle_call({lookup, Name}, _From, State) ->
   case Spec of 
     undefined        ->
       {reply, undefined, State};
-    {start_url, URL} ->
-      {reply, #process{name = Name, start_url = URL}, State}
+    {start_task_url, URL} ->
+      {reply, #process{name = Name, start_task_url = URL}, State}
   end;
 
 % handle_call generic fallback
