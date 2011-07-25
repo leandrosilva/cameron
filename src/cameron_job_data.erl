@@ -11,8 +11,8 @@
 % admin api
 -export([start_link/0, stop/0]).
 % public api
--export([create_new_job/2, mark_job_as_running/1]).
--export([save_task_output/1, save_error_on_task_execution/1, mark_job_as_done/1]).
+-export([create_new_job/2, mark_job_as_running/1, mark_job_as_done/1]).
+-export([save_task_output/1, save_error_on_task_execution/1]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
