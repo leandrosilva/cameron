@@ -92,14 +92,14 @@ handle_cast({task_is_being_handled, #task{} = _Task}, State) ->
   _NewState = update_state({task_is_being_handled, State});
 
 % notify when a individual task has been done with no error
-handle_cast({task_has_been_done_with_no_error, #task{} = Task}, State) ->
+handle_cast({task_has_been_done, #task{} = Task}, State) ->
   ok = cameron_job_data:save_task_output(Task),
-  _NewState = update_state({task_has_been_done_with_no_error, State});
+  _NewState = update_state({task_has_been_done, State});
 
 % notify when a individual task has been done with error
-handle_cast({task_has_been_done, #task{} = Task}, State) ->
+handle_cast({task_has_been_done_with_error, #task{} = Task}, State) ->
   ok = cameron_job_data:save_error_on_task_execution(Task),
-  _NewState = update_state({task_has_been_done, State});
+  _NewState = update_state({task_has_been_done_with_error, State});
 
 % manual shutdown
 handle_cast(stop, State) ->
@@ -184,17 +184,17 @@ handle_task(#task{} = Task) ->
   case http_helper:http_post(URL, Payload) of
     {ok, {{"HTTP/1.1", 200, _}, _, Output}} ->
       DoneTask = Task#task{output = #task_output{data = Output}},
-      notify({task_has_been_done_with_no_error, DoneTask});
+      notify({task_has_been_done, DoneTask});
     {ok, {{"HTTP/1.1", _, _}, _, Output}} ->
       FailedTask = Task#task{output = #task_output{data = Output}, failed = yes},
-      notify({task_has_been_done, FailedTask});
+      notify({task_has_been_done_with_error, FailedTask});
     {error, {connect_failed, emfile}} ->
       FailedTask = Task#task{output = #task_output{data = "{connect_failed, emfile}"}, failed = yes},
-      notify({task_has_been_done, FailedTask});
+      notify({task_has_been_done_with_error, FailedTask});
     {error, Reason} ->
       io:format("Reason = ~w~n", [Reason]),
       FailedTask = Task#task{output = #task_output{data = "unknown_error"}, failed = yes},
-      notify({task_has_been_done, FailedTask})
+      notify({task_has_been_done_with_error, FailedTask})
   end,
   
   ok.
@@ -210,10 +210,10 @@ update_state({task_is_being_handled, State}) ->
   NewState = State#state{how_many_running_tasks = HowManyRunningTasks + 1},
   {noreply, NewState};
   
-update_state({task_has_been_done_with_no_error, State}) ->
+update_state({task_has_been_done, State}) ->
   update_state(State);
 
-update_state({task_has_been_done, State}) ->
+update_state({task_has_been_done_with_error, State}) ->
   update_state(State);
 
 update_state(State) ->
