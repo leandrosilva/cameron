@@ -89,17 +89,17 @@ handle_cast(run_job, State) ->
 
 % notify when a individual job is handling
 handle_cast({notify_handling, #task{} = _Task}, State) ->
-  _NewState = update_state(when_task_is_being_handled, State);
+  _NewState = update_state({task_is_being_handled, State});
 
 % notify when a individual job is done
 handle_cast({notify_done, #task{} = Task}, State) ->
   ok = cameron_job_data:save_task_output(Task),
-  _NewState = update_state(when_task_has_been_done, State);
+  _NewState = update_state({task_has_been_done_with_no_error, State});
 
 % notify when a individual job fail
 handle_cast({notify_error, #task{} = Task}, State) ->
   ok = cameron_job_data:save_error_on_task_execution(Task),
-  _NewState = update_state(when_task_has_been_done_with_error, State);
+  _NewState = update_state({task_has_been_done_with_error, State});
 
 % manual shutdown
 handle_cast(stop, State) ->
@@ -214,16 +214,16 @@ notify(What, #task{} = Task) ->
   Pname = ?pname(Job#job.uuid),
   ok = gen_server:cast(Pname, {What, Task}).
   
-update_state(when_task_is_being_handled, State) ->
+update_state({task_is_being_handled, State}) ->
   HowManyRunningTasks = State#state.how_many_running_tasks,
   NewState = State#state{how_many_running_tasks = HowManyRunningTasks + 1},
   {noreply, NewState};
   
-update_state(when_task_has_been_done, State) ->
+update_state({task_has_been_done_with_no_error, State}) ->
   update_state(State);
 
-update_state(when_task_has_been_done_with_error, State) ->
-  update_state(State).
+update_state({task_has_been_done_with_error, State}) ->
+  update_state(State);
 
 update_state(State) ->
   case State#state.how_many_running_tasks of
