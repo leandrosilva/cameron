@@ -12,7 +12,7 @@
 -export([start_link/0, stop/0]).
 % public api
 -export([create_new_job/2, mark_job_as_running/1]).
--export([save_activity_output/1, save_error_on_activity_execution/1, mark_job_as_done/1]).
+-export([save_task_output/1, save_error_on_task_execution/1, mark_job_as_done/1]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -65,16 +65,16 @@ create_new_job(Process, {Key, Data, Requestor}) ->
 mark_job_as_running(#job{} = Job) ->
   ok = gen_server:cast(?MODULE, {mark_job_as_running, Job}).
 
-%% @spec save_activity_output(Activity) -> ok | {error, Reason}
+%% @spec save_task_output(Task) -> ok | {error, Reason}
 %% @doc Save to Redis a process execution output.
-%%      Status: done, for this particular activity.
-save_activity_output(#activity{} = Activity) ->
-  ok = gen_server:cast(?MODULE, {save_activity_output, Activity}).
+%%      Status: done, for this particular task.
+save_task_output(#task{} = Task) ->
+  ok = gen_server:cast(?MODULE, {save_task_output, Task}).
 
-%% @spec save_error_on_activity_execution(Activity) -> ok | {error, Reason}
+%% @spec save_error_on_task_execution(Task) -> ok | {error, Reason}
 %% @doc Status: error, but the job could be done.
-save_error_on_activity_execution(#activity{} = Activity) ->
-  ok = gen_server:cast(?MODULE, {save_activity_output, Activity}).
+save_error_on_task_execution(#task{} = Task) ->
+  ok = gen_server:cast(?MODULE, {save_task_output, Task}).
 
 %% @spec mark_job_as_done(Job) -> ok | {error, Reason}
 %% @doc Status: done, this job is done.
@@ -132,35 +132,35 @@ handle_cast({mark_job_as_running, #job{} = Job}, State) ->
 
   {noreply, State};
 
-% save the result of a activity given
-handle_cast({save_activity_output, #activity{} = Activity}, State) ->
-  #activity{definition   = #activity_definition{name = Name},
-            context_job  = Job,
-            output       = #activity_output{data = Data, next_activities = _NextActivities},
-            failed       = no} = Activity,
+% save the result of a task/activity given
+handle_cast({save_task_output, #task{} = Task}, State) ->
+  #task{context_job = Job,
+        activity    = #activity_definition{name = Name},
+        output      = #task_output{data = Data, next_activities = _NextActivities},
+        failed      = no} = Task,
   
   UUIDTag = redis_job_tag_for(Job),
 
   ok = redis(["hmset", UUIDTag,
-                       "activity." ++ Name ++ ".status.current",   "done",
-                       "activity." ++ Name ++ ".status.done.time", datetime(),
-                       "activity." ++ Name ++ ".output.data",      Data]),
+                       "task." ++ Name ++ ".status.current",   "done",
+                       "task." ++ Name ++ ".status.done.time", datetime(),
+                       "task." ++ Name ++ ".output.data",      Data]),
 
   {noreply, State};
 
-% save an error message happened in a job payment process
-handle_cast({save_error_on_activity_execution, #activity{} = Activity}, State) ->
-  #activity{definition   = #activity_definition{name = Name},
-            context_job  = Job,
-            output       = #activity_output{data = Data, next_activities = _NextActivities},
-            failed       = yes} = Activity,
+% save an error message happened in a job's task
+handle_cast({save_error_on_task_execution, #task{} = Task}, State) ->
+  #task{context_job = Job,
+        activity    = #activity_definition{name = Name},
+        output      = #task_output{data = Data, next_activities = _NextActivities},
+        failed      = yes} = Task,
 
   UUIDTag = redis_job_tag_for(Job),
 
   ok = redis(["hmset", UUIDTag,
-                       "activity." ++ Name ++ ".status.current",    "error",
-                       "activity." ++ Name ++ ".status.error.time", datetime(),
-                       "activity." ++ Name ++ ".output.data",       Data]),
+                       "task." ++ Name ++ ".status.current",    "error",
+                       "task." ++ Name ++ ".status.error.time", datetime(),
+                       "task." ++ Name ++ ".output.data",       Data]),
 
   ok = redis(["set", redis_error_tag_for(UUIDTag, Name), Data]),
 

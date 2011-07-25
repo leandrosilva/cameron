@@ -11,7 +11,7 @@
 % admin api
 -export([start_link/2, stop/1]).
 % public api
--export([run_job/1, handle_activity/2]).
+-export([run_job/1, handle_task/2]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -79,17 +79,17 @@ handle_call(_Request, _From, State) ->
 handle_cast({run_job, #job{uuid = JobUUID} = Job}, State) ->
   ok = cameron_process_data:mark_job_as_running(Job),
 
-  StartActivity = build_start_activity(Job),
+  StartTask = build_start_task(Job),
   
-  HandlerPid = run_parallel_activity(1, StartActivity),
+  HandlerPid = run_parallel_task(1, StartTask),
   io:format("[cameron_process_runner] running :: JobUUID: ~s // HandlerPid: ~w~n", [JobUUID, HandlerPid]),
   
   % WARNING => countdown = ?
   {noreply, State#state{job = Job, countdown = 1}};
 
 % notify when a individual job is done
-handle_cast({notify_done, _Index, #activity{} = Activity}, State) ->
-  ok = cameron_process_data:save_activity_output(Activity),
+handle_cast({notify_done, _Index, #task{} = Task}, State) ->
+  ok = cameron_process_data:save_task_output(Task),
 
   case State#state.countdown of
     1 ->
@@ -102,8 +102,8 @@ handle_cast({notify_done, _Index, #activity{} = Activity}, State) ->
   end;
 
 % notify when a individual job fail
-handle_cast({notify_error, _Index, #activity{} = Activity}, State) ->
-  ok = cameron_process_data:save_error_on_activity_execution(Activity),
+handle_cast({notify_error, _Index, #task{} = Task}, State) ->
+  ok = cameron_process_data:save_error_on_task_execution(Task),
 
   case State#state.countdown of
     1 ->
@@ -168,7 +168,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-build_start_activity(Job) ->
+build_start_task(Job) ->
   #job{process = #process_definition{start_activity = StartActivityDefinition},
        input   = JobInput} = Job,
 
@@ -176,52 +176,52 @@ build_start_activity(Job) ->
              data      = Data,
              requestor = Requestor} = JobInput,
   
-  StartActivityInput = #activity_input{key       = Key,
-                                       data      = Data,
-                                       requestor = Requestor},
+  TaskInput = #task_input{key       = Key,
+                          data      = Data,
+                          requestor = Requestor},
   
-  #activity{definition  = StartActivityDefinition,
-            context_job = Job,
-            input       = StartActivityInput}.
+  #task{context_job = Job,
+        activity    = StartActivityDefinition,
+        input       = TaskInput}.
 
-run_parallel_activity(Index, Activity) ->
-  spawn_link(?MODULE, handle_activity, [Index, Activity]).
+run_parallel_task(Index, Task) ->
+  spawn_link(?MODULE, handle_task, [Index, Task]).
 
-handle_activity(Index, #activity{} = Activity) ->
-  #activity{definition = #activity_definition{url = URL},
-            input      = #activity_input{key = Key, data = Data, requestor = Requestor}} = Activity,
+handle_task(Index, #task{} = Task) ->
+  #task{activity = #activity_definition{url = URL},
+        input    = #task_input{key = Key, data = Data, requestor = Requestor}} = Task,
 
   Payload = build_payload(Key, Data, Requestor),
 
   case http_helper:http_post(URL, Payload) of
     {ok, {{"HTTP/1.1", 200, _}, _, Output}} ->
-      DoneActivity = Activity#activity{output = #activity_output{data = Output}},
-      notify_done(Index, DoneActivity);
+      DoneTask = Task#task{output = #task_output{data = Output}},
+      notify_done(Index, DoneTask);
     {ok, {{"HTTP/1.1", _, _}, _, Output}} ->
-      FailedActivity = Activity#activity{output = #activity_output{data = Output}, failed = yes},
-      notify_error(Index, FailedActivity);
+      FailedTask = Task#task{output = #task_output{data = Output}, failed = yes},
+      notify_error(Index, FailedTask);
     {error, {connect_failed, emfile}} ->
-      FailedActivity = Activity#activity{output = #activity_output{data = "{connect_failed, emfile}"}, failed = yes},
-      notify_error(Index, FailedActivity);
+      FailedTask = Task#task{output = #task_output{data = "{connect_failed, emfile}"}, failed = yes},
+      notify_error(Index, FailedTask);
     {error, Reason} ->
       io:format("Reason = ~w~n", [Reason]),
-      FailedActivity = Activity#activity{output = #activity_output{data = "unknown_error"}, failed = yes},
-      notify_error(Index, FailedActivity)
+      FailedTask = Task#task{output = #task_output{data = "unknown_error"}, failed = yes},
+      notify_error(Index, FailedTask)
   end,
   
   ok.
   
-notify(What, {Index, #activity{} = Activity}) ->
-  Job = Activity#activity.context_job,
+notify(What, {Index, #task{} = Task}) ->
+  Job = Task#task.context_job,
 
   Pname = ?pname(Job#job.uuid),
-  ok = gen_server:cast(Pname, {What, Index, Activity}).
+  ok = gen_server:cast(Pname, {What, Index, Task}).
 
-notify_done(Index, #activity{} = Activity) ->
-  notify(notify_done, {Index, Activity}).
+notify_done(Index, #task{} = Task) ->
+  notify(notify_done, {Index, Task}).
 
-notify_error(Index, #activity{} = Activity) ->
-  notify(notify_error, {Index, Activity}).
+notify_error(Index, #task{} = Task) ->
+  notify(notify_error, {Index, Task}).
   
 build_payload(Key, Input, Requestor) ->
   Payload = struct:to_json({struct, [{<<"key">>,  list_to_binary(Key)},
