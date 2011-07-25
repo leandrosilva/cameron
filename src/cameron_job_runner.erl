@@ -87,17 +87,17 @@ handle_cast(run_job, State) ->
   
   {noreply, State};
 
-% notify when a individual task is being handled
-handle_cast({task_is_being_handled, #task{} = _Task}, State) ->
+% when a individual task is being handled
+handle_cast({event, task_is_being_handled, #task{} = _Task}, State) ->
   _NewState = update_state({task_is_being_handled, State});
 
-% notify when a individual task has been done with no error
-handle_cast({task_has_been_done, #task{} = Task}, State) ->
+% when a individual task has been done with no error
+handle_cast({event, task_has_been_done, #task{} = Task}, State) ->
   ok = cameron_job_data:save_task_output(Task),
   _NewState = update_state({task_has_been_done, State});
 
-% notify when a individual task has been done with error
-handle_cast({task_has_been_done_with_error, #task{} = Task}, State) ->
+% when a individual task has been done with error
+handle_cast({event, task_has_been_done_with_error, #task{} = Task}, State) ->
   ok = cameron_job_data:save_error_on_task_execution(Task),
   _NewState = update_state({task_has_been_done_with_error, State});
 
@@ -174,7 +174,7 @@ run_parallel_task(Task) ->
   spawn_link(?MODULE, handle_task, [Task]).
 
 handle_task(#task{} = Task) ->
-  notify({task_is_being_handled, Task}),
+  notify_event({task_is_being_handled, Task}),
   
   #task{activity = #activity_definition{url = URL},
         input    = #task_input{key = Key, data = Data, requestor = Requestor}} = Task,
@@ -184,26 +184,26 @@ handle_task(#task{} = Task) ->
   case http_helper:http_post(URL, Payload) of
     {ok, {{"HTTP/1.1", 200, _}, _, Output}} ->
       DoneTask = Task#task{output = #task_output{data = Output}},
-      notify({task_has_been_done, DoneTask});
+      notify_event({task_has_been_done, DoneTask});
     {ok, {{"HTTP/1.1", _, _}, _, Output}} ->
       FailedTask = Task#task{output = #task_output{data = Output}, failed = yes},
-      notify({task_has_been_done_with_error, FailedTask});
+      notify_event({task_has_been_done_with_error, FailedTask});
     {error, {connect_failed, emfile}} ->
       FailedTask = Task#task{output = #task_output{data = "{connect_failed, emfile}"}, failed = yes},
-      notify({task_has_been_done_with_error, FailedTask});
+      notify_event({task_has_been_done_with_error, FailedTask});
     {error, Reason} ->
       io:format("Reason = ~w~n", [Reason]),
       FailedTask = Task#task{output = #task_output{data = "unknown_error"}, failed = yes},
-      notify({task_has_been_done_with_error, FailedTask})
+      notify_event({task_has_been_done_with_error, FailedTask})
   end,
   
   ok.
 
-notify({What, #task{} = Task}) ->
+notify_event({What, #task{} = Task}) ->
   Job = Task#task.context_job,
 
   Pname = ?pname(Job#job.uuid),
-  ok = gen_server:cast(Pname, {What, Task}).
+  ok = gen_server:cast(Pname, {event, What, Task}).
   
 update_state({task_is_being_handled, State}) ->
   HowManyRunningTasks = State#state.how_many_running_tasks,
