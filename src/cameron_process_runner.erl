@@ -181,7 +181,7 @@ build_start_activity(Job) ->
                                        requestor = Requestor},
   
   #activity{definition  = StartActivityDefinition,
-            owner_job   = Job,
+            context_job = Job,
             input       = StartActivityInput}.
 
 run_parallel_activity(Index, Activity) ->
@@ -212,7 +212,7 @@ handle_activity(Index, #activity{} = Activity) ->
   ok.
   
 notify(What, {Index, #activity{} = Activity}) ->
-  Job = Activity#activity.owner_job,
+  Job = Activity#activity.context_job,
 
   Pname = ?pname(Job#job.uuid),
   ok = gen_server:cast(Pname, {What, Index, Activity}).

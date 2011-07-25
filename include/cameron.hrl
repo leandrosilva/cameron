@@ -18,8 +18,8 @@
               input   = #job_input{}}).
 
 % an instance of an activity related to a job given
--record(activity, {definition = #activity_definition{},
-                   owner_job  = #job{},
-                   input      = #activity_input{},
-                   output     = #activity_output{},
-                   failed     = no}).
+-record(activity, {definition   = #activity_definition{},
+                   context_job  = #job{},
+                   input        = #activity_input{},
+                   output       = #activity_output{},
+                   failed       = no}).

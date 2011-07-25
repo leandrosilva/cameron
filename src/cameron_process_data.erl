@@ -134,10 +134,10 @@ handle_cast({mark_job_as_running, #job{} = Job}, State) ->
 
 % save the result of a activity given
 handle_cast({save_activity_output, #activity{} = Activity}, State) ->
-  #activity{definition = #activity_definition{name = Name},
-            owner_job  = Job,
-            output     = #activity_output{data = Data, next_activities = _NextActivities},
-            failed     = no} = Activity,
+  #activity{definition   = #activity_definition{name = Name},
+            context_job  = Job,
+            output       = #activity_output{data = Data, next_activities = _NextActivities},
+            failed       = no} = Activity,
   
   UUIDTag = redis_job_tag_for(Job),
 
@@ -150,10 +150,10 @@ handle_cast({save_activity_output, #activity{} = Activity}, State) ->
 
 % save an error message happened in a job payment process
 handle_cast({save_error_on_activity_execution, #activity{} = Activity}, State) ->
-  #activity{definition = #activity_definition{name = Name},
-            owner_job  = Job,
-            output     = #activity_output{data = Data, next_activities = _NextActivities},
-            failed     = yes} = Activity,
+  #activity{definition   = #activity_definition{name = Name},
+            context_job  = Job,
+            output       = #activity_output{data = Data, next_activities = _NextActivities},
+            failed       = yes} = Activity,
 
   UUIDTag = redis_job_tag_for(Job),
 
