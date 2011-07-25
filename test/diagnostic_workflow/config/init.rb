@@ -7,4 +7,4 @@ require "yaml"
 
 $ENVIRONMENT = ENV["RACK_ENV"] || "development"
 
-require "api/process"
+require "api/workflow"
