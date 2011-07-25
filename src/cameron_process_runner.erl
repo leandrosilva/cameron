@@ -21,7 +21,7 @@
 
 -include("include/cameron.hrl").
 
--record(state, {job, countdown}).
+-record(state, {job, how_many_running_tasks}).
 
 %%
 %% Admin API --------------------------------------------------------------------------------------
@@ -60,7 +60,8 @@ run_job(#job{uuid = JobUUID} = Job) ->
 %% @doc Initiates the server.
 init([Job]) ->
   process_flag(trap_exit, true),
-  {ok, #state{job = Job}}.
+  
+  {ok, #state{job = Job, how_many_running_tasks = 0}}.
 
 %% @spec handle_call(Job, From, State) ->
 %%                  {reply, Reply, State} | {reply, Reply, State, Timeout} | {noreply, State} |
@@ -81,23 +82,28 @@ handle_cast({run_job, #job{uuid = JobUUID} = Job}, State) ->
 
   StartTask = build_start_task(Job),
   
-  HandlerPid = run_parallel_task(1, StartTask),
-  io:format("[cameron_process_runner] running :: JobUUID: ~s // HandlerPid: ~w~n", [JobUUID, HandlerPid]),
+  TaskHandlerPid = run_parallel_task(1, StartTask),
+  io:format("[cameron_process_runner] running :: JobUUID: ~s // TaskHandlerPid: ~w~n", [JobUUID, TaskHandlerPid]),
   
-  % WARNING => countdown = ?
-  {noreply, State#state{job = Job, countdown = 1}};
+  {noreply, State#state{job = Job}};
+
+% notify when a individual job is handling
+handle_cast({notify_handling, _Index, #task{} = _Task}, State) ->
+  HowManyRunningTasks = State#state.how_many_running_tasks,
+  NewState = State#state{how_many_running_tasks = HowManyRunningTasks + 1},
+  {noreply, NewState};
 
 % notify when a individual job is done
 handle_cast({notify_done, _Index, #task{} = Task}, State) ->
   ok = cameron_process_data:save_task_output(Task),
 
-  case State#state.countdown of
+  case State#state.how_many_running_tasks of
     1 ->
       ok = cameron_process_data:mark_job_as_done(State#state.job),
-      NewState = State#state{countdown = 0},
+      NewState = State#state{how_many_running_tasks = 0},
       {stop, normal, NewState};
     N ->
-      NewState = State#state{countdown = N - 1},
+      NewState = State#state{how_many_running_tasks = N - 1},
       {noreply, NewState}
   end;
 
@@ -105,13 +111,13 @@ handle_cast({notify_done, _Index, #task{} = Task}, State) ->
 handle_cast({notify_error, _Index, #task{} = Task}, State) ->
   ok = cameron_process_data:save_error_on_task_execution(Task),
 
-  case State#state.countdown of
+  case State#state.how_many_running_tasks of
     1 ->
       ok = cameron_process_data:mark_job_as_done(State#state.job),
-      NewState = State#state{countdown = 0},
+      NewState = State#state{how_many_running_tasks = 0},
       {stop, normal, NewState};
     N ->
-      NewState = State#state{countdown = N - 1},
+      NewState = State#state{how_many_running_tasks = N - 1},
       {noreply, NewState}
   end;
 
@@ -129,7 +135,7 @@ handle_cast(_Msg, State) ->
 
 % exit // any reason
 handle_info({'EXIT', Pid, Reason}, State) ->
-  % i could do 'countdown' and mark_job_as_done here, couldn't i?
+  % i could do 'how_many_running_tasks' and mark_job_as_done here, couldn't i?
   #job{uuid = JobUUID} = State#state.job,
   io:format("[cameron_process_runner] info :: JobUUID: ~s // EXIT: ~w ~w~n", [JobUUID, Pid, Reason]),
   {noreply, State};
@@ -188,6 +194,8 @@ run_parallel_task(Index, Task) ->
   spawn_link(?MODULE, handle_task, [Index, Task]).
 
 handle_task(Index, #task{} = Task) ->
+  notify_handling(Index, Task),
+  
   #task{activity = #activity_definition{url = URL},
         input    = #task_input{key = Key, data = Data, requestor = Requestor}} = Task,
 
@@ -217,6 +225,9 @@ notify(What, {Index, #task{} = Task}) ->
   Pname = ?pname(Job#job.uuid),
   ok = gen_server:cast(Pname, {What, Index, Task}).
 
+notify_handling(Index, #task{} = Task) ->
+  notify(notify_handling, {Index, Task}).
+
 notify_done(Index, #task{} = Task) ->
   notify(notify_done, {Index, Task}).
 
@@ -224,7 +235,7 @@ notify_error(Index, #task{} = Task) ->
   notify(notify_error, {Index, Task}).
   
 build_payload(Key, Input, Requestor) ->
-  Payload = struct:to_json({struct, [{<<"key">>,  list_to_binary(Key)},
+  Payload = struct:to_json({struct, [{<<"key">>, list_to_binary(Key)},
                                      {<<"input">>, list_to_binary(Input)},
                                      {<<"requestor">>, list_to_binary(Requestor)}]}),
                                         
