@@ -21,7 +21,7 @@
 
 -include("include/cameron.hrl").
 
--record(state, {job, how_many_running_tasks}).
+-record(state, {running_job, how_many_running_tasks}).
 
 %%
 %% Admin API --------------------------------------------------------------------------------------
@@ -47,7 +47,7 @@ stop(Pname) ->
 run_job(#job{uuid = JobUUID} = Job) ->
   case cameron_process_sup:start_child(Job) of
     {ok, _Pid} ->
-      ok = gen_server:cast(?pname(JobUUID), {run_job, Job});
+      ok = gen_server:cast(?pname(JobUUID), run_job);
     {error, {already_started, _Pid}} ->
       ok
   end.
@@ -61,7 +61,7 @@ run_job(#job{uuid = JobUUID} = Job) ->
 init([Job]) ->
   process_flag(trap_exit, true),
   
-  {ok, #state{job = Job, how_many_running_tasks = 0}}.
+  {ok, #state{running_job = Job, how_many_running_tasks = 0}}.
 
 %% @spec handle_call(Job, From, State) ->
 %%                  {reply, Reply, State} | {reply, Reply, State, Timeout} | {noreply, State} |
@@ -77,15 +77,15 @@ handle_call(_Request, _From, State) ->
 %% @doc Handling cast messages.
 
 % wake up to run a process
-handle_cast({run_job, #job{uuid = JobUUID} = Job}, State) ->
+handle_cast(run_job, State) ->
+  #job{uuid = JobUUID} = Job = State#state.running_job,
   ok = cameron_job_data:mark_job_as_running(Job),
 
   StartTask = build_start_task(Job),
-  
   TaskHandlerPid = run_parallel_task(1, StartTask),
   io:format("[cameron_job_runner] running :: JobUUID: ~s // TaskHandlerPid: ~w~n", [JobUUID, TaskHandlerPid]),
   
-  {noreply, State#state{job = Job}};
+  {noreply, State};
 
 % notify when a individual job is handling
 handle_cast({notify_handling, _Index, #task{} = _Task}, State) ->
@@ -116,13 +116,13 @@ handle_cast(_Msg, State) ->
 % exit // any reason
 handle_info({'EXIT', Pid, Reason}, State) ->
   % i could do 'how_many_running_tasks' and mark_job_as_done here, couldn't i?
-  #job{uuid = JobUUID} = State#state.job,
+  #job{uuid = JobUUID} = State#state.running_job,
   io:format("[cameron_job_runner] info :: JobUUID: ~s // EXIT: ~w ~w~n", [JobUUID, Pid, Reason]),
   {noreply, State};
   
 % down
 handle_info({'DOWN',  Ref, Type, Pid, Info}, State) ->
-  #job{uuid = JobUUID} = State#state.job,
+  #job{uuid = JobUUID} = State#state.running_job,
   io:format("[cameron_job_runner] info :: JobUUID: ~s // DOWN: ~w ~w ~w ~w~n", [JobUUID, Ref, Type, Pid, Info]),
   {noreply, State};
   
@@ -135,13 +135,13 @@ handle_info(_Info, State) ->
 
 % no problem, that's ok
 terminate(normal, State) ->
-  #job{uuid = JobUUID} = State#state.job,
+  #job{uuid = JobUUID} = State#state.running_job,
   io:format("[cameron_job_runner] terminating :: JobUUID: ~s // normal~n", [JobUUID]),
   terminated;
 
 % handle_info generic fallback (ignore) // any reason, i.e: cameron_process_sup:stop_child
 terminate(Reason, State) ->
-  #job{uuid = JobUUID} = State#state.job,
+  #job{uuid = JobUUID} = State#state.running_job,
   io:format("[cameron_job_runner] terminating :: JobUUID: ~s // ~w~n", [JobUUID, Reason]),
   terminate.
 
@@ -228,7 +228,7 @@ update_state(when_task_has_been_done_with_error, State) ->
 update_state(State) ->
   case State#state.how_many_running_tasks of
     1 ->
-      ok = cameron_job_data:mark_job_as_done(State#state.job),
+      ok = cameron_job_data:mark_job_as_done(State#state.running_job),
       NewState = State#state{how_many_running_tasks = 0},
       {stop, normal, NewState};
     N ->
