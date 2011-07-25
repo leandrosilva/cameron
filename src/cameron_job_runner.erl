@@ -11,7 +11,7 @@
 % admin api
 -export([start_link/2, stop/1]).
 % public api
--export([run_job/1, handle_task/2]).
+-export([run_job/1, handle_task/1]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -82,22 +82,22 @@ handle_cast(run_job, State) ->
   ok = cameron_job_data:mark_job_as_running(Job),
 
   StartTask = build_start_task(Job),
-  TaskHandlerPid = run_parallel_task(1, StartTask),
+  TaskHandlerPid = run_parallel_task(StartTask),
   io:format("[cameron_job_runner] running :: JobUUID: ~s // TaskHandlerPid: ~w~n", [JobUUID, TaskHandlerPid]),
   
   {noreply, State};
 
 % notify when a individual job is handling
-handle_cast({notify_handling, _Index, #task{} = _Task}, State) ->
+handle_cast({notify_handling, #task{} = _Task}, State) ->
   _NewState = update_state(when_task_is_being_handled, State);
 
 % notify when a individual job is done
-handle_cast({notify_done, _Index, #task{} = Task}, State) ->
+handle_cast({notify_done, #task{} = Task}, State) ->
   ok = cameron_job_data:save_task_output(Task),
   _NewState = update_state(when_task_has_been_done, State);
 
 % notify when a individual job fail
-handle_cast({notify_error, _Index, #task{} = Task}, State) ->
+handle_cast({notify_error, #task{} = Task}, State) ->
   ok = cameron_job_data:save_error_on_task_execution(Task),
   _NewState = update_state(when_task_has_been_done_with_error, State);
 
@@ -170,11 +170,11 @@ build_start_task(Job) ->
         activity    = StartActivityDefinition,
         input       = TaskInput}.
 
-run_parallel_task(Index, Task) ->
-  spawn_link(?MODULE, handle_task, [Index, Task]).
+run_parallel_task(Task) ->
+  spawn_link(?MODULE, handle_task, [Task]).
 
-handle_task(Index, #task{} = Task) ->
-  notify_handling(Index, Task),
+handle_task(#task{} = Task) ->
+  notify_handling(Task),
   
   #task{activity = #activity_definition{url = URL},
         input    = #task_input{key = Key, data = Data, requestor = Requestor}} = Task,
@@ -184,35 +184,35 @@ handle_task(Index, #task{} = Task) ->
   case http_helper:http_post(URL, Payload) of
     {ok, {{"HTTP/1.1", 200, _}, _, Output}} ->
       DoneTask = Task#task{output = #task_output{data = Output}},
-      notify_done(Index, DoneTask);
+      notify_done(DoneTask);
     {ok, {{"HTTP/1.1", _, _}, _, Output}} ->
       FailedTask = Task#task{output = #task_output{data = Output}, failed = yes},
-      notify_error(Index, FailedTask);
+      notify_error(FailedTask);
     {error, {connect_failed, emfile}} ->
       FailedTask = Task#task{output = #task_output{data = "{connect_failed, emfile}"}, failed = yes},
-      notify_error(Index, FailedTask);
+      notify_error(FailedTask);
     {error, Reason} ->
       io:format("Reason = ~w~n", [Reason]),
       FailedTask = Task#task{output = #task_output{data = "unknown_error"}, failed = yes},
-      notify_error(Index, FailedTask)
+      notify_error(FailedTask)
   end,
   
   ok.
-  
-notify(What, {Index, #task{} = Task}) ->
+
+notify_handling(#task{} = Task) ->
+  notify(notify_handling, Task).
+
+notify_done(#task{} = Task) ->
+  notify(notify_done, Task).
+
+notify_error(#task{} = Task) ->
+  notify(notify_error, Task).
+
+notify(What, #task{} = Task) ->
   Job = Task#task.context_job,
 
   Pname = ?pname(Job#job.uuid),
-  ok = gen_server:cast(Pname, {What, Index, Task}).
-
-notify_handling(Index, #task{} = Task) ->
-  notify(notify_handling, {Index, Task}).
-
-notify_done(Index, #task{} = Task) ->
-  notify(notify_done, {Index, Task}).
-
-notify_error(Index, #task{} = Task) ->
-  notify(notify_error, {Index, Task}).
+  ok = gen_server:cast(Pname, {What, Task}).
   
 update_state(when_task_is_being_handled, State) ->
   HowManyRunningTasks = State#state.how_many_running_tasks,
