@@ -179,14 +179,15 @@ handle_task(#task{} = Task) ->
   #task{activity = #activity_definition{url = URL},
         input    = #task_input{key = Key, data = Data, requestor = Requestor}} = Task,
 
-  Payload = build_payload(Key, Data, Requestor),
+  RequestPayload = build_request_payload(Key, Data, Requestor),
 
-  case http_helper:http_post(URL, Payload) of
-    {ok, {{"HTTP/1.1", 200, _}, _, Output}} ->
-      DoneTask = Task#task{output = #task_output{data = Output}},
+  case http_helper:http_post(URL, RequestPayload) of
+    {ok, {{"HTTP/1.1", 200, _}, _, ResponsePayload}} ->
+      {ResponseData, ResponseNextActivities} = parse_response_payload(ResponsePayload),
+      DoneTask = Task#task{output = #task_output{data = ResponseData, next_activities = ResponseNextActivities}},
       notify_event({task_has_been_done, DoneTask});
-    {ok, {{"HTTP/1.1", _, _}, _, Output}} ->
-      FailedTask = Task#task{output = #task_output{data = Output}, failed = yes},
+    {ok, {{"HTTP/1.1", _, _}, _, ResponsePayload}} ->
+      FailedTask = Task#task{output = #task_output{data = ResponsePayload}, failed = yes},
       notify_event({task_has_been_done_with_error, FailedTask});
     {error, {connect_failed, emfile}} ->
       FailedTask = Task#task{output = #task_output{data = "{connect_failed, emfile}"}, failed = yes},
@@ -227,10 +228,18 @@ update_state(State) ->
       {noreply, NewState}
   end.
 
-build_payload(Key, Data, Requestor) ->
-  Payload = struct:to_json({struct, [{<<"key">>, list_to_binary(Key)},
-                                     {<<"data">>, list_to_binary(Data)},
-                                     {<<"requestor">>, list_to_binary(Requestor)}]}),
+build_request_payload(Key, Data, Requestor) ->
+  RequestPayload = struct:to_json({struct, [{<<"key">>, list_to_binary(Key)},
+                                            {<<"data">>, list_to_binary(Data)},
+                                            {<<"requestor">>, list_to_binary(Requestor)}]}),
                                         
-  unicode:characters_to_list(Payload).
+  unicode:characters_to_list(RequestPayload).
+  
+parse_response_payload(ResponsePayload) ->
+  Struct = struct:from_json(ResponsePayload),
+
+  Data = struct:get_value(<<"data">>, Struct, {format, json}),
+  NextActivities = struct:get_value(<<"next_activities">>, Struct, {format, json}),
+  
+  {Data, NextActivities}.
   

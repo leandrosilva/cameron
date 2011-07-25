@@ -136,15 +136,16 @@ handle_cast({mark_job_as_running, #job{} = Job}, State) ->
 handle_cast({save_task_output, #task{} = Task}, State) ->
   #task{context_job = Job,
         activity    = #activity_definition{name = Name},
-        output      = #task_output{data = Data, next_activities = _NextActivities},
+        output      = #task_output{data = Data, next_activities = NextActivities},
         failed      = no} = Task,
   
   UUIDTag = redis_job_tag_for(Job),
 
   ok = redis(["hmset", UUIDTag,
-                       "task." ++ Name ++ ".status.current",   "done",
-                       "task." ++ Name ++ ".status.done.time", datetime(),
-                       "task." ++ Name ++ ".output.data",      Data]),
+                       "task." ++ Name ++ ".status.current",         "done",
+                       "task." ++ Name ++ ".status.done.time",       datetime(),
+                       "task." ++ Name ++ ".output.data",            Data,
+                       "task." ++ Name ++ ".output.next_activities", NextActivities]),
 
   {noreply, State};
 

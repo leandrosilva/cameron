@@ -16,7 +16,6 @@ Rack::API.app do
       {
         process:  "diagnostic",
         name:     "whois",
-        type:     "parallel",
         
         data:     { customer_id:           payload["key"],
                     customer_name:         "Leandro Silva",
