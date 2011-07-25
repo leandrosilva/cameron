@@ -227,9 +227,9 @@ update_state(State) ->
       {noreply, NewState}
   end.
 
-build_payload(Key, Input, Requestor) ->
+build_payload(Key, Data, Requestor) ->
   Payload = struct:to_json({struct, [{<<"key">>, list_to_binary(Key)},
-                                     {<<"input">>, list_to_binary(Input)},
+                                     {<<"data">>, list_to_binary(Data)},
                                      {<<"requestor">>, list_to_binary(Requestor)}]}),
                                         
   unicode:characters_to_list(Payload).
