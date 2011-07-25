@@ -3,7 +3,7 @@
 
 %% @doc The gen_server responsable to execute a process.
 
--module(cameron_process_runner).
+-module(cameron_job_runner).
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 -behaviour(gen_server).
@@ -78,12 +78,12 @@ handle_call(_Request, _From, State) ->
 
 % wake up to run a process
 handle_cast({run_job, #job{uuid = JobUUID} = Job}, State) ->
-  ok = cameron_process_data:mark_job_as_running(Job),
+  ok = cameron_job_data:mark_job_as_running(Job),
 
   StartTask = build_start_task(Job),
   
   TaskHandlerPid = run_parallel_task(1, StartTask),
-  io:format("[cameron_process_runner] running :: JobUUID: ~s // TaskHandlerPid: ~w~n", [JobUUID, TaskHandlerPid]),
+  io:format("[cameron_job_runner] running :: JobUUID: ~s // TaskHandlerPid: ~w~n", [JobUUID, TaskHandlerPid]),
   
   {noreply, State#state{job = Job}};
 
@@ -93,12 +93,12 @@ handle_cast({notify_handling, _Index, #task{} = _Task}, State) ->
 
 % notify when a individual job is done
 handle_cast({notify_done, _Index, #task{} = Task}, State) ->
-  ok = cameron_process_data:save_task_output(Task),
+  ok = cameron_job_data:save_task_output(Task),
   _NewState = update_state(when_task_has_been_done, State);
 
 % notify when a individual job fail
 handle_cast({notify_error, _Index, #task{} = Task}, State) ->
-  ok = cameron_process_data:save_error_on_task_execution(Task),
+  ok = cameron_job_data:save_error_on_task_execution(Task),
   _NewState = update_state(when_task_has_been_done_with_error, State);
 
 % manual shutdown
@@ -117,13 +117,13 @@ handle_cast(_Msg, State) ->
 handle_info({'EXIT', Pid, Reason}, State) ->
   % i could do 'how_many_running_tasks' and mark_job_as_done here, couldn't i?
   #job{uuid = JobUUID} = State#state.job,
-  io:format("[cameron_process_runner] info :: JobUUID: ~s // EXIT: ~w ~w~n", [JobUUID, Pid, Reason]),
+  io:format("[cameron_job_runner] info :: JobUUID: ~s // EXIT: ~w ~w~n", [JobUUID, Pid, Reason]),
   {noreply, State};
   
 % down
 handle_info({'DOWN',  Ref, Type, Pid, Info}, State) ->
   #job{uuid = JobUUID} = State#state.job,
-  io:format("[cameron_process_runner] info :: JobUUID: ~s // DOWN: ~w ~w ~w ~w~n", [JobUUID, Ref, Type, Pid, Info]),
+  io:format("[cameron_job_runner] info :: JobUUID: ~s // DOWN: ~w ~w ~w ~w~n", [JobUUID, Ref, Type, Pid, Info]),
   {noreply, State};
   
 handle_info(_Info, State) ->
@@ -136,13 +136,13 @@ handle_info(_Info, State) ->
 % no problem, that's ok
 terminate(normal, State) ->
   #job{uuid = JobUUID} = State#state.job,
-  io:format("[cameron_process_runner] terminating :: JobUUID: ~s // normal~n", [JobUUID]),
+  io:format("[cameron_job_runner] terminating :: JobUUID: ~s // normal~n", [JobUUID]),
   terminated;
 
 % handle_info generic fallback (ignore) // any reason, i.e: cameron_process_sup:stop_child
 terminate(Reason, State) ->
   #job{uuid = JobUUID} = State#state.job,
-  io:format("[cameron_process_runner] terminating :: JobUUID: ~s // ~w~n", [JobUUID, Reason]),
+  io:format("[cameron_job_runner] terminating :: JobUUID: ~s // ~w~n", [JobUUID, Reason]),
   terminate.
 
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
@@ -228,7 +228,7 @@ update_state(when_task_has_been_done_with_error, State) ->
 update_state(State) ->
   case State#state.how_many_running_tasks of
     1 ->
-      ok = cameron_process_data:mark_job_as_done(State#state.job),
+      ok = cameron_job_data:mark_job_as_done(State#state.job),
       NewState = State#state{how_many_running_tasks = 0},
       {stop, normal, NewState};
     N ->

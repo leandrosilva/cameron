@@ -44,7 +44,7 @@ upgrade() ->
 start_child(#job{} = Job) ->
   Pname = pname(Job),
 
-  ProcessSpec = {Pname, {cameron_process_runner, start_link, [Pname, Job]}, temporary, 5000, worker, dynamic},
+  ProcessSpec = {Pname, {cameron_job_runner, start_link, [Pname, Job]}, temporary, 5000, worker, dynamic},
   supervisor:start_child(cameron_process_sup, ProcessSpec).
 
 %% @spec stop_child(Job) -> ok | {error, Error}
@@ -77,17 +77,17 @@ which_children() ->
 %%
 %% @doc supervisor callback.
 init([]) ->
-  ProcessData = {cameron_process_data, {cameron_process_data, start_link, []},
-                                       permanent, 5000, worker, dynamic},
-
   ProcessCatalogConfig = cameron:get_processes_config(),
   ProcessCatalog = {cameron_process_catalog, {cameron_process_catalog, start_link, [ProcessCatalogConfig]},
                                              permanent, 5000, worker, dynamic},
 
-  ProcessDispatcher = {cameron_process_scheduler, {cameron_process_scheduler, start_link, []},
-                                                   permanent, 5000, worker, dynamic},
+  JobData = {cameron_job_data, {cameron_job_data, start_link, []},
+                               permanent, 5000, worker, dynamic},
+
+  JobScheduler = {cameron_job_scheduler, {cameron_job_scheduler, start_link, []},
+                                         permanent, 5000, worker, dynamic},
                                                       
-  {ok, {{one_for_one, 10, 10}, [ProcessData, ProcessCatalog, ProcessDispatcher]}}.
+  {ok, {{one_for_one, 10, 10}, [ProcessCatalog, JobData, JobScheduler]}}.
 
 %%
 %% Internal Functions -----------------------------------------------------------------------------

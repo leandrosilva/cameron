@@ -5,7 +5,7 @@
 %%      "incoming queue" in order to be notifyed of every "request for diagnostic" and schedule
 %%      it to a new cameron_worker gen_server.
 
--module(cameron_process_scheduler).
+-module(cameron_job_scheduler).
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 -behaviour(gen_server).
@@ -46,7 +46,7 @@ stop() ->
 %% @spec schedule(Process, {Key, Data, Requestor}) -> {ok, NewJobUUID} | {error, Reason}
 %% @doc It triggers an async schedule of a resquest to create a job and run a process.
 schedule(Process, {Key, Data, Requestor}) ->
-  {ok, NewJob} = cameron_process_data:create_new_job(Process, {Key, Data, Requestor}),
+  {ok, NewJob} = cameron_job_data:create_new_job(Process, {Key, Data, Requestor}),
   ok = gen_server:cast(?MODULE, {dispatch_new_job, NewJob}),
   {ok, NewJob#job.uuid}.
 
@@ -73,7 +73,7 @@ handle_call(_Request, _From, State) ->
 
 % schedulees new job to be done
 handle_cast({dispatch_new_job, NewJob}, State) ->
-  ok = cameron_process_runner:run_job(NewJob),
+  ok = cameron_job_runner:run_job(NewJob),
   {noreply, State};
 
 % manual shutdown

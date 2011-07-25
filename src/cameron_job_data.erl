@@ -5,7 +5,7 @@
 %%      request that refers to a request to run a process. And in this case, it stores those activities
 %%      in a Redis server.
 
--module(cameron_process_data).
+-module(cameron_job_data).
 -author('Leandro Silva <leandrodoze@gmail.com>').
 
 % admin api

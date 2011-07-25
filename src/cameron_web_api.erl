@@ -35,7 +35,7 @@ handle_http('POST', ["api", "process", ProcessName, "start"], HttpRequest) ->
                                  "{\"payload\":\"~s\"}", [Payload]);
     Process ->
       {Key, Data, Requestor} = get_payload_data(Payload),
-      {ok, JobUUID} = cameron_process_scheduler:schedule(Process, {Key, Data, Requestor}),
+      {ok, JobUUID} = cameron_job_scheduler:schedule(Process, {Key, Data, Requestor}),
       
       HttpRequest:respond(201, [{"Content-Type", "application/json"},
                                 {"Location", ["http://localhost:8080/api/process/", ProcessName,
