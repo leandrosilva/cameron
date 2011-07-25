@@ -89,37 +89,17 @@ handle_cast({run_job, #job{uuid = JobUUID} = Job}, State) ->
 
 % notify when a individual job is handling
 handle_cast({notify_handling, _Index, #task{} = _Task}, State) ->
-  HowManyRunningTasks = State#state.how_many_running_tasks,
-  NewState = State#state{how_many_running_tasks = HowManyRunningTasks + 1},
-  {noreply, NewState};
+  _NewState = update_state(when_task_is_being_handled, State);
 
 % notify when a individual job is done
 handle_cast({notify_done, _Index, #task{} = Task}, State) ->
   ok = cameron_process_data:save_task_output(Task),
-
-  case State#state.how_many_running_tasks of
-    1 ->
-      ok = cameron_process_data:mark_job_as_done(State#state.job),
-      NewState = State#state{how_many_running_tasks = 0},
-      {stop, normal, NewState};
-    N ->
-      NewState = State#state{how_many_running_tasks = N - 1},
-      {noreply, NewState}
-  end;
+  _NewState = update_state(when_task_has_been_done, State);
 
 % notify when a individual job fail
 handle_cast({notify_error, _Index, #task{} = Task}, State) ->
   ok = cameron_process_data:save_error_on_task_execution(Task),
-
-  case State#state.how_many_running_tasks of
-    1 ->
-      ok = cameron_process_data:mark_job_as_done(State#state.job),
-      NewState = State#state{how_many_running_tasks = 0},
-      {stop, normal, NewState};
-    N ->
-      NewState = State#state{how_many_running_tasks = N - 1},
-      {noreply, NewState}
-  end;
+  _NewState = update_state(when_task_has_been_done_with_error, State);
 
 % manual shutdown
 handle_cast(stop, State) ->
@@ -234,6 +214,28 @@ notify_done(Index, #task{} = Task) ->
 notify_error(Index, #task{} = Task) ->
   notify(notify_error, {Index, Task}).
   
+update_state(when_task_is_being_handled, State) ->
+  HowManyRunningTasks = State#state.how_many_running_tasks,
+  NewState = State#state{how_many_running_tasks = HowManyRunningTasks + 1},
+  {noreply, NewState};
+  
+update_state(when_task_has_been_done, State) ->
+  update_state(State);
+
+update_state(when_task_has_been_done_with_error, State) ->
+  update_state(State).
+
+update_state(State) ->
+  case State#state.how_many_running_tasks of
+    1 ->
+      ok = cameron_process_data:mark_job_as_done(State#state.job),
+      NewState = State#state{how_many_running_tasks = 0},
+      {stop, normal, NewState};
+    N ->
+      NewState = State#state{how_many_running_tasks = N - 1},
+      {noreply, NewState}
+  end.
+
 build_payload(Key, Input, Requestor) ->
   Payload = struct:to_json({struct, [{<<"key">>, list_to_binary(Key)},
                                      {<<"input">>, list_to_binary(Input)},
