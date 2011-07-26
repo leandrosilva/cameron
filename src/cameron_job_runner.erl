@@ -98,10 +98,10 @@ handle_cast({event, task_has_been_done, #task{} = Task}, State) ->
   _NewState = update_state(task_has_been_done, State);
 
 % when a individual task has been done with no error and has next activities/tasks (sub ones)
-handle_cast({event, {task_has_been_done, with_next}, #task{} = Task}, State) ->
-  print_event("(event, {task_has_been_done, with_next})", Task, State),
+handle_cast({event, {task_has_been_done, has_next}, #task{} = Task}, State) ->
+  print_event("(event, {task_has_been_done, has_next})", Task, State),
   ok = cameron_job_data:save_task_output(Task),
-  _NewState = update_state({task_has_been_done, with_next}, State);
+  _NewState = update_state({task_has_been_done, has_next}, State);
 
 % when a individual task has been done with error
 handle_cast({event, {task_has_been_done, with_error}, #task{} = Task}, State) ->
@@ -211,7 +211,7 @@ handle_task(#task{} = Task) ->
 
       case Handlers of
         undefined               -> Event = task_has_been_done;
-        Pids when is_list(Pids) -> Event = {task_has_been_done, with_next}
+        Pids when is_list(Pids) -> Event = {task_has_been_done, has_next}
       end,
       
       notify_event(Event, DoneTask);
@@ -269,7 +269,7 @@ update_state(task_is_being_handled, State) ->
 update_state(task_has_been_done, State) ->
   update_state(State);
 
-update_state({task_has_been_done, with_next}, State) ->
+update_state({task_has_been_done, has_next}, State) ->
   N = State#state.how_many_running_tasks,
   NewState = State#state{how_many_running_tasks = N - 1},
   {noreply, NewState};
