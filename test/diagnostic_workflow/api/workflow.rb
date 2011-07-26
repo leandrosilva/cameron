@@ -31,15 +31,15 @@ Rack::API.app do
             definitions:
               [
                 { name: "cloud_zabbix",
-                  url:  "http://localhost:9292/diagnostic/activity/cloud/zabbix" },
+                  url:  "http://localhost:9292/diagnostic/v0.0.1/activity/cloud/zabbix" },
                 { name: "cloud_product",
-                  url:  "http://localhost:9292/diagnostic/activity/cloud/product" },
+                  url:  "http://localhost:9292/diagnostic/v0.0.1/activity/cloud/product" },
                 { name: "hosting_zabbix",
-                  url:  "http://localhost:9292/diagnostic/activity/hosting/zabbix" },
+                  url:  "http://localhost:9292/diagnostic/v0.0.1/activity/hosting/zabbix" },
                 { name: "hosting_product",
-                  url:  "http://localhost:9292/diagnostic/activity/hosting/product" },
+                  url:  "http://localhost:9292/diagnostic/v0.0.1/activity/hosting/product" },
                 { name: "sqlserver_zabbix",
-                  url:  "http://localhost:9292/diagnostic/activity/sqlserver/zabbix" }
+                  url:  "http://localhost:9292/diagnostic/v0.0.1/activity/sqlserver/zabbix" }
               ]
           }
       }
@@ -53,8 +53,7 @@ Rack::API.app do
         data: { cluster_info: "up and running without any problem",
                 server_info:  { ip:           "192.02.12.10.12",
                                 vlan:         "vl001",
-                                last_stop_at: "01/02/2011" }},
-        next_activities: []
+                                last_stop_at: "01/02/2011" }}
       }
     end
     
@@ -64,8 +63,7 @@ Rack::API.app do
         name:     "diagnostic_cloud_product",
 
         data: { plan:   "linux pro - debian",
-                status: "delivered"},
-        next_activities: []
+                status: "delivered"}
       }
     end
 
@@ -77,8 +75,7 @@ Rack::API.app do
         data: { cluster_info: "up and running without any problem",
                 server_info:  { ip:           "192.01.12.03.11",
                                 vlan:         "vl002",
-                                last_stop_at: "01/05/2011" }},
-        next_activities: []
+                                last_stop_at: "01/05/2011" }}
       }
     end
 
@@ -88,8 +85,7 @@ Rack::API.app do
         name:     "diagnostic_hosting_product",
 
         data: { plan:   "pro windows",
-                status: "delivered"},
-        next_activities: []
+                status: "delivered"}
       }
     end
 
@@ -101,8 +97,7 @@ Rack::API.app do
         data: { cluster_info: "up and running without any problem",
                 server_info:  { ip:           "192.11.14.11.02",
                                 vlan:         "vl002",
-                                last_stop_at: "01/04/2011" }},
-        next_activities: []
+                                last_stop_at: "01/04/2011" }}
       }
     end
   end

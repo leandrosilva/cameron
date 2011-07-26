@@ -18,7 +18,7 @@
 
 % an instance of an activity in the context of a job
 -record(task_input,  {key, data, requestor}).
--record(task_output, {data, next_activities}).
+-record(task_output, {data, next_activities = undefined}).
 
 -record(task, {context_job  = #job{},
                activity     = #activity_definition{},

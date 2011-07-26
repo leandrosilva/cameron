@@ -186,5 +186,19 @@ new(Key, Value) ->
 %% @spec get_value(as_json, key(), struct()) -> list()
 %% @doc by codezone
 get_value(Key, Struct, {format, json}) ->
-  to_json(get_value(Key, Struct)).
+  case get_value(Key, Struct) of
+    undefined -> undefined;
+    Value     -> to_json(Value)
+  end;
   
+get_value(Key, Struct, {format, atom}) ->
+  case get_value(Key, Struct) of
+    undefined -> undefined;
+    Value     -> binary_to_existing_atom(Value, unicode)
+  end;
+  
+get_value(Key, Struct, {format, list}) ->
+  case get_value(Key, Struct) of
+    undefined -> undefined;
+    Value     -> binary_to_list(Value)
+  end.

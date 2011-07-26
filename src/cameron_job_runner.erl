@@ -78,28 +78,33 @@ handle_call(_Request, _From, State) ->
 
 % wake up to run a process
 handle_cast(run_job, State) ->
-  #job{uuid = JobUUID} = Job = State#state.running_job,
+  Job = State#state.running_job,
   ok = cameron_job_data:mark_job_as_running(Job),
 
   StartTask = build_start_task(Job),
-  TaskHandlerPid = run_parallel_task(StartTask),
-  io:format("[cameron_job_runner] running :: JobUUID: ~s // TaskHandlerPid: ~w~n", [JobUUID, TaskHandlerPid]),
+  run_parallel_task(StartTask),
   
   {noreply, State};
 
 % when a individual task is being handled
-handle_cast({event, task_is_being_handled, #task{} = _Task}, State) ->
-  _NewState = update_state({task_is_being_handled, State});
+handle_cast({event, task_is_being_handled, #task{} = Task}, State) ->
+  #task{activity = #activity_definition{name = Name}} = Task,
+  io:format("[cameron_job_runner] (event, task_is_being_handled) :: task: ~s~n", [Name]),
+  _NewState = update_state(task_is_being_handled, State);
 
 % when a individual task has been done with no error
 handle_cast({event, task_has_been_done, #task{} = Task}, State) ->
+  #task{activity = #activity_definition{name = Name}} = Task,
+  io:format("[cameron_job_runner] (event, task_has_been_done) :: task: ~s~n", [Name]),
   ok = cameron_job_data:save_task_output(Task),
-  _NewState = update_state({task_has_been_done, State});
+  _NewState = update_state(task_has_been_done, State);
 
 % when a individual task has been done with error
-handle_cast({event, task_has_been_done_with_error, #task{} = Task}, State) ->
+handle_cast({event, {task_has_been_done, with_error}, #task{} = Task}, State) ->
+  #task{activity = #activity_definition{name = Name}} = Task,
+  io:format("[cameron_job_runner] (event, {task_has_been_done, with_error}) :: task: ~s~n", [Name]),
   ok = cameron_job_data:save_error_on_task_execution(Task),
-  _NewState = update_state({task_has_been_done_with_error, State});
+  _NewState = update_state({task_has_been_done, with_error}, State);
 
 % manual shutdown
 handle_cast(stop, State) ->
@@ -154,9 +159,9 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-build_start_task(Job) ->
+build_start_task(ContextJob) ->
   #job{process = #process_definition{start_activity = StartActivityDefinition},
-       input   = JobInput} = Job,
+       input   = JobInput} = ContextJob,
 
   #job_input{key       = Key,
              data      = Data,
@@ -166,15 +171,26 @@ build_start_task(Job) ->
                           data      = Data,
                           requestor = Requestor},
   
-  #task{context_job = Job,
+  #task{context_job = ContextJob,
         activity    = StartActivityDefinition,
+        input       = TaskInput}.
+
+build_next_task(ContextJob, Requestor, ActivityDefinition) ->
+  #job{input = #job_input{key = Key}} = ContextJob,
+
+  TaskInput = #task_input{key       = Key,
+                          data      = "nothing for now",
+                          requestor = Requestor},
+  
+  #task{context_job = ContextJob,
+        activity    = ActivityDefinition,
         input       = TaskInput}.
 
 run_parallel_task(Task) ->
   spawn_link(?MODULE, handle_task, [Task]).
 
 handle_task(#task{} = Task) ->
-  notify_event({task_is_being_handled, Task}),
+  notify_event(task_is_being_handled, Task),
   
   #task{activity = #activity_definition{url = URL},
         input    = #task_input{key = Key, data = Data, requestor = Requestor}} = Task,
@@ -183,39 +199,78 @@ handle_task(#task{} = Task) ->
 
   case http_helper:http_post(URL, RequestPayload) of
     {ok, {{"HTTP/1.1", 200, _}, _, ResponsePayload}} ->
-      {ResponseData, ResponseNextActivities} = parse_response_payload(ResponsePayload),
+      {ResponseName, ResponseData, ResponseNextActivities} = parse_response_payload(ResponsePayload),
+      
       DoneTask = Task#task{output = #task_output{data = ResponseData, next_activities = ResponseNextActivities}},
-      notify_event({task_has_been_done, DoneTask});
+      Handlers = handle_next_activities(DoneTask#task.context_job, ResponseName, ResponseNextActivities),
+
+      case Handlers of
+        undefined               -> Event = task_has_been_done;
+        Pids when is_list(Pids) -> Event = {task_has_been_done, with_next}
+      end,
+      
+      notify_event(Event, DoneTask);
     {ok, {{"HTTP/1.1", _, _}, _, ResponsePayload}} ->
       FailedTask = Task#task{output = #task_output{data = ResponsePayload}, failed = yes},
-      notify_event({task_has_been_done_with_error, FailedTask});
+      notify_event({task_has_been_done, with_error}, FailedTask);
     {error, {connect_failed, emfile}} ->
       FailedTask = Task#task{output = #task_output{data = "{connect_failed, emfile}"}, failed = yes},
-      notify_event({task_has_been_done_with_error, FailedTask});
+      notify_event({task_has_been_done, with_error}, FailedTask);
+    {error, econnrefused} ->
+      FailedTask = Task#task{output = #task_output{data = ["{econnrefused, ", URL, "}"]}, failed = yes},
+      notify_event({task_has_been_done, with_error}, FailedTask);
     {error, Reason} ->
       io:format("Reason = ~w~n", [Reason]),
       FailedTask = Task#task{output = #task_output{data = "unknown_error"}, failed = yes},
-      notify_event({task_has_been_done_with_error, FailedTask})
+      notify_event({task_has_been_done, with_error}, FailedTask)
   end,
   
   ok.
 
-notify_event({What, #task{} = Task}) ->
+handle_next_activities(_ContextJob, _Requestor, undefined) ->
+  undefined;
+
+handle_next_activities(ContextJob, Requestor, NextActivities) ->
+  NextActivitiesStruct = struct:from_json(NextActivities),
+  Parallelizable = struct:get_value(<<"parallelizable">>, NextActivitiesStruct, {format, atom}),
+  ActivitiesStruct = struct:get_value(<<"definitions">>, NextActivitiesStruct),
+
+  HandleNextActivity = fun (ActivityStruct) ->
+                         Name = struct:get_value(<<"name">>, ActivityStruct, {format, list}),
+                         URL = struct:get_value(<<"url">>, ActivityStruct, {format, list}),
+
+                         handle_next_activity(ContextJob,
+                                              Requestor,
+                                              #activity_definition{name = Name, url = URL})
+                       end,
+
+  lists:map(HandleNextActivity, ActivitiesStruct).
+
+handle_next_activity(ContextJob, Requestor, #activity_definition{} = ActivityDefinition) ->
+  Task = build_next_task(ContextJob, Requestor, ActivityDefinition),
+  run_parallel_task(Task).
+
+notify_event(Event, #task{} = Task) ->
   Job = Task#task.context_job,
 
   Pname = ?pname(Job#job.uuid),
-  ok = gen_server:cast(Pname, {event, What, Task}).
+  ok = gen_server:cast(Pname, {event, Event, Task}).
   
-update_state({task_is_being_handled, State}) ->
-  HowManyRunningTasks = State#state.how_many_running_tasks,
-  NewState = State#state{how_many_running_tasks = HowManyRunningTasks + 1},
+update_state(task_is_being_handled, State) ->
+  N = State#state.how_many_running_tasks,
+  NewState = State#state{how_many_running_tasks = N + 1},
   {noreply, NewState};
   
-update_state({task_has_been_done, State}) ->
+update_state(task_has_been_done, State) ->
   update_state(State);
 
-update_state({task_has_been_done_with_error, State}) ->
-  update_state(State);
+update_state({task_has_been_done, with_next}, State) ->
+  N = State#state.how_many_running_tasks,
+  NewState = State#state{how_many_running_tasks = N - 1},
+  {noreply, NewState};
+
+update_state({task_has_been_done, with_error}, State) ->
+  update_state(State).
 
 update_state(State) ->
   case State#state.how_many_running_tasks of
@@ -238,8 +293,9 @@ build_request_payload(Key, Data, Requestor) ->
 parse_response_payload(ResponsePayload) ->
   Struct = struct:from_json(ResponsePayload),
 
+  Name = struct:get_value(<<"name">>, Struct, {format, list}),
   Data = struct:get_value(<<"data">>, Struct, {format, json}),
   NextActivities = struct:get_value(<<"next_activities">>, Struct, {format, json}),
   
-  {Data, NextActivities}.
+  {Name, Data, NextActivities}.
   

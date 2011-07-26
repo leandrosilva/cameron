@@ -74,7 +74,7 @@ save_task_output(#task{} = Task) ->
 %% @spec save_error_on_task_execution(Task) -> ok | {error, Reason}
 %% @doc Status: error, but the job could be done.
 save_error_on_task_execution(#task{} = Task) ->
-  ok = gen_server:cast(?MODULE, {save_task_output, Task}).
+  ok = gen_server:cast(?MODULE, {save_error_on_task_execution, Task}).
 
 %% @spec mark_job_as_done(Job) -> ok | {error, Reason}
 %% @doc Status: done, this job is done.

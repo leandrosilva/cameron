@@ -59,8 +59,8 @@ get_request_payload(HttpRequest) ->
 parse_request_payload(Payload) ->
   Struct = struct:from_json(Payload),
   
-  Key = binary_to_list(struct:get_value(<<"key">>, Struct)),
-  Data = binary_to_list(struct:get_value(<<"data">>, Struct)),
-  Requestor = binary_to_list(struct:get_value(<<"requestor">>, Struct)),
+  Key = struct:get_value(<<"key">>, Struct, {format, list}),
+  Data = struct:get_value(<<"data">>, Struct, {format, list}),
+  Requestor = struct:get_value(<<"requestor">>, Struct, {format, list}),
   
   {Key, Data, Requestor}.
