@@ -164,6 +164,15 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
+build_task(ContextJob, {Key, Data, Requestor}, ActivityDefinition) ->
+  TaskInput = #task_input{key       = Key,
+                          data      = Data,
+                          requestor = Requestor},
+  
+  #task{context_job = ContextJob,
+        activity    = ActivityDefinition,
+        input       = TaskInput}.
+
 build_start_task(ContextJob) ->
   #job{process = #process_definition{start_activity = StartActivityDefinition},
        input   = JobInput} = ContextJob,
@@ -172,24 +181,11 @@ build_start_task(ContextJob) ->
              data      = Data,
              requestor = Requestor} = JobInput,
   
-  TaskInput = #task_input{key       = Key,
-                          data      = Data,
-                          requestor = Requestor},
-  
-  #task{context_job = ContextJob,
-        activity    = StartActivityDefinition,
-        input       = TaskInput}.
+  build_task(ContextJob, {Key, Data, Requestor}, StartActivityDefinition).
 
 build_next_task(ContextJob, Data, Requestor, ActivityDefinition) ->
   #job{input = #job_input{key = Key}} = ContextJob,
-
-  TaskInput = #task_input{key       = Key,
-                          data      = Data,
-                          requestor = Requestor},
-  
-  #task{context_job = ContextJob,
-        activity    = ActivityDefinition,
-        input       = TaskInput}.
+  build_task(ContextJob, {Key, Data, Requestor}, ActivityDefinition).
 
 build_next_tasks(_ContextJob, _Data, _Requestor, undefined) ->
   undefined;
