@@ -9,7 +9,7 @@
 -behaviour(gen_server).
 
 % admin api
--export([start_link/2, stop/1]).
+-export([start_link/2, dump/1, stop/1]).
 % public api
 -export([run_job/1, handle_task/1]).
 % gen_server callbacks
@@ -31,6 +31,11 @@
 %% @doc Start a cameron_process server.
 start_link(Pname, Job) ->
   gen_server:start_link({local, Pname}, ?MODULE, [Job], []).
+
+%% @spec dump(Pname) -> {ok, ServerDump} | {error, Error}
+%% @doc Dumps server state.
+dump(Pname) ->
+  gen_server:cast(Pname, dump).
 
 %% @spec stop(Pname) -> ok
 %% @doc Manually stops the server.
@@ -108,6 +113,26 @@ handle_cast({event, {task_has_been_done, with_error}, #task{} = Task}, State) ->
   log_event({event, {task_has_been_done, with_error}, #task{} = Task}, State),
   ok = cameron_job_data:save_error_on_task_execution(Task),
   _NewState = update_state({task_has_been_done, with_error}, State);
+
+% dumps server state
+handle_cast(dump, State) ->
+  {state, {job, UUID,                                                                                    
+                {process_definition, ProcessName,                                                        
+                                     {activity_definition, StartActivity, URL}},                         
+                {job_input, Key, Data, Requestor}},                                                      
+          HowManyTasksRunning} = State,
+                   
+  ?NOTICE("cameron_job_runner >> current state:~n
+    {state, {job, {uuid, ~s},
+                  {process_definition, {name, ~s},
+                                       {activity_definition, {name, ~s},
+                                                             {url, ~s}}},
+                  {job_input, {key, ~s},
+                              {data, ~s},
+                              {requestor, ~s}}},
+            {how_many_running_tasks, ~w}}", [UUID, ProcessName, StartActivity, URL,
+                                             Key, Data, Requestor, HowManyTasksRunning]),
+  {noreply, State};
 
 % manual shutdown
 handle_cast(stop, State) ->
