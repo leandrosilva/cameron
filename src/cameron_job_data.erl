@@ -175,7 +175,7 @@ handle_cast({mark_job_as_done, #job{} = Job}, State) ->
                        "status.current",   "done",
                        "status.done.time", datetime()]),
                        
-  io:format("~n~n----- NOW JOB IS MARKED AS DONE -----~n~n"),
+  ?DEBUG("----- JOB WAS MARKED AS DONE (~s) -----", [Job#job.uuid]),
 
   1 = redis(["del", redis_pending_tag_for(UUIDTag)]),
   ok = redis(["set", redis_done_tag_for(UUIDTag), UUIDTag]),

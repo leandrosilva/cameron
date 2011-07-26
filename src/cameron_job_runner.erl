@@ -294,7 +294,7 @@ build_request_payload(Key, Data, Requestor) ->
                                             {<<"requestor">>, list_to_binary(Requestor)}]}),
                                         
   unicode:characters_to_list(RequestPayload).
-  
+
 parse_response_payload(ResponsePayload) ->
   Struct = struct:from_json(ResponsePayload),
 

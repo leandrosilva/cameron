@@ -66,28 +66,28 @@
 
 -else.
 
--define(DEBUG(Msg),            erlang:apply(io, format, ["[DEBUG] " ++ Msg])).
--define(DEBUG(Msg, Args),      erlang:apply(io, format, ["[DEBUG] " ++ Msg, Args])).
+-define(DEBUG(Msg),            erlang:apply(io, format, ["[DEBUG] " ++ Msg ++ "~n"])).
+-define(DEBUG(Msg, Args),      erlang:apply(io, format, ["[DEBUG] " ++ Msg ++ "~n", Args])).
 
--define(INFO(Msg),             erlang:apply(io, format, ["[INFO] " ++ Msg])).
--define(INFO(Msg, Args),       erlang:apply(io, format, ["[INFO] " ++ Msg, Args])).
+-define(INFO(Msg),             erlang:apply(io, format, ["[INFO] " ++ Msg ++ "~n"])).
+-define(INFO(Msg, Args),       erlang:apply(io, format, ["[INFO] " ++ Msg ++ "~n", Args])).
 
--define(NOTICE(Msg),           erlang:apply(io, format, ["[NOTICE] " ++ Msg])).
--define(NOTICE(Msg, Args),     erlang:apply(io, format, ["[NOTICE] " ++ Msg, Args])).
+-define(NOTICE(Msg),           erlang:apply(io, format, ["[NOTICE] " ++ Msg ++ "~n"])).
+-define(NOTICE(Msg, Args),     erlang:apply(io, format, ["[NOTICE] " ++ Msg ++ "~n", Args])).
 
--define(WARNING(Msg),          erlang:apply(io, format, ["[WARNING] " ++ Msg])).
--define(WARNING(Msg, Args),    erlang:apply(io, format, ["[WARNING] " ++ Msg, Args])).
+-define(WARNING(Msg),          erlang:apply(io, format, ["[WARNING] " ++ Msg ++ "~n"])).
+-define(WARNING(Msg, Args),    erlang:apply(io, format, ["[WARNING] " ++ Msg ++ "~n", Args])).
 
--define(ERROR(Msg),            erlang:apply(io, format, ["[ERROR] " ++ Msg])).
--define(ERROR(Msg, Args),      erlang:apply(io, format, ["[ERROR] " ++ Msg, Args])).
+-define(ERROR(Msg),            erlang:apply(io, format, ["[ERROR] " ++ Msg ++ "~n"])).
+-define(ERROR(Msg, Args),      erlang:apply(io, format, ["[ERROR] " ++ Msg ++ "~n", Args])).
 
--define(CRITICAL(Msg),         erlang:apply(io, format, ["[CRITICAL] " ++ Msg])).
--define(CRITICAL(Msg, Args),   erlang:apply(io, format, ["[CRITICAL] " ++ Msg, Args])).
+-define(CRITICAL(Msg),         erlang:apply(io, format, ["[CRITICAL] " ++ Msg ++ "~n"])).
+-define(CRITICAL(Msg, Args),   erlang:apply(io, format, ["[CRITICAL] " ++ Msg ++ "~n", Args])).
 
--define(ALERT(Msg),            erlang:apply(io, format, ["[ALERT] " ++ Msg])).
--define(ALERT(Msg, Args),      erlang:apply(io, format, ["[ALERT] " ++ Msg, Args])).
+-define(ALERT(Msg),            erlang:apply(io, format, ["[ALERT] " ++ Msg ++ "~n"])).
+-define(ALERT(Msg, Args),      erlang:apply(io, format, ["[ALERT] " ++ Msg ++ "~n", Args])).
 
--define(EMERGENCY(Msg),        erlang:apply(io, format, ["[EMERGENCY] " ++ Msg])).
--define(EMERGENCY(Msg, Args),  erlang:apply(io, format, ["[EMERGENCY] " ++ Msg, Args])).
+-define(EMERGENCY(Msg),        erlang:apply(io, format, ["[EMERGENCY] " ++ Msg ++ "~n"])).
+-define(EMERGENCY(Msg, Args),  erlang:apply(io, format, ["[EMERGENCY] " ++ Msg ++ "~n", Args])).
 
 -endif.
