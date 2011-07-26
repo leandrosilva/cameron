@@ -225,7 +225,7 @@ handle_task(#task{} = Task) ->
       FailedTask = Task#task{output = #task_output{data = ["{econnrefused, ", URL, "}"]}, failed = yes},
       notify_event({task_has_been_done, with_error}, FailedTask);
     {error, Reason} ->
-      io:format("Reason = ~w~n", [Reason]),
+      io:format("[cameron_job_runner] handle_task :: http response // ERROR: Reason = ~w~n", [Reason]),
       FailedTask = Task#task{output = #task_output{data = "unknown_error"}, failed = yes},
       notify_event({task_has_been_done, with_error}, FailedTask)
   end,
