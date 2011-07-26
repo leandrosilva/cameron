@@ -89,20 +89,31 @@ handle_cast(run_job, State) ->
 % when a individual task is being handled
 handle_cast({event, task_is_being_handled, #task{} = Task}, State) ->
   #task{activity = #activity_definition{name = Name}} = Task,
-  io:format("[cameron_job_runner] (event, task_is_being_handled) :: task: ~s~n", [Name]),
+  N = State#state.how_many_running_tasks,
+  io:format("[cameron_job_runner] (event, task_is_being_handled) :: task: ~s (~w // N: ~w)~n", [Name, self(), N]),
   _NewState = update_state(task_is_being_handled, State);
 
 % when a individual task has been done with no error
 handle_cast({event, task_has_been_done, #task{} = Task}, State) ->
   #task{activity = #activity_definition{name = Name}} = Task,
-  io:format("[cameron_job_runner] (event, task_has_been_done) :: task: ~s~n", [Name]),
+  N = State#state.how_many_running_tasks,
+  io:format("[cameron_job_runner] (event, task_has_been_done) :: task: ~s (~w // N: ~w)~n", [Name, self(), N]),
   ok = cameron_job_data:save_task_output(Task),
   _NewState = update_state(task_has_been_done, State);
+
+% when a individual task has been done with no error and has next activities/tasks (sub ones)
+handle_cast({event, {task_has_been_done, with_next}, #task{} = Task}, State) ->
+  #task{activity = #activity_definition{name = Name}} = Task,
+  N = State#state.how_many_running_tasks,
+  io:format("[cameron_job_runner] (event, {task_has_been_done, with_next}) :: task: ~s (~w // N: ~w)~n", [Name, self(), N]),
+  ok = cameron_job_data:save_task_output(Task),
+  _NewState = update_state({task_has_been_done, with_next}, State);
 
 % when a individual task has been done with error
 handle_cast({event, {task_has_been_done, with_error}, #task{} = Task}, State) ->
   #task{activity = #activity_definition{name = Name}} = Task,
-  io:format("[cameron_job_runner] (event, {task_has_been_done, with_error}) :: task: ~s~n", [Name]),
+  N = State#state.how_many_running_tasks,
+  io:format("[cameron_job_runner] (event, {task_has_been_done, with_error}) :: task: ~s (~w // N: ~w)~n", [Name, self(), N]),
   ok = cameron_job_data:save_error_on_task_execution(Task),
   _NewState = update_state({task_has_been_done, with_error}, State);
 
@@ -122,7 +133,8 @@ handle_cast(_Msg, State) ->
 handle_info({'EXIT', Pid, Reason}, State) ->
   % i could do 'how_many_running_tasks' and mark_job_as_done here, couldn't i?
   #job{uuid = JobUUID} = State#state.running_job,
-  io:format("[cameron_job_runner] info :: JobUUID: ~s // EXIT: ~w ~w~n", [JobUUID, Pid, Reason]),
+  N = State#state.how_many_running_tasks,
+  io:format("[cameron_job_runner] info :: JobUUID: ~s // EXIT: ~w ~w (N: ~w)~n", [JobUUID, Pid, Reason, N]),
   {noreply, State};
   
 % down
@@ -141,7 +153,8 @@ handle_info(_Info, State) ->
 % no problem, that's ok
 terminate(normal, State) ->
   #job{uuid = JobUUID} = State#state.running_job,
-  io:format("[cameron_job_runner] terminating :: JobUUID: ~s // normal~n", [JobUUID]),
+  N = State#state.how_many_running_tasks,
+  io:format("[cameron_job_runner] terminating :: JobUUID: ~s // normal ~w (N: ~w)~n", [JobUUID, self(), N]),
   terminated;
 
 % handle_info generic fallback (ignore) // any reason, i.e: cameron_process_sup:stop_child
