@@ -11,7 +11,7 @@ Rack::API.app do
       body = request.body.read
       payload = JSON.parse(body)
       
-      puts "[Request] #{payload}"
+      puts "[Request :: start] #{payload}"
       
       {
         process:  "diagnostic",
@@ -46,6 +46,11 @@ Rack::API.app do
     end
     
     post "/activity/cloud/zabbix" do
+      body = request.body.read
+      payload = JSON.parse(body)
+      
+      puts "[Request :: cloud_zabbix] #{payload}"
+
       {
         process:  "diagnostic",
         name:     "diagnostic_cloud_zabbix",
@@ -58,6 +63,11 @@ Rack::API.app do
     end
     
     post "/activity/cloud/product" do
+      body = request.body.read
+      payload = JSON.parse(body)
+      
+      puts "[Request :: cloud_product] #{payload}"
+
       {
         process:  "diagnostic",
         name:     "diagnostic_cloud_product",
@@ -68,6 +78,11 @@ Rack::API.app do
     end
 
     post "/activity/hosting/zabbix" do
+      body = request.body.read
+      payload = JSON.parse(body)
+      
+      puts "[Request :: hosting_zabbix] #{payload}"
+
       {
         process:  "diagnostic",
         name:     "diagnostic_hosting_zabbix",
@@ -80,6 +95,11 @@ Rack::API.app do
     end
 
     post "/activity/hosting/product" do
+      body = request.body.read
+      payload = JSON.parse(body)
+      
+      puts "[Request :: hosting_product] #{payload}"
+
       {
         process:  "diagnostic",
         name:     "diagnostic_hosting_product",
@@ -90,6 +110,11 @@ Rack::API.app do
     end
 
     post "/activity/sqlserver/zabbix" do
+      body = request.body.read
+      payload = JSON.parse(body)
+      
+      puts "[Request :: sqlserver_zabbix] #{payload}"
+
       {
         process:  "diagnostic",
         name:     "diagnostic_sqlserver_zabbix",

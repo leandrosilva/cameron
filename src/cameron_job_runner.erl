@@ -180,19 +180,46 @@ build_start_task(ContextJob) ->
         activity    = StartActivityDefinition,
         input       = TaskInput}.
 
-build_next_task(ContextJob, Requestor, ActivityDefinition) ->
+build_next_task(ContextJob, Data, Requestor, ActivityDefinition) ->
   #job{input = #job_input{key = Key}} = ContextJob,
 
   TaskInput = #task_input{key       = Key,
-                          data      = "nothing for now",
+                          data      = Data,
                           requestor = Requestor},
   
   #task{context_job = ContextJob,
         activity    = ActivityDefinition,
         input       = TaskInput}.
 
+build_next_tasks(_ContextJob, _Data, _Requestor, undefined) ->
+  undefined;
+  
+build_next_tasks(ContextJob, Data, Requestor, NextActivitiesJson) ->
+  NextActivitiesStruct = struct:from_json(NextActivitiesJson),
+  Parallelizable = struct:get_value(<<"parallelizable">>, NextActivitiesStruct, {format, atom}),
+  ActivitiesStruct = struct:get_value(<<"definitions">>, NextActivitiesStruct),
+
+  BuildNextTask = fun (ActivityStruct) ->
+                    Name = struct:get_value(<<"name">>, ActivityStruct, {format, list}),
+                    URL = struct:get_value(<<"url">>, ActivityStruct, {format, list}),
+
+                    build_next_task(ContextJob,
+                                    Data,
+                                    Requestor,
+                                    #activity_definition{name = Name, url = URL})
+                  end,
+
+  lists:map(BuildNextTask, ActivitiesStruct).
+
 run_parallel_task(Task) ->
   spawn_link(?MODULE, handle_task, [Task]).
+
+run_parallel_tasks(Tasks) ->
+  RunParallelTask = fun (Task) ->
+                      run_parallel_task(Task)
+                    end,
+                    
+  lists:map(RunParallelTask, Tasks).
 
 handle_task(#task{} = Task) ->
   notify_event(task_is_being_handled, Task),
@@ -207,14 +234,14 @@ handle_task(#task{} = Task) ->
       {ResponseName, ResponseData, ResponseNextActivities} = parse_response_payload(ResponsePayload),
       
       DoneTask = Task#task{output = #task_output{data = ResponseData, next_activities = ResponseNextActivities}},
-      Handlers = handle_next_activities(DoneTask#task.context_job, ResponseName, ResponseNextActivities),
-
-      case Handlers of
-        undefined               -> Event = task_has_been_done;
-        Pids when is_list(Pids) -> Event = {task_has_been_done, has_next}
-      end,
       
-      notify_event(Event, DoneTask);
+      case build_next_tasks(DoneTask#task.context_job, ResponseData, ResponseName, ResponseNextActivities) of
+        undefined ->
+          notify_event(task_has_been_done, DoneTask);
+        Tasks when is_list(Tasks) ->
+          run_parallel_tasks(Tasks),
+          notify_event({task_has_been_done, has_next}, DoneTask)
+      end;
     {ok, {{"HTTP/1.1", _, _}, _, ResponsePayload}} ->
       FailedTask = Task#task{output = #task_output{data = ResponsePayload}, failed = yes},
       notify_event({task_has_been_done, with_error}, FailedTask);
@@ -231,29 +258,6 @@ handle_task(#task{} = Task) ->
   end,
   
   ok.
-
-handle_next_activities(_ContextJob, _Requestor, undefined) ->
-  undefined;
-
-handle_next_activities(ContextJob, Requestor, NextActivities) ->
-  NextActivitiesStruct = struct:from_json(NextActivities),
-  Parallelizable = struct:get_value(<<"parallelizable">>, NextActivitiesStruct, {format, atom}),
-  ActivitiesStruct = struct:get_value(<<"definitions">>, NextActivitiesStruct),
-
-  HandleNextActivity = fun (ActivityStruct) ->
-                         Name = struct:get_value(<<"name">>, ActivityStruct, {format, list}),
-                         URL = struct:get_value(<<"url">>, ActivityStruct, {format, list}),
-
-                         handle_next_activity(ContextJob,
-                                              Requestor,
-                                              #activity_definition{name = Name, url = URL})
-                       end,
-
-  lists:map(HandleNextActivity, ActivitiesStruct).
-
-handle_next_activity(ContextJob, Requestor, #activity_definition{} = ActivityDefinition) ->
-  Task = build_next_task(ContextJob, Requestor, ActivityDefinition),
-  run_parallel_task(Task).
 
 notify_event(Event, #task{} = Task) ->
   Job = Task#task.context_job,
