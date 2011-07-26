@@ -304,6 +304,8 @@ parse_response_payload(ResponsePayload) ->
   
   {Name, Data, NextActivities}.
   
+% log stuffs  
+
 log_event({event, Event, Task}, State) ->
   #task{activity = #activity_definition{name = Name}} = Task,
   N = State#state.how_many_running_tasks,
