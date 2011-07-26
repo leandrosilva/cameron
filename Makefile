@@ -10,6 +10,21 @@ compile: clear
 	      -pa deps/erlang-uuid/ebin/ \
 	      -pa deps/misultin-0.6.2/ebin/ \
 	      -pa deps/redo/ebin/ \
+	      -pa deps/erlang_syslog/ebin/ \
+	      -I include/ \
+	      -o ebin/ \
+	      src/*.erl
+
+compile_prod: clear
+	@cp src/$(APP_NAME).app ebin/
+	@erlc -D use_syslog \
+	      -pa ebin/ \
+	      -pa deps/ \
+	      -pa deps/erl_helpers/ebin/ \
+	      -pa deps/erlang-uuid/ebin/ \
+	      -pa deps/misultin-0.6.2/ebin/ \
+	      -pa deps/redo/ebin/ \
+	      -pa deps/erlang_syslog/ebin/ \
 	      -I include/ \
 	      -o ebin/ \
 	      src/*.erl
@@ -21,6 +36,7 @@ compile_test: compile
 	      -pa deps/erlang-uuid/ebin/ \
 	      -pa deps/misultin-0.6.2/ebin/ \
 	      -pa deps/redo/ebin/ \
+	      -pa deps/erlang_syslog/ebin/ \
 	      -I include/ \
 	      -o ebin/ \
 	      test/*.erl

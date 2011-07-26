@@ -1,7 +1,15 @@
 %% @author Leandro Silva <leandrodoze@gmail.com>
 %% @copyright 2011 Leandro Silva.
 
+%%
+%% Global define ----------------------------------------------------------------------------------
+%%
+
 -define(pname(UUID), list_to_atom("cameron_" ++ UUID)).
+
+%%
+%% Data model -------------------------------------------------------------------------------------
+%%
 
 % activity definition
 -record(activity_definition, {name, url}).
@@ -25,3 +33,61 @@
                input        = #task_input{},
                output       = #task_output{},
                failed       = no}).
+
+%%
+%% Log levels -------------------------------------------------------------------------------------
+%%
+
+-ifdef(use_syslog).
+
+-define(DEBUG(Msg),            erlang:apply(syslog, debug, [cameron_syslog, Msg])).
+-define(DEBUG(Msg, Args),      erlang:apply(syslog, debug, [cameron_syslog, io_lib:format(Msg, Args)])).
+
+-define(INFO(Msg),             erlang:apply(syslog, info, [cameron_syslog, Msg])).
+-define(INFO(Msg, Args),       erlang:apply(syslog, info, [cameron_syslog, io_lib:format(Msg, Args)])).
+
+-define(NOTICE(Msg),           erlang:apply(syslog, notice, [cameron_syslog, Msg])).
+-define(NOTICE(Msg, Args),     erlang:apply(syslog, notice, [cameron_syslog, io_lib:format(Msg, Args)])).
+
+-define(WARNING(Msg),          erlang:apply(syslog, warning, [cameron_syslog, Msg])).
+-define(WARNING(Msg, Args),    erlang:apply(syslog, warning, [cameron_syslog, io_lib:format(Msg, Args)])).
+
+-define(ERROR(Msg),            erlang:apply(syslog, error, [cameron_syslog, Msg])).
+-define(ERROR(Msg, Args),      erlang:apply(syslog, error, [cameron_syslog, io_lib:format(Msg, Args)])).
+
+-define(CRITICAL(Msg),         erlang:apply(syslog, critical, [cameron_syslog, Msg])).
+-define(CRITICAL(Msg, Args),   erlang:apply(syslog, critical, [cameron_syslog, io_lib:format(Msg, Args)])).
+
+-define(ALERT(Msg),            erlang:apply(syslog, alert, [cameron_syslog, Msg])).
+-define(ALERT(Msg, Args),      erlang:apply(syslog, alert, [cameron_syslog, io_lib:format(Msg, Args)])).
+
+-define(EMERGENCY(Msg),        erlang:apply(syslog, emergency, [cameron_syslog, Msg])).
+-define(EMERGENCY(Msg, Args),  erlang:apply(syslog, emergency, [cameron_syslog, io_lib:format(Msg, Args)])).
+
+-else.
+
+-define(DEBUG(Msg),            erlang:apply(io, format, ["[DEBUG] " ++ Msg])).
+-define(DEBUG(Msg, Args),      erlang:apply(io, format, ["[DEBUG] " ++ Msg, Args])).
+
+-define(INFO(Msg),             erlang:apply(io, format, ["[INFO] " ++ Msg])).
+-define(INFO(Msg, Args),       erlang:apply(io, format, ["[INFO] " ++ Msg, Args])).
+
+-define(NOTICE(Msg),           erlang:apply(io, format, ["[NOTICE] " ++ Msg])).
+-define(NOTICE(Msg, Args),     erlang:apply(io, format, ["[NOTICE] " ++ Msg, Args])).
+
+-define(WARNING(Msg),          erlang:apply(io, format, ["[WARNING] " ++ Msg])).
+-define(WARNING(Msg, Args),    erlang:apply(io, format, ["[WARNING] " ++ Msg, Args])).
+
+-define(ERROR(Msg),            erlang:apply(io, format, ["[ERROR] " ++ Msg])).
+-define(ERROR(Msg, Args),      erlang:apply(io, format, ["[ERROR] " ++ Msg, Args])).
+
+-define(CRITICAL(Msg),         erlang:apply(io, format, ["[CRITICAL] " ++ Msg])).
+-define(CRITICAL(Msg, Args),   erlang:apply(io, format, ["[CRITICAL] " ++ Msg, Args])).
+
+-define(ALERT(Msg),            erlang:apply(io, format, ["[ALERT] " ++ Msg])).
+-define(ALERT(Msg, Args),      erlang:apply(io, format, ["[ALERT] " ++ Msg, Args])).
+
+-define(EMERGENCY(Msg),        erlang:apply(io, format, ["[EMERGENCY] " ++ Msg])).
+-define(EMERGENCY(Msg, Args),  erlang:apply(io, format, ["[EMERGENCY] " ++ Msg, Args])).
+
+-endif.

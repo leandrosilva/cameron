@@ -126,13 +126,13 @@ handle_info({'EXIT', Pid, Reason}, State) ->
   % i could do 'how_many_running_tasks' and mark_job_as_done here, couldn't i?
   #job{uuid = JobUUID} = State#state.running_job,
   N = State#state.how_many_running_tasks,
-  io:format("[cameron_job_runner] info :: JobUUID: ~s // EXIT: ~w ~w (N: ~w)~n", [JobUUID, Pid, Reason, N]),
+  ?DEBUG("cameron_job_runner :: info :: JobUUID: ~s // EXIT: ~w ~w (N: ~w)~n", [JobUUID, Pid, Reason, N]),
   {noreply, State};
   
 % down
 handle_info({'DOWN',  Ref, Type, Pid, Info}, State) ->
   #job{uuid = JobUUID} = State#state.running_job,
-  io:format("[cameron_job_runner] info :: JobUUID: ~s // DOWN: ~w ~w ~w ~w~n", [JobUUID, Ref, Type, Pid, Info]),
+  ?DEBUG("cameron_job_runner :: info :: JobUUID: ~s // DOWN: ~w ~w ~w ~w~n", [JobUUID, Ref, Type, Pid, Info]),
   {noreply, State};
   
 handle_info(_Info, State) ->
@@ -146,13 +146,13 @@ handle_info(_Info, State) ->
 terminate(normal, State) ->
   #job{uuid = JobUUID} = State#state.running_job,
   N = State#state.how_many_running_tasks,
-  io:format("[cameron_job_runner] terminating :: JobUUID: ~s // normal ~w (N: ~w)~n", [JobUUID, self(), N]),
+  ?DEBUG("cameron_job_runner :: terminating :: JobUUID: ~s // normal ~w (N: ~w)~n", [JobUUID, self(), N]),
   terminated;
 
 % handle_info generic fallback (ignore) // any reason, i.e: cameron_process_sup:stop_child
 terminate(Reason, State) ->
   #job{uuid = JobUUID} = State#state.running_job,
-  io:format("[cameron_job_runner] terminating :: JobUUID: ~s // ~w~n", [JobUUID, Reason]),
+  ?DEBUG("cameron_job_runner :: terminating :: JobUUID: ~s // ~w~n", [JobUUID, Reason]),
   terminate.
 
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
@@ -248,7 +248,7 @@ handle_task(#task{} = Task) ->
       FailedTask = Task#task{output = #task_output{data = ["{econnrefused, ", URL, "}"]}, failed = yes},
       notify_event({task_has_been_done, with_error}, FailedTask);
     {error, Reason} ->
-      io:format("[cameron_job_runner] handle_task :: http response // ERROR: Reason = ~w~n", [Reason]),
+      ?DEBUG("cameron_job_runner :: handle_task :: http response // ERROR: Reason = ~w~n", [Reason]),
       FailedTask = Task#task{output = #task_output{data = "unknown_error"}, failed = yes},
       notify_event({task_has_been_done, with_error}, FailedTask)
   end,
@@ -307,5 +307,5 @@ parse_response_payload(ResponsePayload) ->
 print_event(Event, Task, State) ->
   #task{activity = #activity_definition{name = Name}} = Task,
   N = State#state.how_many_running_tasks,
-  io:format("[cameron_job_runner] ~s :: task: ~s (~w // N: ~w)~n", [Event, Name, self(), N]).
+  ?DEBUG("cameron_job_runner :: ~s :: task: ~s (~w // N: ~w)~n", [Event, Name, self(), N]).
   

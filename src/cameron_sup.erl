@@ -51,4 +51,8 @@ init([]) ->
   Redo = {cameron_redo, {redo, start_link, [cameron_redo, RedoConfig]},
                          permanent, 5000, worker, dynamic},
 
-  {ok, {{one_for_one, 10, 10}, [ProcessSup, WebServer, Redo]}}.
+  SyslogConfig = [cameron_syslog, cameron, "localhost", 514, local0],
+  Syslog = {cameron_syslog, {syslog, start_link, SyslogConfig},
+                            permanent, 5000, worker, dynamic},
+
+  {ok, {{one_for_one, 10, 10}, [ProcessSup, WebServer, Redo, Syslog]}}.
