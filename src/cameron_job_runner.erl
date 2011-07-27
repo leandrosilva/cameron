@@ -178,7 +178,7 @@ terminate(normal, State) ->
 terminate(Reason, State) ->
   #job{uuid = JobUUID} = State#state.running_job,
   ?DEBUG("cameron_job_runner >> handling: terminate, JobUUID: ~s // ~w", [JobUUID, Reason]),
-  terminate.
+  terminated.
 
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
 %% @doc Convert process state when code is changed.
