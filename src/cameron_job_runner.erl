@@ -92,8 +92,8 @@ handle_cast(run_job, State) ->
   {noreply, State};
 
 % when a individual task is being spawned
-handle_cast({command, run_parallel_task, #task{} = Task}, State) ->
-  log_command({command, run_parallel_task, #task{} = Task}, State),
+handle_cast({action, run_parallel_task, #task{} = Task}, State) ->
+  log_action({action, run_parallel_task, #task{} = Task}, State),
   spawn_link(?MODULE, handle_task, [Task]),
   _NewState = update_state(task_has_been_spawned, State);
 
@@ -235,7 +235,7 @@ build_next_tasks(ContextJob, Data, Requestor, NextActivitiesJson) ->
   lists:map(BuildNextTask, ActivitiesStruct).
 
 run_parallel_task(Task) ->
-  ask_command(run_parallel_task, Task).
+  ask_action(run_parallel_task, Task).
 
 run_parallel_tasks(undefined) ->
   undefined;
@@ -283,8 +283,8 @@ handle_task(#task{} = Task) ->
 
 % gen_server message dispatch
 
-ask_command(Command, #task{} = Task) ->
-  dispatch_message({command, Command, Task}).
+ask_action(Action, #task{} = Task) ->
+  dispatch_message({action, Action, Task}).
 
 notify_event(Event, #task{} = Task) ->
   dispatch_message({event, Event, Task}).
@@ -341,10 +341,10 @@ parse_response_payload(ResponsePayload) ->
   
 % log
 
-log_command({command, Command, Task}, State) ->
+log_action({action, Action, Task}, State) ->
   #task{activity = #activity_definition{name = Name}} = Task,
   N = State#state.how_many_running_tasks,
-  ?DEBUG("cameron_job_runner >> command: ~w, task: ~s (~w // N: ~w)", [Command, Name, self(), N]).
+  ?DEBUG("cameron_job_runner >> action: ~w, task: ~s (~w // N: ~w)", [Action, Name, self(), N]).
 
 log_event({event, Event, Task}, State) ->
   #task{activity = #activity_definition{name = Name}} = Task,
