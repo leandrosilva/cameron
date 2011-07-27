@@ -235,7 +235,7 @@ build_next_tasks(ContextJob, Data, Requestor, NextActivitiesJson) ->
   lists:map(BuildNextTask, ActivitiesStruct).
 
 run_parallel_task(Task) ->
-  ask_action(run_parallel_task, Task).
+  dispatch_action(run_parallel_task, Task).
 
 run_parallel_tasks(undefined) ->
   undefined;
@@ -248,7 +248,7 @@ run_parallel_tasks(Tasks) ->
   lists:map(RunParallelTask, Tasks).
 
 handle_task(#task{} = Task) ->
-  notify_event(task_is_being_handled, Task),
+  dispatch_event(task_is_being_handled, Task),
   
   #task{activity = #activity_definition{url = URL},
         input    = #task_input{key = Key, data = Data, requestor = Requestor}} = Task,
@@ -263,30 +263,30 @@ handle_task(#task{} = Task) ->
       NextTasks = build_next_tasks(DoneTask#task.context_job, ResponseData, ResponseName, ResponseNextActivities),
       run_parallel_tasks(NextTasks),
 
-      notify_event(task_has_been_done, DoneTask);
+      dispatch_event(task_has_been_done, DoneTask);
     {ok, {{"HTTP/1.1", _, _}, _, ResponsePayload}} ->
       FailedTask = Task#task{output = #task_output{data = ResponsePayload}, failed = yes},
-      notify_event(task_has_been_done_with_error, FailedTask);
+      dispatch_event(task_has_been_done_with_error, FailedTask);
     {error, {connect_failed, emfile}} ->
       FailedTask = Task#task{output = #task_output{data = "{connect_failed, emfile}"}, failed = yes},
-      notify_event(task_has_been_done_with_error, FailedTask);
+      dispatch_event(task_has_been_done_with_error, FailedTask);
     {error, econnrefused} ->
       FailedTask = Task#task{output = #task_output{data = ["{econnrefused, ", URL, "}"]}, failed = yes},
-      notify_event(task_has_been_done_with_error, FailedTask);
+      dispatch_event(task_has_been_done_with_error, FailedTask);
     {error, Reason} ->
       ?DEBUG("cameron_job_runner >> func: handle_task, http_response: (ERROR) ~w~n", [Reason]),
       FailedTask = Task#task{output = #task_output{data = "unknown_error"}, failed = yes},
-      notify_event(task_has_been_done_with_error, FailedTask)
+      dispatch_event(task_has_been_done_with_error, FailedTask)
   end,
   
   ok.
 
-% gen_server message dispatch
+% gen_server message dispatching
 
-ask_action(Action, #task{} = Task) ->
+dispatch_action(Action, #task{} = Task) ->
   dispatch_message({action, Action, Task}).
 
-notify_event(Event, #task{} = Task) ->
+dispatch_event(Event, #task{} = Task) ->
   dispatch_message({event, Event, Task}).
   
 dispatch_message({Type, What, #task{} = Task}) ->
