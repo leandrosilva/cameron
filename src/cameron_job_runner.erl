@@ -92,10 +92,10 @@ handle_cast(run_job, State) ->
   {noreply, State};
 
 % when a individual task is being spawned
-handle_cast({event, task_is_being_spawned, #task{} = Task}, State) ->
-  log_event({event, task_is_being_spawned, #task{} = Task}, State),
+handle_cast({command, run_parallel_task, #task{} = Task}, State) ->
+  log_command({command, run_parallel_task, #task{} = Task}, State),
   spawn_link(?MODULE, handle_task, [Task]),
-  _NewState = update_state(task_is_being_spawned, State);
+  _NewState = update_state(task_has_been_spawned, State);
 
 % when a individual task is being handled
 handle_cast({event, task_is_being_handled, #task{} = Task}, State) ->
@@ -189,6 +189,8 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
+% task build and handling
+
 build_task(ContextJob, {Key, Data, Requestor}, ActivityDefinition) ->
   TaskInput = #task_input{key       = Key,
                           data      = Data,
@@ -233,7 +235,7 @@ build_next_tasks(ContextJob, Data, Requestor, NextActivitiesJson) ->
   lists:map(BuildNextTask, ActivitiesStruct).
 
 run_parallel_task(Task) ->
-  notify_event(task_is_being_spawned, Task).
+  ask_command(run_parallel_task, Task).
 
 run_parallel_tasks(undefined) ->
   undefined;
@@ -279,12 +281,22 @@ handle_task(#task{} = Task) ->
   
   ok.
 
+% gen_server message dispatch
+
+ask_command(Command, #task{} = Task) ->
+  dispatch_message({command, Command, Task}).
+
 notify_event(Event, #task{} = Task) ->
+  dispatch_message({event, Event, Task}).
+  
+dispatch_message({Type, What, #task{} = Task}) ->
   Job = Task#task.context_job,
   Pname = ?pname(Job#job.uuid),
-  ok = gen_server:cast(Pname, {event, Event, Task}).
+  ok = gen_server:cast(Pname, {Type, What, Task}).
   
-update_state(task_is_being_spawned, State) ->
+% gen_server state
+  
+update_state(task_has_been_spawned, State) ->
   N = State#state.how_many_running_tasks,
   NewState = State#state{how_many_running_tasks = N + 1},
   {noreply, NewState};
@@ -309,6 +321,8 @@ update_state(State) ->
       {noreply, NewState}
   end.
 
+% how to build task payload (from and to json)
+
 build_request_payload(Key, Data, Requestor) ->
   RequestPayload = struct:to_json({struct, [{<<"key">>, list_to_binary(Key)},
                                             {<<"data">>, list_to_binary(Data)},
@@ -325,7 +339,12 @@ parse_response_payload(ResponsePayload) ->
   
   {Name, Data, NextActivities}.
   
-% log stuffs  
+% log
+
+log_command({command, Command, Task}, State) ->
+  #task{activity = #activity_definition{name = Name}} = Task,
+  N = State#state.how_many_running_tasks,
+  ?DEBUG("cameron_job_runner >> command: ~w, task: ~s (~w // N: ~w)", [Command, Name, self(), N]).
 
 log_event({event, Event, Task}, State) ->
   #task{activity = #activity_definition{name = Name}} = Task,
