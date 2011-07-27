@@ -87,7 +87,7 @@ handle_cast(run_job, State) ->
   ok = cameron_job_data:mark_job_as_running(Job),
 
   StartTask = build_start_task(Job),
-  run_parallel_task(StartTask),
+  dispatch_action(run_parallel_task, StartTask),
   
   {noreply, State};
 
@@ -234,19 +234,6 @@ build_next_tasks(ContextJob, Data, Requestor, NextActivitiesJson) ->
 
   lists:map(BuildNextTask, ActivitiesStruct).
 
-run_parallel_task(Task) ->
-  dispatch_action(run_parallel_task, Task).
-
-run_parallel_tasks(undefined) ->
-  undefined;
-
-run_parallel_tasks(Tasks) ->
-  RunParallelTask = fun (Task) ->
-                      run_parallel_task(Task)
-                    end,
-                    
-  lists:map(RunParallelTask, Tasks).
-
 handle_task(#task{} = Task) ->
   dispatch_event(task_is_being_handled, Task),
   
@@ -261,7 +248,7 @@ handle_task(#task{} = Task) ->
       DoneTask = Task#task{output = #task_output{data = ResponseData, next_activities = ResponseNextActivities}},
 
       NextTasks = build_next_tasks(DoneTask#task.context_job, ResponseData, ResponseName, ResponseNextActivities),
-      run_parallel_tasks(NextTasks),
+      dispatch_action(run_parallel_tasks, NextTasks),
 
       dispatch_event(task_has_been_done, DoneTask);
     {ok, {{"HTTP/1.1", _, _}, _, ResponsePayload}} ->
@@ -282,6 +269,28 @@ handle_task(#task{} = Task) ->
   ok.
 
 % gen_server message dispatching
+
+% run_parallel_task(Task) ->
+%   dispatch_action(run_parallel_task, Task).
+% 
+% run_parallel_tasks(undefined) ->
+%   undefined;
+% 
+% run_parallel_tasks(Tasks) ->
+%   RunParallelTask = fun (Task) ->
+%                       run_parallel_task(Task)
+%                     end,
+%                     
+%   lists:map(RunParallelTask, Tasks).
+
+dispatch_action(_, undefined) ->
+  undefined;
+  
+dispatch_action(run_parallel_tasks, Tasks) when is_list(Tasks) ->
+  RunParallelTask = fun (Task) ->
+                      dispatch_action(run_parallel_task, Task)
+                    end,
+  lists:map(RunParallelTask, Tasks);
 
 dispatch_action(Action, #task{} = Task) ->
   dispatch_message({action, Action, Task}).
