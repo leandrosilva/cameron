@@ -172,13 +172,13 @@ terminate(normal, State) ->
   #job{uuid = JobUUID} = State#state.running_job,
   N = State#state.how_many_running_tasks,
   ?DEBUG("cameron_job_runner >> handling: terminate, JobUUID: ~s // normal ~w (N: ~w)", [JobUUID, self(), N]),
-  terminated;
+  ok;
 
 % handle_info generic fallback (ignore) // any reason, i.e: cameron_process_sup:stop_child
 terminate(Reason, State) ->
   #job{uuid = JobUUID} = State#state.running_job,
   ?DEBUG("cameron_job_runner >> handling: terminate, JobUUID: ~s // ~w", [JobUUID, Reason]),
-  terminated.
+  ok.
 
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
 %% @doc Convert process state when code is changed.

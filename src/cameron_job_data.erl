@@ -202,7 +202,7 @@ handle_info(_Info, State) ->
 %% @doc This function is called by a gen_server when it is about to terminate. When it returns,
 %%      the gen_server terminates with Reason. The return value is ignored.
 terminate(_Reason, _State) ->
-  terminated.
+  ok.
 
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
 %% @doc Convert process state when code is changed.
