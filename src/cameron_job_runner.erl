@@ -91,6 +91,12 @@ handle_cast(run_job, State) ->
   
   {noreply, State};
 
+% when a individual task is being spawned
+handle_cast({event, task_is_being_spawned, #task{} = Task}, State) ->
+  log_event({event, task_is_being_spawned, #task{} = Task}, State),
+  spawn_link(?MODULE, handle_task, [Task]),
+  _NewState = update_state(task_is_being_spawned, State);
+
 % when a individual task is being handled
 handle_cast({event, task_is_being_handled, #task{} = Task}, State) ->
   log_event({event, task_is_being_handled, #task{} = Task}, State),
@@ -102,17 +108,11 @@ handle_cast({event, task_has_been_done, #task{} = Task}, State) ->
   ok = cameron_job_data:save_task_output(Task),
   _NewState = update_state(task_has_been_done, State);
 
-% when a individual task has been done with no error and has next activities/tasks (sub ones)
-handle_cast({event, {task_has_been_done, has_next}, #task{} = Task}, State) ->
-  log_event({event, {task_has_been_done, has_next}, #task{} = Task}, State),
-  ok = cameron_job_data:save_task_output(Task),
-  _NewState = update_state({task_has_been_done, has_next}, State);
-
 % when a individual task has been done with error
-handle_cast({event, {task_has_been_done, with_error}, #task{} = Task}, State) ->
-  log_event({event, {task_has_been_done, with_error}, #task{} = Task}, State),
+handle_cast({event, task_has_been_done_with_error, #task{} = Task}, State) ->
+  log_event({event, task_has_been_done_with_error, #task{} = Task}, State),
   ok = cameron_job_data:save_error_on_task_execution(Task),
-  _NewState = update_state({task_has_been_done, with_error}, State);
+  _NewState = update_state(task_has_been_done_with_error, State);
 
 % dumps server state
 handle_cast(dump, State) ->
@@ -151,13 +151,13 @@ handle_info({'EXIT', Pid, Reason}, State) ->
   % i could do 'how_many_running_tasks' and mark_job_as_done here, couldn't i?
   #job{uuid = JobUUID} = State#state.running_job,
   N = State#state.how_many_running_tasks,
-  ?DEBUG("cameron_job_runner >> handling: info, JobUUID: ~s // EXIT: ~w ~w (N: ~w)~n", [JobUUID, Pid, Reason, N]),
+  ?DEBUG("cameron_job_runner >> handling: info, JobUUID: ~s // EXIT: ~w ~w (N: ~w)", [JobUUID, Pid, Reason, N]),
   {noreply, State};
   
 % down
 handle_info({'DOWN',  Ref, Type, Pid, Info}, State) ->
   #job{uuid = JobUUID} = State#state.running_job,
-  ?DEBUG("cameron_job_runner >> handling: info, JobUUID: ~s // DOWN: ~w ~w ~w ~w~n", [JobUUID, Ref, Type, Pid, Info]),
+  ?DEBUG("cameron_job_runner >> handling: info, JobUUID: ~s // DOWN: ~w ~w ~w ~w", [JobUUID, Ref, Type, Pid, Info]),
   {noreply, State};
   
 handle_info(_Info, State) ->
@@ -171,13 +171,13 @@ handle_info(_Info, State) ->
 terminate(normal, State) ->
   #job{uuid = JobUUID} = State#state.running_job,
   N = State#state.how_many_running_tasks,
-  ?DEBUG("cameron_job_runner >> handling: terminate, JobUUID: ~s // normal ~w (N: ~w)~n", [JobUUID, self(), N]),
+  ?DEBUG("cameron_job_runner >> handling: terminate, JobUUID: ~s // normal ~w (N: ~w)", [JobUUID, self(), N]),
   terminated;
 
 % handle_info generic fallback (ignore) // any reason, i.e: cameron_process_sup:stop_child
 terminate(Reason, State) ->
   #job{uuid = JobUUID} = State#state.running_job,
-  ?DEBUG("cameron_job_runner >> handling: terminate, JobUUID: ~s // ~w~n", [JobUUID, Reason]),
+  ?DEBUG("cameron_job_runner >> handling: terminate, JobUUID: ~s // ~w", [JobUUID, Reason]),
   terminate.
 
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
@@ -233,7 +233,10 @@ build_next_tasks(ContextJob, Data, Requestor, NextActivitiesJson) ->
   lists:map(BuildNextTask, ActivitiesStruct).
 
 run_parallel_task(Task) ->
-  spawn_link(?MODULE, handle_task, [Task]).
+  notify_event(task_is_being_spawned, Task).
+
+run_parallel_tasks(undefined) ->
+  undefined;
 
 run_parallel_tasks(Tasks) ->
   RunParallelTask = fun (Task) ->
@@ -253,53 +256,46 @@ handle_task(#task{} = Task) ->
   case http_helper:http_post(URL, RequestPayload) of
     {ok, {{"HTTP/1.1", 200, _}, _, ResponsePayload}} ->
       {ResponseName, ResponseData, ResponseNextActivities} = parse_response_payload(ResponsePayload),
-      
       DoneTask = Task#task{output = #task_output{data = ResponseData, next_activities = ResponseNextActivities}},
-      
-      case build_next_tasks(DoneTask#task.context_job, ResponseData, ResponseName, ResponseNextActivities) of
-        undefined ->
-          notify_event(task_has_been_done, DoneTask);
-        Tasks when is_list(Tasks) ->
-          run_parallel_tasks(Tasks),
-          notify_event({task_has_been_done, has_next}, DoneTask)
-      end;
+
+      NextTasks = build_next_tasks(DoneTask#task.context_job, ResponseData, ResponseName, ResponseNextActivities),
+      run_parallel_tasks(NextTasks),
+
+      notify_event(task_has_been_done, DoneTask);
     {ok, {{"HTTP/1.1", _, _}, _, ResponsePayload}} ->
       FailedTask = Task#task{output = #task_output{data = ResponsePayload}, failed = yes},
-      notify_event({task_has_been_done, with_error}, FailedTask);
+      notify_event(task_has_been_done_with_error, FailedTask);
     {error, {connect_failed, emfile}} ->
       FailedTask = Task#task{output = #task_output{data = "{connect_failed, emfile}"}, failed = yes},
-      notify_event({task_has_been_done, with_error}, FailedTask);
+      notify_event(task_has_been_done_with_error, FailedTask);
     {error, econnrefused} ->
       FailedTask = Task#task{output = #task_output{data = ["{econnrefused, ", URL, "}"]}, failed = yes},
-      notify_event({task_has_been_done, with_error}, FailedTask);
+      notify_event(task_has_been_done_with_error, FailedTask);
     {error, Reason} ->
       ?DEBUG("cameron_job_runner >> func: handle_task, http_response: (ERROR) ~w~n", [Reason]),
       FailedTask = Task#task{output = #task_output{data = "unknown_error"}, failed = yes},
-      notify_event({task_has_been_done, with_error}, FailedTask)
+      notify_event(task_has_been_done_with_error, FailedTask)
   end,
   
   ok.
 
 notify_event(Event, #task{} = Task) ->
   Job = Task#task.context_job,
-
   Pname = ?pname(Job#job.uuid),
   ok = gen_server:cast(Pname, {event, Event, Task}).
   
-update_state(task_is_being_handled, State) ->
+update_state(task_is_being_spawned, State) ->
   N = State#state.how_many_running_tasks,
   NewState = State#state{how_many_running_tasks = N + 1},
   {noreply, NewState};
+
+update_state(task_is_being_handled, State) ->
+  {noreply, State};
   
 update_state(task_has_been_done, State) ->
   update_state(State);
 
-update_state({task_has_been_done, has_next}, State) ->
-  N = State#state.how_many_running_tasks,
-  NewState = State#state{how_many_running_tasks = N - 1},
-  {noreply, NewState};
-
-update_state({task_has_been_done, with_error}, State) ->
+update_state(task_has_been_done_with_error, State) ->
   update_state(State).
 
 update_state(State) ->
@@ -334,5 +330,5 @@ parse_response_payload(ResponsePayload) ->
 log_event({event, Event, Task}, State) ->
   #task{activity = #activity_definition{name = Name}} = Task,
   N = State#state.how_many_running_tasks,
-  ?DEBUG("cameron_job_runner >> event: ~w, task: ~s (~w // N: ~w)~n", [Event, Name, self(), N]).
+  ?DEBUG("cameron_job_runner >> event: ~w, task: ~s (~w // N: ~w)", [Event, Name, self(), N]).
   
