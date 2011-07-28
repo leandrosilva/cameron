@@ -49,10 +49,10 @@ stop(Pname) ->
 %% @spec mark_job_as_running(Job) -> ok
 %% @doc Create a new process, child of cameron_process_sup, and then run the process (in
 %%      parallel, of course) to the job given.
-run_job(#job{uuid = JobUUID} = Job) ->
+run_job(#job{} = Job) ->
   case cameron_process_sup:start_child(Job) of
     {ok, _Pid} ->
-      ok = gen_server:cast(?pname(JobUUID), run_job);
+      ok = dispatch_action(run_job, Job);
     {error, {already_started, _Pid}} ->
       ok
   end.
@@ -81,8 +81,8 @@ handle_call(_Request, _From, State) ->
 %%                  {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
 %% @doc Handling cast messages.
 
-% wake up to run a process
-handle_cast(run_job, State) ->
+% to run a job
+handle_cast({action, run_job}, State) ->
   Job = State#state.running_job,
   ok = cameron_job_data:mark_job_as_running(Job),
 
@@ -96,15 +96,6 @@ handle_cast({action, spawn_task, #task{} = Task}, State) ->
   log_action({action, spawn_task, #task{} = Task}, State),
   spawn_link(?MODULE, handle_task, [Task]),
   _NewState = update_state(task_has_been_spawned, State);
-
-% to spawn a bunch tasks
-handle_cast({action, spawn_tasks, Tasks}, State) ->
-  SpawnTask = fun (Task) ->
-                      log_action({action, spawn_tasks, Task}, State),
-                      spawn_link(?MODULE, handle_task, [Task])
-                    end,
-  SpawnedTasks = lists:map(SpawnTask, Tasks),
-  _NewState = update_state({tasks_has_been_spawned, length(SpawnedTasks)}, State);
 
 % when a individual task is being handled
 handle_cast({event, task_is_being_handled, #task{} = Task}, State) ->
@@ -198,7 +189,62 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-% task build and handling
+% gen_server message dispatching
+
+dispatch_action(_, undefined) ->
+  undefined;
+
+dispatch_action(run_job, ContextJob) ->
+  dispatch_message(ContextJob, {action, run_job});
+  
+dispatch_action(Action, #task{} = Task) ->
+  dispatch_message({action, Action, Task});
+  
+dispatch_action(spawn_tasks, Tasks) when is_list(Tasks) ->
+  SpawnTask = fun (Task) ->
+                dispatch_action(spawn_task, Task)
+              end,
+  lists:map(SpawnTask, Tasks).
+  
+dispatch_event(Event, #task{} = Task) ->
+  dispatch_message({event, Event, Task}).
+  
+dispatch_message({Type, What, #task{} = Task}) ->
+  ContextJob = Task#task.context_job,
+  ok = dispatch_message(ContextJob, {Type, What, Task}).
+  
+dispatch_message(ContextJob, Message) ->
+  Pname = ?pname(ContextJob#job.uuid),
+  ok = gen_server:cast(Pname, Message).
+  
+% gen_server state management
+  
+update_state(task_has_been_spawned, State) ->
+  N = State#state.how_many_running_tasks,
+  NewState = State#state{how_many_running_tasks = N + 1},
+  {noreply, NewState};
+
+update_state(task_is_being_handled, State) ->
+  {noreply, State};
+  
+update_state(task_has_been_done, State) ->
+  update_state(State);
+
+update_state(task_has_been_done_with_error, State) ->
+  update_state(State).
+
+update_state(State) ->
+  case State#state.how_many_running_tasks of
+    1 ->
+      ok = cameron_job_data:mark_job_as_done(State#state.running_job),
+      NewState = State#state{how_many_running_tasks = 0},
+      {stop, normal, NewState};
+    N ->
+      NewState = State#state{how_many_running_tasks = N - 1},
+      {noreply, NewState}
+  end.
+
+% task building and handling
 
 build_task(ContextJob, {Key, Data, Requestor}, ActivityDefinition) ->
   TaskInput = #task_input{key       = Key,
@@ -263,11 +309,23 @@ handle_task(#task{} = Task) ->
     {ok, {{"HTTP/1.1", _, _}, _, ResponsePayload}} ->
       FailedTask = Task#task{output = #task_output{data = ResponsePayload}, failed = yes},
       dispatch_event(task_has_been_done_with_error, FailedTask);
+    %
+    % This error management should be improved, obviously
+    %
     {error, {connect_failed, emfile}} ->
-      FailedTask = Task#task{output = #task_output{data = "{connect_failed, emfile}"}, failed = yes},
+      FailedTask = Task#task{output = #task_output{data = ["{connect_failed, emfile, ", URL, "}"]}, failed = yes},
       dispatch_event(task_has_been_done_with_error, FailedTask);
     {error, econnrefused} ->
       FailedTask = Task#task{output = #task_output{data = ["{econnrefused, ", URL, "}"]}, failed = yes},
+      dispatch_event(task_has_been_done_with_error, FailedTask);
+    {error, econnreset} ->
+      FailedTask = Task#task{output = #task_output{data = ["{econnreset, ", URL, "}"]}, failed = yes},
+      dispatch_event(task_has_been_done_with_error, FailedTask);
+    {error, etimedout} ->
+      FailedTask = Task#task{output = #task_output{data = ["{etimedout, ", URL, "}"]}, failed = yes},
+      dispatch_event(task_has_been_done_with_error, FailedTask);
+    {error, nxdomain} ->
+      FailedTask = Task#task{output = #task_output{data = ["{nxdomain, ", URL, "}"]}, failed = yes},
       dispatch_event(task_has_been_done_with_error, FailedTask);
     {error, Reason} ->
       ?DEBUG("cameron_job_runner >> func: handle_task, http_response: (ERROR) ~w~n", [Reason]),
@@ -276,65 +334,6 @@ handle_task(#task{} = Task) ->
   end,
   
   ok.
-
-% gen_server message dispatching
-
-dispatch_action(_, undefined) ->
-  undefined;
-  
-dispatch_action(Action, Tasks) when is_list(Tasks) ->
-  dispatch_message({action, Action, Tasks});
-  
-dispatch_action(Action, #task{} = Task) ->
-  dispatch_message({action, Action, Task}).
-
-dispatch_event(Event, #task{} = Task) ->
-  dispatch_message({event, Event, Task}).
-  
-dispatch_message({Type, What, Tasks}) when is_list(Tasks) ->
-  [Task|_] = Tasks,
-  Job = Task#task.context_job,
-  dispatch_message(Job, {Type, What, Tasks});
-  
-dispatch_message({Type, What, #task{} = Task}) ->
-  Job = Task#task.context_job,
-  dispatch_message(Job, {Type, What, Task}).
-  
-dispatch_message(Job, {Type, What, Payload}) ->
-  Pname = ?pname(Job#job.uuid),
-  ok = gen_server:cast(Pname, {Type, What, Payload}).
-  
-% gen_server state
-
-update_state(task_has_been_spawned, State) ->
-  N = State#state.how_many_running_tasks,
-  NewState = State#state{how_many_running_tasks = N + 1},
-  {noreply, NewState};
-
-update_state({tasks_has_been_spawned, New}, State) ->
-  N = State#state.how_many_running_tasks,
-  NewState = State#state{how_many_running_tasks = N + New},
-  {noreply, NewState};
-
-update_state(task_is_being_handled, State) ->
-  {noreply, State};
-  
-update_state(task_has_been_done, State) ->
-  update_state(State);
-
-update_state(task_has_been_done_with_error, State) ->
-  update_state(State).
-
-update_state(State) ->
-  case State#state.how_many_running_tasks of
-    1 ->
-      ok = cameron_job_data:mark_job_as_done(State#state.running_job),
-      NewState = State#state{how_many_running_tasks = 0},
-      {stop, normal, NewState};
-    N ->
-      NewState = State#state{how_many_running_tasks = N - 1},
-      {noreply, NewState}
-  end.
 
 % how to build task payload (from and to json)
 
@@ -365,4 +364,3 @@ log_event({event, Event, Task}, State) ->
   #task{activity = #activity_definition{name = Name}} = Task,
   N = State#state.how_many_running_tasks,
   ?DEBUG("cameron_job_runner >> event: ~w, task: ~s (~w // N: ~w)", [Event, Name, self(), N]).
-  
