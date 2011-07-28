@@ -47,7 +47,8 @@ run:
 	     -processes priv/processes/production.config
 
 run_dev:
-	@erl -pa ebin/ deps/**/ebin/ -sname $(APP_NAME) \
+	@erl +P 100000 \
+	     -pa ebin/ deps/**/ebin/ -sname $(APP_NAME) \
 	     -boot start_sasl -s $(APP_NAME) \
 	     -config priv/config/development \
 	     -processes priv/processes/development.config
