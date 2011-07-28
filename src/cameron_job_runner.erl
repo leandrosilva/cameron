@@ -87,15 +87,24 @@ handle_cast(run_job, State) ->
   ok = cameron_job_data:mark_job_as_running(Job),
 
   StartTask = build_start_task(Job),
-  dispatch_action(run_parallel_task, StartTask),
+  dispatch_action(spawn_task, StartTask),
   
   {noreply, State};
 
-% when a individual task is being spawned
-handle_cast({action, run_parallel_task, #task{} = Task}, State) ->
-  log_action({action, run_parallel_task, #task{} = Task}, State),
+% to spawn a individual task
+handle_cast({action, spawn_task, #task{} = Task}, State) ->
+  log_action({action, spawn_task, #task{} = Task}, State),
   spawn_link(?MODULE, handle_task, [Task]),
   _NewState = update_state(task_has_been_spawned, State);
+
+% to spawn a bunch tasks
+handle_cast({action, spawn_tasks, Tasks}, State) ->
+  SpawnTask = fun (Task) ->
+                      log_action({action, spawn_tasks, Task}, State),
+                      spawn_link(?MODULE, handle_task, [Task])
+                    end,
+  SpawnedTasks = lists:map(SpawnTask, Tasks),
+  _NewState = update_state({tasks_has_been_spawned, length(SpawnedTasks)}, State);
 
 % when a individual task is being handled
 handle_cast({event, task_is_being_handled, #task{} = Task}, State) ->
@@ -248,7 +257,7 @@ handle_task(#task{} = Task) ->
       DoneTask = Task#task{output = #task_output{data = ResponseData, next_activities = ResponseNextActivities}},
 
       NextTasks = build_next_tasks(DoneTask#task.context_job, ResponseData, ResponseName, ResponseNextActivities),
-      dispatch_action(run_parallel_tasks, NextTasks),
+      dispatch_action(spawn_tasks, NextTasks),
 
       dispatch_event(task_has_been_done, DoneTask);
     {ok, {{"HTTP/1.1", _, _}, _, ResponsePayload}} ->
@@ -270,44 +279,41 @@ handle_task(#task{} = Task) ->
 
 % gen_server message dispatching
 
-% run_parallel_task(Task) ->
-%   dispatch_action(run_parallel_task, Task).
-% 
-% run_parallel_tasks(undefined) ->
-%   undefined;
-% 
-% run_parallel_tasks(Tasks) ->
-%   RunParallelTask = fun (Task) ->
-%                       run_parallel_task(Task)
-%                     end,
-%                     
-%   lists:map(RunParallelTask, Tasks).
-
 dispatch_action(_, undefined) ->
   undefined;
   
-dispatch_action(run_parallel_tasks, Tasks) when is_list(Tasks) ->
-  RunParallelTask = fun (Task) ->
-                      dispatch_action(run_parallel_task, Task)
-                    end,
-  lists:map(RunParallelTask, Tasks);
-
+dispatch_action(Action, Tasks) when is_list(Tasks) ->
+  dispatch_message({action, Action, Tasks});
+  
 dispatch_action(Action, #task{} = Task) ->
   dispatch_message({action, Action, Task}).
 
 dispatch_event(Event, #task{} = Task) ->
   dispatch_message({event, Event, Task}).
   
+dispatch_message({Type, What, Tasks}) when is_list(Tasks) ->
+  [Task|_] = Tasks,
+  Job = Task#task.context_job,
+  dispatch_message(Job, {Type, What, Tasks});
+  
 dispatch_message({Type, What, #task{} = Task}) ->
   Job = Task#task.context_job,
+  dispatch_message(Job, {Type, What, Task}).
+  
+dispatch_message(Job, {Type, What, Payload}) ->
   Pname = ?pname(Job#job.uuid),
-  ok = gen_server:cast(Pname, {Type, What, Task}).
+  ok = gen_server:cast(Pname, {Type, What, Payload}).
   
 % gen_server state
-  
+
 update_state(task_has_been_spawned, State) ->
   N = State#state.how_many_running_tasks,
   NewState = State#state{how_many_running_tasks = N + 1},
+  {noreply, NewState};
+
+update_state({tasks_has_been_spawned, New}, State) ->
+  N = State#state.how_many_running_tasks,
+  NewState = State#state{how_many_running_tasks = N + New},
   {noreply, NewState};
 
 update_state(task_is_being_handled, State) ->
