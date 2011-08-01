@@ -1,7 +1,7 @@
 %% @author Leandro Silva <leandrodoze@gmail.com>
 %% @copyright 2011 Leandro Silva.
 
-%% @doc Supervisor for the workers of the Cameron application.
+%% @doc Supervisor for generic servers on process domain.
 
 -module(cameron_process_sup).
 -author('Leandro Silva <leandrodoze@gmail.com>').
@@ -40,7 +40,7 @@ upgrade() ->
 %%
 
 %% @spec start_child(Job) -> {ok, ChildPid} | {ok, ChildPid, Info} | {error, Error}
-%% @dynamic Start a cameron_process_{Job} process to diagnostic a Job given.
+%% @dynamic Start a cameron_{JobUUID} process to do a job given.
 start_child(#job{} = Job) ->
   Pname = pname(Job),
 
@@ -48,7 +48,7 @@ start_child(#job{} = Job) ->
   supervisor:start_child(cameron_process_sup, ProcessSpec).
 
 %% @spec stop_child(Job) -> ok | {error, Error}
-%% @dynamic Stop a cameron_process_{Job}.
+%% @dynamic Stop a cameron_{JobUUID}.
 stop_child(#job{} = Job) ->
   stop_child(pname(Job));
 

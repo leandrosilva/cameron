@@ -1,9 +1,7 @@
 %% @author Leandro Silva <leandrodoze@gmail.com>
 %% @copyright 2011 Leandro Silva.
 
-%% @doc An abstraction for requests. It's used to keep track in a database every state (activities?) of a
-%%      request that refers to a request to run a process. And in this case, it stores those activities
-%%      in a Redis server.
+%% @doc An abstraction of job's data. So every action on job's data is done thru this module.
 
 -module(cameron_job_data).
 -author('Leandro Silva <leandrodoze@gmail.com>').
@@ -29,7 +27,7 @@
 %%
 
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
-%% @doc Start cameron server.
+%% @doc Starts cameron_job_data as a gen_server.
 start_link() ->
   gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
@@ -43,9 +41,7 @@ stop() ->
 %%
 
 %% @spec create_new_job(Process, {Key, Input, Requestor}) -> {ok, Job} | {error, Reason}
-%% @doc The first activity of the whole process is accept a request and create a job which should run
-%%      and keep track of process execution state and get any related data at any time in the
-%%      future.
+%% @doc Creates a new job record, which represents an instance of a process.
 %%      Status: scheduled.
 create_new_job(Process, {Key, Data, Requestor}) ->
   Input = #job_input{key       = Key,
@@ -61,23 +57,26 @@ create_new_job(Process, {Key, Data, Requestor}) ->
   {ok, NewJob}.
 
 %% @spec mark_job_as_running(Job) -> ok | {error, Reason}
-%% @doc Status: running, which means it's work in progress.
+%% @doc Marks a job as running, which means it's work in progress.
+%%      Status: running.
 mark_job_as_running(#job{} = Job) ->
   ok = gen_server:cast(?MODULE, {mark_job_as_running, Job}).
 
 %% @spec save_task_output(Task) -> ok | {error, Reason}
-%% @doc Save to Redis a process execution output.
-%%      Status: done, for this particular task.
+%% @doc Saves a task execution output.
+%%      Status: done, only for this particular task.
 save_task_output(#task{} = Task) ->
   ok = gen_server:cast(?MODULE, {save_task_output, Task}).
 
 %% @spec save_error_on_task_execution(Task) -> ok | {error, Reason}
-%% @doc Status: error, but the job could be done.
+%% @doc Saves a task execution output error.
+%%      Status: error, but the job can still running and becomes done.
 save_error_on_task_execution(#task{} = Task) ->
   ok = gen_server:cast(?MODULE, {save_error_on_task_execution, Task}).
 
 %% @spec mark_job_as_done(Job) -> ok | {error, Reason}
-%% @doc Status: done, this job is done.
+%% @doc Marks a job execution as done.
+%%      Status: done.
 mark_job_as_done(#job{} = Job) ->
   ok = gen_server:cast(?MODULE, {mark_job_as_done, Job}).
 
@@ -213,7 +212,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-%% redis
+% --- redis ---------------------------------------------------------------------------------------
 
 redis(Command) ->
   Output = redo:cmd(cameron_redo, Command),
@@ -246,12 +245,12 @@ redis_error_tag_for(UUIDTag, ActivityName) ->
   % cameron:process:{name}:key:{key}:job:{uuid}:error
   UUIDTag ++ ":" ++ ActivityName ++ ":error".
 
-%% job
+% --- job -----------------------------------------------------------------------------------------
 
 new_uuid() ->
   uuid_helper:new().
 
-%% helpers
+% --- helpers -------------------------------------------------------------------------------------
 
 maybe_padding(Number) when is_integer(Number) and (Number < 10) ->
   "0" ++ integer_to_list(Number);

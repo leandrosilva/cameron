@@ -58,9 +58,8 @@ get_web_server_config() ->
 get_redis_server_config() ->
   get_env(redis_server).
 
-%% @spec get_processes_config() -> {processes, [{process, {name, Name},
-%%                                                         {start_activity_url, URL}}]}
-%% @doc Processes configuration.
+%% @spec get_processes_config() -> {processes, [{process, {name, Name}, {start_activity_url, URL}}]}
+%% @doc All processes configuration.
 get_processes_config() ->
   {ok, [[ProcessesConfigFile]]} = init:get_argument(processes),
   {ok, [{processes, ProcessesConfig}]} = file:consult(ProcessesConfigFile),

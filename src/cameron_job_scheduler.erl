@@ -1,9 +1,8 @@
 %% @author Leandro Silva <leandrodoze@gmail.com>
 %% @copyright 2011 Leandro Silva.
 
-%% @doc The main gen_server, the "ear" of this process system which kind of subscribes to
-%%      "incoming queue" in order to be notifyed of every "request for diagnostic" and schedule
-%%      it to a new cameron_worker gen_server.
+%% @doc Generic server responsable to create process instances (a.k.a. jobs), enqueue it, and
+%%      dispatch to cameron_job_runner, whose which runs it.
 
 -module(cameron_job_scheduler).
 -author('Leandro Silva <leandrodoze@gmail.com>').
@@ -30,7 +29,7 @@
 %%
 
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
-%% @doc Start cameron server.
+%% @doc Start cameron_job_scheduler generic server.
 start_link() ->
   gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
@@ -44,7 +43,7 @@ stop() ->
 %%
 
 %% @spec schedule(Process, {Key, Data, Requestor}) -> {ok, NewJobUUID} | {error, Reason}
-%% @doc It triggers an async schedule of a resquest to create a job and run a process.
+%% @doc It triggers an async schedule of a resquest to create a new job and enqueue it to run.
 schedule(Process, {Key, Data, Requestor}) ->
   {ok, NewJob} = cameron_job_data:create_new_job(Process, {Key, Data, Requestor}),
   ok = gen_server:cast(?MODULE, {dispatch_new_job, NewJob}),
@@ -71,7 +70,7 @@ handle_call(_Request, _From, State) ->
 %% @spec handle_cast(Msg, State) -> {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
 %% @doc Handling cast messages.
 
-% schedulees new job to be done
+% schedules a new job to be done
 handle_cast({dispatch_new_job, NewJob}, State) ->
   ok = cameron_job_runner:run_job(NewJob),
   {noreply, State};

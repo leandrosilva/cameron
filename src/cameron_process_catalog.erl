@@ -1,7 +1,7 @@
 %% @author Leandro Silva <leandrodoze@gmail.com>
 %% @copyright 2011 Leandro Silva.
 
-%% @doc Catalog of available processes.
+%% @doc Catalog of available workflow processes.
 
 -module(cameron_process_catalog).
 -author('Leandro Silva <leandrodoze@gmail.com>').
@@ -28,7 +28,7 @@
 %%
 
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
-%% @doc Start cameron server.
+%% @doc Start cameron_process_catalog generic server.
 start_link(Processes) ->
   gen_server:start_link({local, ?MODULE}, ?MODULE, [Processes], []).
 

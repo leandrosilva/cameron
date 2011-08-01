@@ -1,7 +1,7 @@
 %% @author Leandro Silva <leandrodoze@gmail.com>
 %% @copyright 2011 Leandro Silva.
 
-%% @doc The gen_server responsable to execute a process.
+%% @doc The gen_server responsable to execute a process instance, which we call job.
 
 -module(cameron_job_runner).
 -author('Leandro Silva <leandrodoze@gmail.com>').
@@ -28,17 +28,20 @@
 %%
 
 %% @spec start_link(Pname, Job) -> {ok, Pid} | ignore | {error, Error}
-%% @doc Start a cameron_process server.
+%% @doc Start a cameron_job_runner generic server. Pname is the server "process name", or in other
+%%      words, the name by which it is going to be registered.
 start_link(Pname, Job) ->
   gen_server:start_link({local, Pname}, ?MODULE, [Job], []).
 
 %% @spec dump(Pname) -> {ok, ServerDump} | {error, Error}
-%% @doc Dumps server state.
+%% @doc Dumps generic server state. Pname is the server "process name", or in other words, the name
+%%      by which it was registered.
 dump(Pname) ->
   gen_server:cast(Pname, dump).
 
 %% @spec stop(Pname) -> ok
-%% @doc Manually stops the server.
+%% @doc Manually stops the server. Pname is the server "process name", or in other words, the name
+%%      by which it was registered.
 stop(Pname) ->
   gen_server:cast(Pname, stop).
 
@@ -46,9 +49,9 @@ stop(Pname) ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec mark_job_as_running(Job) -> ok
-%% @doc Create a new process, child of cameron_process_sup, and then run the process (in
-%%      parallel, of course) to the job given.
+%% @spec run_job(Job) -> ok
+%% @doc Create a new process instance (a.k.a. job), child of cameron_process_sup, and then run it
+%%      in parallel.
 run_job(#job{} = Job) ->
   case cameron_process_sup:start_child(Job) of
     {ok, _Pid} ->
@@ -91,7 +94,7 @@ handle_cast({action, run_job}, State) ->
   
   {noreply, State};
 
-% to spawn a individual task
+% to spawn a individual task handler
 handle_cast({action, spawn_task, #task{} = Task}, State) ->
   log_action({action, spawn_task, #task{} = Task}, State),
   spawn_link(?MODULE, handle_task, [Task]),
@@ -102,7 +105,7 @@ handle_cast({event, task_is_being_handled, #task{} = Task}, State) ->
   log_event({event, task_is_being_handled, #task{} = Task}, State),
   _NewState = update_state(task_is_being_handled, State);
 
-% when a individual task has been done with no error
+% when a individual task has been done with "no error"
 handle_cast({event, task_has_been_done, #task{} = Task}, State) ->
   log_event({event, task_has_been_done, #task{} = Task}, State),
   ok = cameron_job_data:save_task_output(Task),
@@ -146,7 +149,7 @@ handle_cast(_Msg, State) ->
 %%                  {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
 %% @doc Handling all non call/cast messages.
 
-% exit // any reason
+% exit // by any reason
 handle_info({'EXIT', Pid, Reason}, State) ->
   % i could do 'how_many_running_tasks' and mark_job_as_done here, couldn't i?
   #job{uuid = JobUUID} = State#state.running_job,
@@ -189,7 +192,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-% gen_server message dispatching
+% --- gen_server message dispatching --------------------------------------------------------------
 
 dispatch_action(_, undefined) ->
   undefined;
@@ -217,7 +220,7 @@ dispatch_message(ContextJob, Message) ->
   Pname = ?pname(ContextJob#job.uuid),
   ok = gen_server:cast(Pname, Message).
   
-% gen_server state management
+% --- gen_server state management -----------------------------------------------------------------
   
 update_state(task_has_been_spawned, State) ->
   N = State#state.how_many_running_tasks,
@@ -244,7 +247,7 @@ update_state(State) ->
       {noreply, NewState}
   end.
 
-% task building and handling
+% --- task building and handling ------------------------------------------------------------------
 
 build_task(ContextJob, {Key, Data, Requestor}, ActivityDefinition) ->
   TaskInput = #task_input{key       = Key,
@@ -335,7 +338,7 @@ handle_task(#task{} = Task) ->
   
   ok.
 
-% how to build task payload (from and to json)
+% --- how to build task payload (from and to json) ------------------------------------------------
 
 build_request_payload(Key, Data, Requestor) ->
   RequestPayload = struct:to_json({struct, [{<<"key">>, list_to_binary(Key)},
@@ -353,7 +356,7 @@ parse_response_payload(ResponsePayload) ->
   
   {Name, Data, NextActivities}.
   
-% log
+% --- log -----------------------------------------------------------------------------------------
 
 log_action({action, Action, Task}, State) ->
   #task{activity = #activity_definition{name = Name}} = Task,
