@@ -235,6 +235,16 @@ When everything is done, it ends with a new information at Redis:
 
 That is it.
 
+#### Getting results
+
+Just do HTTP GET at the location head contained in the HTTP response of the start of this whole process:
+
+    http://localhost:8080/api/process/diagnostic/key/(id,007)/job/63f44a1a36d8472a3c501b6fbc2e8825
+
+It will result a JSON response with every data retrieved, including errors.
+
+Now, yes, that is it!
+
 ### What else?
 
 There are many things to do. Stay tuned.
