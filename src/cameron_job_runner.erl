@@ -292,6 +292,16 @@ build_next_tasks(ContextJob, Data, Requestor, NextActivitiesJson) ->
 
   lists:map(BuildNextTask, ActivitiesStruct).
 
+build_failed_task(Task, {Key, Value}) when is_atom(Key) and is_atom(Value) ->
+  build_failed_task(Task, [atom_to_list(Key), ", ", atom_to_list(Value)]);
+  
+build_failed_task(Task, Reason) when is_atom(Reason) ->
+  build_failed_task(Task, atom_to_list(Reason));
+  
+build_failed_task(Task, Reason) ->
+  #task{activity = #activity_definition{url = URL}} = Task,
+  Task#task{output = #task_output{data = ["{", Reason, ", ", URL, "}"]}, failed = yes}.
+
 handle_task(#task{} = Task) ->
   dispatch_event(task_is_being_handled, Task),
   
@@ -312,27 +322,9 @@ handle_task(#task{} = Task) ->
     {ok, {{"HTTP/1.1", _, _}, _, ResponsePayload}} ->
       FailedTask = Task#task{output = #task_output{data = ResponsePayload}, failed = yes},
       dispatch_event(task_has_been_done_with_error, FailedTask);
-    %
-    % This error management should be improved, obviously
-    %
-    {error, {connect_failed, emfile}} ->
-      FailedTask = Task#task{output = #task_output{data = ["{connect_failed, emfile, ", URL, "}"]}, failed = yes},
-      dispatch_event(task_has_been_done_with_error, FailedTask);
-    {error, econnrefused} ->
-      FailedTask = Task#task{output = #task_output{data = ["{econnrefused, ", URL, "}"]}, failed = yes},
-      dispatch_event(task_has_been_done_with_error, FailedTask);
-    {error, econnreset} ->
-      FailedTask = Task#task{output = #task_output{data = ["{econnreset, ", URL, "}"]}, failed = yes},
-      dispatch_event(task_has_been_done_with_error, FailedTask);
-    {error, etimedout} ->
-      FailedTask = Task#task{output = #task_output{data = ["{etimedout, ", URL, "}"]}, failed = yes},
-      dispatch_event(task_has_been_done_with_error, FailedTask);
-    {error, nxdomain} ->
-      FailedTask = Task#task{output = #task_output{data = ["{nxdomain, ", URL, "}"]}, failed = yes},
-      dispatch_event(task_has_been_done_with_error, FailedTask);
     {error, Reason} ->
       ?DEBUG("cameron_job_runner >> func: handle_task, http_response: (ERROR) ~w~n", [Reason]),
-      FailedTask = Task#task{output = #task_output{data = "unknown_error"}, failed = yes},
+      FailedTask = build_failed_task(Task, Reason),
       dispatch_event(task_has_been_done_with_error, FailedTask)
   end,
   
