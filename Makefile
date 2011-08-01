@@ -41,7 +41,7 @@ compile_test: compile
 	      -o ebin/ \
 	      test/*.erl
 
-run:
+run_prod:
 	@erl -pa ebin/ deps/**/ebin/ -sname $(APP_NAME) -s $(APP_NAME) \
 	     -config priv/config/production \
 	     -processes priv/processes/production.config
