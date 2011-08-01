@@ -25,23 +25,23 @@ Rack::API.app do
                     customer_billing_info: { prefered_payment_method: "creditcard",
                                              prefered_due_date:       "on 5 of each month" }},
         next_activities:
-          {
-            parallelizable: "yes",
-          
-            definitions:
-              [
-                { name: "cloud_zabbix",
-                  url:  "http://localhost:9292/diagnostic/v0.0.1/activity/cloud/zabbix" },
-                { name: "cloud_product",
-                  url:  "http://localhost:9292/diagnostic/v0.0.1/activity/cloud/product" },
-                { name: "hosting_zabbix",
-                  url:  "http://localhost:9292/diagnostic/v0.0.1/activity/hosting/zabbix" },
-                { name: "hosting_product",
-                  url:  "http://localhost:9292/diagnostic/v0.0.1/activity/hosting/product" },
-                { name: "sqlserver_zabbix",
-                  url:  "http://localhost:9292/diagnostic/v0.0.1/activity/sqlserver/zabbix" }
-              ]
-          }
+        {
+          parallelizable: "yes",
+        
+          definitions:
+          [
+            { name: "cloud_zabbix",
+              url:  "http://localhost:9292/diagnostic/v0.0.1/activity/cloud/zabbix" },
+            { name: "cloud_product",
+              url:  "http://localhost:9292/diagnostic/v0.0.1/activity/cloud/product" },
+            { name: "hosting_zabbix",
+              url:  "http://localhost:9292/diagnostic/v0.0.1/activity/hosting/zabbix" },
+            { name: "hosting_product",
+              url:  "http://localhost:9292/diagnostic/v0.0.1/activity/hosting/product" },
+            { name: "sqlserver_zabbix",
+              url:  "http://localhost:9292/diagnostic/v0.0.1/activity/sqlserver/zabbix" }
+          ]
+        }
       }
     end
     
@@ -120,6 +120,33 @@ Rack::API.app do
         name:     "diagnostic_sqlserver_zabbix",
 
         data: { cluster_info: "up and running without any problem",
+                server_info:  { ip:           "192.11.14.11.02",
+                                vlan:         "vl002",
+                                last_stop_at: "01/04/2011" }}
+        next_activities:
+        {
+          parallelizable: "yes",
+
+          definitions:
+          [
+            { name: "cloud_backup",
+              url:  "http://localhost:9292/diagnostic/v0.0.1/activity/cloud/backup" }
+          ]
+        }
+      }
+    end
+    
+    post "/activity/sqlserver/backup" do
+      body = request.body.read
+      payload = JSON.parse(body)
+
+      puts "[Request :: sqlserver_backup] #{payload}"
+
+      {
+        process:  "diagnostic",
+        name:     "diagnostic_cloud_backup",
+
+        data: { cluster_info: "backup up to date",
                 server_info:  { ip:           "192.11.14.11.02",
                                 vlan:         "vl002",
                                 last_stop_at: "01/04/2011" }}
