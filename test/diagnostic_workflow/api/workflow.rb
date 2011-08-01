@@ -24,6 +24,7 @@ Rack::API.app do
                                              twitter: "codezone" },
                     customer_billing_info: { prefered_payment_method: "creditcard",
                                              prefered_due_date:       "on 5 of each month" }},
+                                             
         next_activities:
         {
           parallelizable: "yes",
@@ -122,15 +123,16 @@ Rack::API.app do
         data: { cluster_info: "up and running without any problem",
                 server_info:  { ip:           "192.11.14.11.02",
                                 vlan:         "vl002",
-                                last_stop_at: "01/04/2011" }}
+                                last_stop_at: "01/04/2011" }},
+                                
         next_activities:
         {
           parallelizable: "yes",
 
           definitions:
           [
-            { name: "cloud_backup",
-              url:  "http://localhost:9292/diagnostic/v0.0.1/activity/cloud/backup" }
+            { name: "sqlserver_backup",
+              url:  "http://localhost:9292/diagnostic/v0.0.1/activity/sqlserver/backup" }
           ]
         }
       }
@@ -144,7 +146,7 @@ Rack::API.app do
 
       {
         process:  "diagnostic",
-        name:     "diagnostic_cloud_backup",
+        name:     "diagnostic_sqlserver_backup",
 
         data: { cluster_info: "backup up to date",
                 server_info:  { ip:           "192.11.14.11.02",
