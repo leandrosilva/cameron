@@ -46,10 +46,14 @@ handle_http('POST', ["api", "process", ProcessName, "start"], HttpRequest) ->
 
 % handle a GET on /api/process/{name}/key/{key}/job/{uuid}
 handle_http('GET', ["api", "process", ProcessName, "key", Key, "job", UUID], HttpRequest) ->
-  {ok, Data} = cameron_job_data:get_job_data(ProcessName, Key, UUID),
-  JsonData = generate_json_response({ProcessName, Key, UUID}, Data),
-  
-  HttpRequest:respond(200, [{"Content-Type", "application/json"}], "~s", [JsonData]);
+  case cameron_job_data:get_job_data(ProcessName, Key, UUID) of
+    undefined ->
+      HttpRequest:respond(404, [{"Content-Type", "text/plain"}], "Job not found.");
+    {ok, Data} ->
+      JsonData = generate_json_response({ProcessName, Key, UUID}, Data),
+
+      HttpRequest:respond(200, [{"Content-Type", "application/json"}], "~s", [JsonData])
+  end;    
 
 % handle the 404 page not found
 handle_http(_, _, HttpRequest) ->
@@ -99,11 +103,11 @@ expand_job_tasks(Data) ->
 expand_job_tasks([Task | Others], Data, Acc) ->
   Struct = {struct, [{<<"name">>,   maybe_helper:maybe_binary(Task)},
                      {<<"status">>, expand_task_status(Task, Data)},
-                     {<<"data">>,   get_task_value(Task, "output.data", Data)}]},
+                     {<<"data">>,   expand_task_output(Task, Data)}]},
   expand_job_tasks(Others, Data, [Struct | Acc]);
 
 expand_job_tasks([], _Data, Acc) ->
-  Acc.
+  lists:reverse(Acc).
 
 expand_task_status(Task, Data) ->
   Status = get_task_value(Task, "status.current", Data),
@@ -111,6 +115,11 @@ expand_task_status(Task, Data) ->
 
   {struct, [{<<"current">>, Status},
             {<<"time">>,    Time}]}.
+
+expand_task_output(Task, Data) ->
+  Binary = get_task_value(Task, "output.data", Data),
+  String = binary_to_list(Binary),
+  try struct:from_json(String) catch _:_ -> Binary end.
 
 get_value(Key, Data) ->
   maybe_helper:maybe_binary(proplists:get_value(Key, Data)).

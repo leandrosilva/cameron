@@ -294,14 +294,14 @@ build_next_tasks(ContextJob, Data, Requestor, NextActivitiesJson) ->
   lists:map(BuildNextTask, ActivitiesStruct).
 
 build_failed_task(Task, {Key, Value}) when is_atom(Key) and is_atom(Value) ->
-  build_failed_task(Task, [atom_to_list(Key), ", ", atom_to_list(Value)]);
+  build_failed_task(Task, [atom_to_list(Key), " - ", atom_to_list(Value)]);
   
 build_failed_task(Task, Reason) when is_atom(Reason) ->
   build_failed_task(Task, atom_to_list(Reason));
   
 build_failed_task(Task, Reason) ->
   #task{activity = #activity_definition{url = URL}} = Task,
-  Task#task{output = #task_output{data = ["{", Reason, ", ", URL, "}"]}, failed = yes}.
+  Task#task{output = #task_output{data = ["{\"error\":\"", Reason, "\",\"url\":\"", URL, "\"}"]}, failed = yes}.
 
 handle_task(#task{} = Task) ->
   dispatch_event(task_is_being_handled, Task),

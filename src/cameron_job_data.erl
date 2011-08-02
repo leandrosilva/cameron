@@ -90,8 +90,10 @@ mark_job_as_done(#job{} = Job) ->
 %% @spec get_job_data(Job, Key, UUID) -> {ok, Data} | {error, Reason}
 %% @doc Gets all available output data from job execution
 get_job_data(Job, Key, UUID) ->
-  Data = extract_job_data(Job, Key, UUID),
-  {ok, Data}.
+  case extract_job_data(Job, Key, UUID) of
+    []   -> undefined;
+    Data -> {ok, Data}
+  end.
 
 %%
 %% Gen_Server Callbacks ---------------------------------------------------------------------------
