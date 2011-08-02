@@ -108,7 +108,7 @@ I didn't write yet. Please wait a moment.
 
 It waits for a HTTP POST asking to run a process workflow:
 
-    curl -X POST http://localhost:8080/api/process/{name}/start \
+    curl -X POST http://localhost:8080/api/process/diagnostic/start \
          -d '{"key":"(id,007)", "data":"be careful with that data", "requestor":"bob_thin"}' \
          -i \
          --header 'Content-Type: application/json'
