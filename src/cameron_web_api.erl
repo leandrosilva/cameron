@@ -87,7 +87,7 @@ generate_json_response({ProcessName, Key, UUID}, Data) ->
 
 expand_job_status(Data) ->
   Status = get_job_value("status.current", Data),
-  Time = get_job_value("status." ++ maybe_helper:maybe_string(Status), Data),
+  Time = get_job_value("status." ++ maybe_helper:maybe_string(Status) ++ ".time", Data),
   
   {struct, [{<<"current">>, Status},
             {<<"time">>,    Time}]}.
@@ -107,7 +107,7 @@ expand_job_tasks([], _Data, Acc) ->
 
 expand_task_status(Task, Data) ->
   Status = get_task_value(Task, "status.current", Data),
-  Time = get_task_value(Task, "status." ++ maybe_helper:maybe_string(Status), Data),
+  Time = get_task_value(Task, "status." ++ maybe_helper:maybe_string(Status) ++ ".time", Data),
 
   {struct, [{<<"current">>, Status},
             {<<"time">>,    Time}]}.

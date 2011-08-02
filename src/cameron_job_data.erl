@@ -139,8 +139,8 @@ handle_cast({mark_job_as_running, #job{} = Job}, State) ->
   UUIDTag = redis_job_tag_for(Job),
 
   ok = redis(["hmset", UUIDTag,
-                       "status.current",      "running",
-                       "status.running.time", datetime_helper:now()]),
+                       "job.status.current",      "running",
+                       "job.status.running.time", datetime_helper:now()]),
 
   {noreply, State};
 
