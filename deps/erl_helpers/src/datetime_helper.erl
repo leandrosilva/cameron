@@ -4,11 +4,11 @@
 %% @doc Helper module to deal with date/time.
 
 -module(datetime_helper).
--export([datetime/0]).
+-export([now/0]).
 
-%% @spec datetime() -> "MM-DD-YYYY hh:mm:ss"
+%% @spec now() -> "MM-DD-YYYY hh:mm:ss"
 %% @doc Now as "MM-DD-YYYY hh:mm:ss".
-datetime() ->
+now() ->
   {{Year, Month, Day}, {Hour, Minute, Second}} = erlang:localtime(),
   
   lists:concat([maybe_helper:maybe_padding(Month), "-", maybe_helper:maybe_padding(Day),    "-", maybe_helper:maybe_padding(Year), " ",
