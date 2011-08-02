@@ -46,8 +46,10 @@ handle_http('POST', ["api", "process", ProcessName, "start"], HttpRequest) ->
 
 % handle a GET on /api/process/{name}/key/{key}/job/{uuid}
 handle_http('GET', ["api", "process", ProcessName, "key", Key, "job", UUID], HttpRequest) ->
+  {ok, Data} = cameron_job_data:get_job_data(ProcessName, Key, UUID),
   HttpRequest:respond(200, [{"Content-Type", "application/json"}],
-                           "{\"process\":\"~s\",\"key\":\"~s\",\"job\":\"~s\"}", [ProcessName, Key, UUID]);
+                           "{\"payload\":{\"process\":\"~s\",\"key\":\"~s\",\"job\":\"~s\"}, \"Data\":{~w}}",
+                           [ProcessName, Key, UUID, Data]);
 
 % handle the 404 page not found
 handle_http(_, _, HttpRequest) ->

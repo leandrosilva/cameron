@@ -11,6 +11,7 @@
 % public api
 -export([create_new_job/2, mark_job_as_running/1, mark_job_as_done/1]).
 -export([mark_task_as_running/1, save_task_output/1, save_error_on_task_execution/1]).
+-export([get_job_data/3]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -85,6 +86,12 @@ save_error_on_task_execution(#task{} = Task) ->
 %%      Status: done.
 mark_job_as_done(#job{} = Job) ->
   ok = gen_server:cast(?MODULE, {mark_job_as_done, Job}).
+
+%% @spec get_job_data(Job, Key, UUID) -> {ok, Data} | {error, Reason}
+%% @doc Gets all available output data from job execution
+get_job_data(Job, Key, UUID) ->
+  Data = extract_job_data(Job, Key, UUID),
+  {ok, Data}.
 
 %%
 %% Gen_Server Callbacks ---------------------------------------------------------------------------
@@ -276,6 +283,10 @@ redis_error_tag_for(UUIDTag, ActivityName) ->
 new_uuid() ->
   uuid_helper:new().
 
+extract_job_data(Job, Key, UUID) ->
+  UUIDTag = redis_job_tag_for(Job, Key, UUID),
+  Data = redis(["hgetall", UUIDTag]).
+
 % --- helpers -------------------------------------------------------------------------------------
 
 maybe_padding(Number) when is_integer(Number) and (Number < 10) ->
@@ -305,6 +316,9 @@ maybe_string([]) ->
   
 maybe_string([Binary | _Tail] = BinaryList) when is_binary(Binary) ->
   maybe_string_(BinaryList, []);
+
+maybe_string(Single) when is_list(Single) ->
+  Single;
   
 maybe_string(Single) when is_binary(Single) ->
   binary_to_list(Single);
