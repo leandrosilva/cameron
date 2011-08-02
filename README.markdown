@@ -137,11 +137,11 @@ Since everything is alright -- I mean, the process workflow exists --, Cameron w
 So this first step will result in a entry like below:
 
     hmset cameron:process:diagnostic:key:(id,007):job:3bd73a7731e5efca25b5ef05e3f79af9
-          job.key          "(id,007)"
-          job.data         "be careful with that data"
-          job.requestor    "bob_thin"
-          status.current   "scheduled"
-          status.scheduled "08-01-2011 18:03:00"
+          job.key              "(id,007)"
+          job.data             "be careful with that data"
+          job.requestor        "bob_thin"
+          job.status.current   "scheduled"
+          job.status.scheduled "08-01-2011 18:03:00"
 
 #### Running a job
 
@@ -236,8 +236,8 @@ Cool?
 When everything is done, it ends with a new information at Redis:
 
     hmset cameron:process:diagnostic:key:(id,007):job:3bd73a7731e5efca25b5ef05e3f79af9
-          status.current   "done"
-          status.done.time "08-01-2011 18:03:00"
+          job.status.current   "done"
+          job.status.done.time "08-01-2011 18:03:00"
 
 That is it.
 

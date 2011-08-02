@@ -124,11 +124,11 @@ handle_cast({create_new_job, #job{} = NewJob}, State) ->
   UUIDTag = redis_job_tag_for(NewJob),
 
   ok = redis(["hmset", UUIDTag,
-                       "job.key",          Key,
-                       "job.data",         Data,
-                       "job.requestor",    Requestor,
-                       "status.current",   "scheduled",
-                       "status.scheduled", datetime()]),
+                       "job.key",              Key,
+                       "job.data",             Data,
+                       "job.requestor",        Requestor,
+                       "job.status.current",   "scheduled",
+                       "job.status.scheduled", datetime_helper:now()]),
   
   ok = redis(["set", redis_pending_tag_for(UUIDTag), UUIDTag]),
   
@@ -140,7 +140,7 @@ handle_cast({mark_job_as_running, #job{} = Job}, State) ->
 
   ok = redis(["hmset", UUIDTag,
                        "status.current",      "running",
-                       "status.running.time", datetime()]),
+                       "status.running.time", datetime_helper:now()]),
 
   {noreply, State};
 
@@ -153,7 +153,7 @@ handle_cast({mark_task_as_running, #task{} = Task}, State) ->
 
   ok = redis(["hmset", UUIDTag,
                        "task." ++ Name ++ ".status.current",      "running",
-                       "task." ++ Name ++ ".status.running.time", datetime()]),
+                       "task." ++ Name ++ ".status.running.time", datetime_helper:now()]),
 
   case redis(["hget", UUIDTag, "job.tasks"]) of
     undefined ->
@@ -175,7 +175,7 @@ handle_cast({save_task_output, #task{} = Task}, State) ->
 
   ok = redis(["hmset", UUIDTag,
                        "task." ++ Name ++ ".status.current",         "done",
-                       "task." ++ Name ++ ".status.done.time",       datetime(),
+                       "task." ++ Name ++ ".status.done.time",       datetime_helper:now(),
                        "task." ++ Name ++ ".output.data",            Data,
                        "task." ++ Name ++ ".output.next_activities", NextActivities]),
 
@@ -192,7 +192,7 @@ handle_cast({save_error_on_task_execution, #task{} = Task}, State) ->
 
   ok = redis(["hmset", UUIDTag,
                        "task." ++ Name ++ ".status.current",    "error",
-                       "task." ++ Name ++ ".status.error.time", datetime(),
+                       "task." ++ Name ++ ".status.error.time", datetime_helper:now(),
                        "task." ++ Name ++ ".output.data",       Data]),
 
   ok = redis(["set", redis_error_tag_for(UUIDTag, Name), Data]),
@@ -204,8 +204,8 @@ handle_cast({mark_job_as_done, #job{} = Job}, State) ->
   UUIDTag = redis_job_tag_for(Job),
 
   ok = redis(["hmset", UUIDTag,
-                       "status.current",   "done",
-                       "status.done.time", datetime()]),
+                       "job.status.current",   "done",
+                       "job.status.done.time", datetime_helper:now()]),
                        
   ?DEBUG("----- JOB WAS MARKED AS DONE (~s) -----", [Job#job.uuid]),
 
@@ -249,11 +249,11 @@ code_change(_OldVsn, State, _Extra) ->
 
 redis(Command) ->
   Output = redo:cmd(cameron_redo, Command),
-  maybe_ok(maybe_string(Output)).
+  maybe_helper:maybe_ok(maybe_helper:maybe_string(Output)).
 
 redis_process_tag_for(ProcessName) ->
   % cameron:process:{name}:
-  re:replace("cameron:process:{name}:", "{name}", maybe_string(ProcessName), [{return, list}]).
+  re:replace("cameron:process:{name}:", "{name}", maybe_helper:maybe_string(ProcessName), [{return, list}]).
 
 redis_job_tag_for(ProcessName, Key, UUID) ->
   % cameron:process:{name}:key:{key}:job:{uuid}
@@ -285,66 +285,6 @@ new_uuid() ->
 
 extract_job_data(Job, Key, UUID) ->
   UUIDTag = redis_job_tag_for(Job, Key, UUID),
-  Data = redis(["hgetall", UUIDTag]).
-
-% --- helpers -------------------------------------------------------------------------------------
-
-maybe_padding(Number) when is_integer(Number) and (Number < 10) ->
-  "0" ++ integer_to_list(Number);
-
-maybe_padding(Number) when is_integer(Number) and (Number > 60) ->
-  List = integer_to_list(Number),
-  maybe_padding(List);
-  
-maybe_padding(Number) when is_integer(Number) and (Number > 9) and (Number < 61) ->
-  integer_to_list(Number);
-  
-maybe_padding(List) when is_list(List) ->
-  case (string:len(List) =/= 4) and (string:len(List) < 6) of
-    true ->
-      NewList = "0" ++ List,
-      maybe_padding(NewList);
-    false ->
-      List
-  end.
-
-maybe_string(undefined) ->
-  undefined;
-
-maybe_string([]) ->
-  [];
-  
-maybe_string([Binary | _Tail] = BinaryList) when is_binary(Binary) ->
-  maybe_string_(BinaryList, []);
-
-maybe_string(Single) when is_list(Single) ->
-  Single;
-  
-maybe_string(Single) when is_binary(Single) ->
-  binary_to_list(Single);
-  
-maybe_string(Single) when is_integer(Single) ->
-  Single;
-  
-maybe_string(Single) when is_atom(Single) ->
-  atom_to_list(Single).
-
-maybe_string_([], StringList) ->
-  lists:reverse(StringList);
-
-maybe_string_([Binary | Tail], StringList) when is_binary(Binary) ->
-  String = binary_to_list(Binary),
-  maybe_string_(Tail, [String | StringList]).
-
-maybe_ok("OK") ->
-  ok;
-  
-maybe_ok(Other) ->
-  Other.
-  
-datetime() ->
-  {{Year, Month, Day}, {Hour, Minute, Second}} = erlang:localtime(),
-  
-  lists:concat([maybe_padding(Month), "-", maybe_padding(Day),    "-", maybe_padding(Year), " ",
-                maybe_padding(Hour),  ":", maybe_padding(Minute), ":", maybe_padding(Second)]).
+  RawData = redis(["hgetall", UUIDTag]),
+  list_helper:to_properties(RawData).
   

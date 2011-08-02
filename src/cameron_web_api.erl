@@ -47,9 +47,9 @@ handle_http('POST', ["api", "process", ProcessName, "start"], HttpRequest) ->
 % handle a GET on /api/process/{name}/key/{key}/job/{uuid}
 handle_http('GET', ["api", "process", ProcessName, "key", Key, "job", UUID], HttpRequest) ->
   {ok, Data} = cameron_job_data:get_job_data(ProcessName, Key, UUID),
-  HttpRequest:respond(200, [{"Content-Type", "application/json"}],
-                           "{\"payload\":{\"process\":\"~s\",\"key\":\"~s\",\"job\":\"~s\"}, \"Data\":{~w}}",
-                           [ProcessName, Key, UUID, Data]);
+  JsonData = generate_json_response({ProcessName, Key, UUID}, Data),
+  
+  HttpRequest:respond(200, [{"Content-Type", "application/json"}], "~s", [JsonData]);
 
 % handle the 404 page not found
 handle_http(_, _, HttpRequest) ->
@@ -71,3 +71,52 @@ parse_request_payload(Payload) ->
   Requestor = struct:get_value(<<"requestor">>, Struct, {format, list}),
   
   {Key, Data, Requestor}.
+
+generate_json_response({ProcessName, Key, UUID}, Data) ->
+  Struct = {struct, [{<<"process">>,   maybe_helper:maybe_binary(ProcessName)},
+                     {<<"uuid">>,      maybe_helper:maybe_binary(UUID)},
+                     {<<"key">>,       maybe_helper:maybe_binary(Key)},
+                     {<<"requestor">>, get_job_value("requestor", Data)},
+                     {<<"status">>,    expand_job_status(Data)},
+                     {<<"tasks">>,     expand_job_tasks(Data)}]},
+  struct:to_json(Struct).
+
+expand_job_status(Data) ->
+  Status = get_job_value("status.current", Data),
+  Time = get_job_value("status." ++ maybe_helper:maybe_string(Status), Data),
+  
+  {struct, [{<<"current">>, Status},
+            {<<"time">>,    Time}]}.
+
+get_job_tasks(Data) ->
+  re:split(proplists:get_value("job.tasks", Data), ",").
+  
+expand_job_tasks(Data) ->
+  Tasks = get_job_tasks(Data),
+  expand_job_tasks(Tasks, Data, []).
+  
+expand_job_tasks([Task | Others], Data, Acc) ->
+  Struct = {struct, [{<<"name">>,   maybe_helper:maybe_binary(Task)},
+                     {<<"status">>, expand_task_status(Task, Data)},
+                     {<<"data">>,   get_task_value(Task, "output.data", Data)}]},
+  expand_job_tasks(Others, Data, [Struct | Acc]);
+
+expand_job_tasks([], Data, Acc) ->
+  Acc.
+
+expand_task_status(Task, Data) ->
+  Status = get_task_value(Task, "status.current", Data),
+  Time = get_task_value(Task, "status." ++ maybe_helper:maybe_string(Status), Data),
+
+  {struct, [{<<"current">>, Status},
+            {<<"time">>,    Time}]}.
+
+get_value(Key, Data) ->
+  maybe_helper:maybe_binary(proplists:get_value(Key, Data)).
+
+get_job_value(Key, Data) ->
+  get_value("job." ++ Key, Data).
+
+get_task_value(Task, Key, Data) ->
+  get_value("task." ++ maybe_helper:maybe_string(Task) ++ "." ++ Key, Data).
+
