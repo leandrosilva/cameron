@@ -128,7 +128,10 @@ get_job_value(Key, Data) ->
   get_value("job." ++ Key, Data).
 
 get_job_tasks(Data) ->
-  re:split(proplists:get_value("job.tasks", Data), ",").
+  case proplists:get_value("job.tasks", Data) of
+    undefined -> [];
+    Tasks     -> re:split(Tasks, ",")
+  end.
 
 get_task_value(Task, Key, Data) ->
   get_value("task." ++ maybe_helper:maybe_string(Task) ++ "." ++ Key, Data).
