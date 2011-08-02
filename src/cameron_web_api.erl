@@ -59,6 +59,8 @@ handle_http(_, _, HttpRequest) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
+% --- helpers to POST on /api/process/{name}/start ------------------------------------------------
+
 get_request_payload(HttpRequest) ->
   {req, _, _, _, _, _, _, _, _, _, _, _, _, Body} = HttpRequest:raw(),
   binary_to_list(Body).
@@ -71,6 +73,8 @@ parse_request_payload(Payload) ->
   Requestor = struct:get_value(<<"requestor">>, Struct, {format, list}),
   
   {Key, Data, Requestor}.
+
+% --- helpers to GET on /api/process/{name}/key/{key}/job/{uuid} ----------------------------------
 
 generate_json_response({ProcessName, Key, UUID}, Data) ->
   Struct = {struct, [{<<"process">>,   maybe_helper:maybe_binary(ProcessName)},
@@ -87,9 +91,6 @@ expand_job_status(Data) ->
   
   {struct, [{<<"current">>, Status},
             {<<"time">>,    Time}]}.
-
-get_job_tasks(Data) ->
-  re:split(proplists:get_value("job.tasks", Data), ",").
   
 expand_job_tasks(Data) ->
   Tasks = get_job_tasks(Data),
@@ -101,7 +102,7 @@ expand_job_tasks([Task | Others], Data, Acc) ->
                      {<<"data">>,   get_task_value(Task, "output.data", Data)}]},
   expand_job_tasks(Others, Data, [Struct | Acc]);
 
-expand_job_tasks([], Data, Acc) ->
+expand_job_tasks([], _Data, Acc) ->
   Acc.
 
 expand_task_status(Task, Data) ->
@@ -117,6 +118,8 @@ get_value(Key, Data) ->
 get_job_value(Key, Data) ->
   get_value("job." ++ Key, Data).
 
+get_job_tasks(Data) ->
+  re:split(proplists:get_value("job.tasks", Data), ",").
+
 get_task_value(Task, Key, Data) ->
   get_value("task." ++ maybe_helper:maybe_string(Task) ++ "." ++ Key, Data).
-
