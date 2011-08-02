@@ -25,7 +25,7 @@
 handle_http('GET', ["api"], HttpRequest) ->
   HttpRequest:ok([{"Content-Type", "text/plain"}], "Cameron Workflow System // Web API");
 
-% handle a GET on /api/process/{name}/start
+% handle a POST on /api/process/{name}/start
 handle_http('POST', ["api", "process", ProcessName, "start"], HttpRequest) ->
   Payload = get_request_payload(HttpRequest),
 
@@ -35,14 +35,19 @@ handle_http('POST', ["api", "process", ProcessName, "start"], HttpRequest) ->
                                  "{\"payload\":\"~s\"}", [Payload]);
     Process ->
       {Key, Data, Requestor} = parse_request_payload(Payload),
-      {ok, JobUUID} = cameron_job_scheduler:schedule(Process, {Key, Data, Requestor}),
+      {ok, UUID} = cameron_job_scheduler:schedule(Process, {Key, Data, Requestor}),
       
       HttpRequest:respond(201, [{"Content-Type", "application/json"},
                                 {"Location", ["http://localhost:8080/api/process/", ProcessName,
                                               "/key/", Key,
-                                              "/job/", JobUUID]}],
+                                              "/job/", UUID]}],
                                "{\"payload\":\"~s\"}", [Payload])
   end;
+
+% handle a GET on /api/process/{name}/key/{key}/job/{uuid}
+handle_http('GET', ["api", "process", ProcessName, "key", Key, "job", UUID], HttpRequest) ->
+  HttpRequest:respond(200, [{"Content-Type", "application/json"}],
+                           "{\"process\":\"~s\",\"key\":\"~s\",\"job\":\"~s\"}", [ProcessName, Key, UUID]);
 
 % handle the 404 page not found
 handle_http(_, _, HttpRequest) ->

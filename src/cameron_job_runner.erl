@@ -153,15 +153,15 @@ handle_cast(_Msg, State) ->
 % exit // by any reason
 handle_info({'EXIT', Pid, Reason}, State) ->
   % i could do 'how_many_running_tasks' and mark_job_as_done here, couldn't i?
-  #job{uuid = JobUUID} = State#state.running_job,
+  #job{uuid = UUID} = State#state.running_job,
   N = State#state.how_many_running_tasks,
-  ?DEBUG("cameron_job_runner >> handling: info, JobUUID: ~s // EXIT: ~w ~w (N: ~w)", [JobUUID, Pid, Reason, N]),
+  ?DEBUG("cameron_job_runner >> handling: info, UUID: ~s // EXIT: ~w ~w (N: ~w)", [UUID, Pid, Reason, N]),
   {noreply, State};
   
 % down
 handle_info({'DOWN',  Ref, Type, Pid, Info}, State) ->
-  #job{uuid = JobUUID} = State#state.running_job,
-  ?DEBUG("cameron_job_runner >> handling: info, JobUUID: ~s // DOWN: ~w ~w ~w ~w", [JobUUID, Ref, Type, Pid, Info]),
+  #job{uuid = UUID} = State#state.running_job,
+  ?DEBUG("cameron_job_runner >> handling: info, UUID: ~s // DOWN: ~w ~w ~w ~w", [UUID, Ref, Type, Pid, Info]),
   {noreply, State};
   
 handle_info(_Info, State) ->
@@ -173,15 +173,15 @@ handle_info(_Info, State) ->
 
 % no problem, that's ok
 terminate(normal, State) ->
-  #job{uuid = JobUUID} = State#state.running_job,
+  #job{uuid = UUID} = State#state.running_job,
   N = State#state.how_many_running_tasks,
-  ?DEBUG("cameron_job_runner >> handling: terminate, JobUUID: ~s // normal ~w (N: ~w)", [JobUUID, self(), N]),
+  ?DEBUG("cameron_job_runner >> handling: terminate, UUID: ~s // normal ~w (N: ~w)", [UUID, self(), N]),
   ok;
 
 % handle_info generic fallback (ignore) // any reason, i.e: cameron_process_sup:stop_child
 terminate(Reason, State) ->
-  #job{uuid = JobUUID} = State#state.running_job,
-  ?DEBUG("cameron_job_runner >> handling: terminate, JobUUID: ~s // ~w", [JobUUID, Reason]),
+  #job{uuid = UUID} = State#state.running_job,
+  ?DEBUG("cameron_job_runner >> handling: terminate, UUID: ~s // ~w", [UUID, Reason]),
   ok.
 
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}

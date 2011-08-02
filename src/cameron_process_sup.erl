@@ -40,7 +40,7 @@ upgrade() ->
 %%
 
 %% @spec start_child(Job) -> {ok, ChildPid} | {ok, ChildPid, Info} | {error, Error}
-%% @dynamic Start a cameron_{JobUUID} process to do a job given.
+%% @dynamic Start a cameron_{UUID} process to do a job given.
 start_child(#job{} = Job) ->
   Pname = pname(Job),
 
@@ -48,12 +48,12 @@ start_child(#job{} = Job) ->
   supervisor:start_child(cameron_process_sup, ProcessSpec).
 
 %% @spec stop_child(Job) -> ok | {error, Error}
-%% @dynamic Stop a cameron_{JobUUID}.
+%% @dynamic Stop a cameron_{UUID}.
 stop_child(#job{} = Job) ->
   stop_child(pname(Job));
 
-stop_child(JobUUID) when is_list(JobUUID) ->
-  stop_child(pname(JobUUID));
+stop_child(UUID) when is_list(UUID) ->
+  stop_child(pname(UUID));
 
 stop_child(Pname) when is_atom(Pname) ->
   supervisor:terminate_child(cameron_process_sup, Pname),
@@ -93,9 +93,9 @@ init([]) ->
 %% Internal Functions -----------------------------------------------------------------------------
 %%
 
-pname(#job{uuid = JobUUID}) ->
-  pname(JobUUID);
+pname(#job{uuid = UUID}) ->
+  pname(UUID);
 
-pname(JobUUID) when is_list(JobUUID) ->
-  ?pname(JobUUID).
+pname(UUID) when is_list(UUID) ->
+  ?pname(UUID).
   

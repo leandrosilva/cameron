@@ -42,7 +42,7 @@ stop() ->
 %% Public API -------------------------------------------------------------------------------------
 %%
 
-%% @spec schedule(Process, {Key, Data, Requestor}) -> {ok, NewJobUUID} | {error, Reason}
+%% @spec schedule(Process, {Key, Data, Requestor}) -> {ok, NewUUID} | {error, Reason}
 %% @doc It triggers an async schedule of a resquest to create a new job and enqueue it to run.
 schedule(Process, {Key, Data, Requestor}) ->
   {ok, NewJob} = cameron_job_data:create_new_job(Process, {Key, Data, Requestor}),
