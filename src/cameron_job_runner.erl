@@ -103,6 +103,7 @@ handle_cast({action, spawn_task, #task{} = Task}, State) ->
 % when a individual task is being handled
 handle_cast({event, task_is_being_handled, #task{} = Task}, State) ->
   log_event({event, task_is_being_handled, #task{} = Task}, State),
+  ok = cameron_job_data:mark_task_as_running(Task),
   _NewState = update_state(task_is_being_handled, State);
 
 % when a individual task has been done with "no error"

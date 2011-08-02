@@ -96,7 +96,7 @@ Back to redis-client again and:
     keys cameron:process:*
     hgetall cameron:process:diagnostic:key:(id,007):job:{UUID}    # uuid as you saw on last command
 
-If everything is alright, you should see 70 entries at this hash.
+If everything is alright, you should see 86 entries at this hash.
 
 #### Wait. What about automated tests?
 
@@ -158,6 +158,12 @@ And a new **cameron\_job\_runner** is spawned to handle it.
 The first thing **cameron\_job\_runner** does to get things do is to spawn an Erlang process to handle the **start activity** of the process workflow given.
 
 An **activity** is the definition of a **task**, thus a task is a instance of an activity, the same way a job is an instance of a process. And following this thought, a **start activity** is the start point to a process workflow, as you already realized.
+
+When it happens, it is registered in Redis as follow:
+
+    hmset cameron:process:diagnostic:key:(id,007):job:3bd73a7731e5efca25b5ef05e3f79af9
+          task.start.status.current      "running"
+          task.start.status.running.time "08-01-2011 18:03:00"
 
 As you can see at **test/diagnostic\_workflow\_/api/workflow.rb**, a process workflow is web-based, talks JSON both ways, and always it receives the original **request data** as its payload, like below:
 

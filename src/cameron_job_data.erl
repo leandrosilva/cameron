@@ -10,7 +10,7 @@
 -export([start_link/0, stop/0]).
 % public api
 -export([create_new_job/2, mark_job_as_running/1, mark_job_as_done/1]).
--export([save_task_output/1, save_error_on_task_execution/1]).
+-export([mark_task_as_running/1, save_task_output/1, save_error_on_task_execution/1]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -61,6 +61,12 @@ create_new_job(Process, {Key, Data, Requestor}) ->
 %%      Status: running.
 mark_job_as_running(#job{} = Job) ->
   ok = gen_server:cast(?MODULE, {mark_job_as_running, Job}).
+
+%% @spec mark_task_as_running(Task) -> ok | {error, Reason}
+%% @doc Marks a task as running.
+%%      Status: running.
+mark_task_as_running(#task{} = Task) ->
+  ok = gen_server:cast(?MODULE, {mark_task_as_running, Task}).
 
 %% @spec save_task_output(Task) -> ok | {error, Reason}
 %% @doc Saves a task execution output.
@@ -128,6 +134,26 @@ handle_cast({mark_job_as_running, #job{} = Job}, State) ->
   ok = redis(["hmset", UUIDTag,
                        "status.current",      "running",
                        "status.running.time", datetime()]),
+
+  {noreply, State};
+
+% mark a task as running
+handle_cast({mark_task_as_running, #task{} = Task}, State) ->
+  #task{context_job = Job,
+        activity    = #activity_definition{name = Name}} = Task,
+  
+  UUIDTag = redis_job_tag_for(Job),
+
+  ok = redis(["hmset", UUIDTag,
+                       "task." ++ Name ++ ".status.current",      "running",
+                       "task." ++ Name ++ ".status.running.time", datetime()]),
+
+  case redis(["hget", UUIDTag, "job.tasks"]) of
+    undefined ->
+      redis(["hset", UUIDTag, "job.tasks", Name]);
+    Tasks ->
+      redis(["hset", UUIDTag, "job.tasks", Tasks ++ "," ++ Name])
+  end,
 
   {noreply, State};
 
@@ -270,6 +296,9 @@ maybe_padding(List) when is_list(List) ->
     false ->
       List
   end.
+
+maybe_string(undefined) ->
+  undefined;
 
 maybe_string([]) ->
   [];
