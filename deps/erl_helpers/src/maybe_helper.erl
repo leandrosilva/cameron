@@ -5,6 +5,7 @@
 
 -module(maybe_helper).
 -export([maybe_string/1, maybe_padding/1, maybe_ok/1, maybe_undefined/1]).
+-export([maybe_binary/1, maybe_integer/1]).
 
 % --- string --------------------------------------------------------------------------------------
 
@@ -88,3 +89,33 @@ maybe_undefined(<<"undefined">>) ->
 maybe_undefined(Other) ->
   Other.
   
+% --- binary --------------------------------------------------------------------------------------
+  
+maybe_binary(undefined) ->
+  undefined;
+  
+maybe_binary(Single) when is_binary(Single) ->
+  Single;
+
+maybe_binary(Single) when is_integer(Single) ->
+  maybe_binary(integer_to_list(Single));
+
+maybe_binary(Single) when is_atom(Single) ->
+  erlang:atom_to_binary(Single, utf8);
+
+maybe_binary(Single) when is_list(Single) ->
+  list_to_binary(Single).
+
+% --- integer -------------------------------------------------------------------------------------
+
+maybe_integer(undefined) ->
+  undefined;
+
+maybe_integer(Single) when is_integer(Single) ->
+  Single;
+
+maybe_integer(Single) when is_binary(Single) ->
+  maybe_integer(binary_to_list(Single));
+
+maybe_integer(Single) when is_list(Single) ->
+  list_to_integer(Single).
