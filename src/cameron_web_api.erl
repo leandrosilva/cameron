@@ -117,9 +117,13 @@ expand_task_status(Task, Data) ->
             {<<"time">>,    Time}]}.
 
 expand_task_output(Task, Data) ->
-  Binary = get_task_value(Task, "output.data", Data),
-  String = binary_to_list(Binary),
-  try struct:from_json(String) catch _:_ -> Binary end.
+  case get_task_value(Task, "output.data", Data) of
+    undefined ->
+      <<"nothing yet">>;
+    Binary ->
+      String = binary_to_list(Binary),
+      try struct:from_json(String) catch _:_ -> Binary end
+  end.
 
 get_value(Key, Data) ->
   eh_maybe:maybe_binary(proplists:get_value(Key, Data)).
