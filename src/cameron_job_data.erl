@@ -126,11 +126,11 @@ handle_cast({create_new_job, #job{} = NewJob}, State) ->
   UUIDTag = redis_job_tag_for(NewJob),
 
   ok = redis(["hmset", UUIDTag,
-                       "job.key",              Key,
-                       "job.data",             Data,
-                       "job.requestor",        Requestor,
-                       "job.status.current",   "scheduled",
-                       "job.status.scheduled", datetime_helper:now()]),
+                       "job.key",                   Key,
+                       "job.data",                  Data,
+                       "job.requestor",             Requestor,
+                       "job.status.current",        "scheduled",
+                       "job.status.scheduled.time", datetime_helper:now()]),
   
   ok = redis(["set", redis_pending_tag_for(UUIDTag), UUIDTag]),
   
