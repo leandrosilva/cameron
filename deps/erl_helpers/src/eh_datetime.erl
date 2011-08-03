@@ -11,5 +11,5 @@
 now() ->
   {{Year, Month, Day}, {Hour, Minute, Second}} = erlang:localtime(),
   
-  lists:concat([maybe_helper:maybe_padding(Month), "-", maybe_helper:maybe_padding(Day),    "-", maybe_helper:maybe_padding(Year), " ",
-                maybe_helper:maybe_padding(Hour),  ":", maybe_helper:maybe_padding(Minute), ":", maybe_helper:maybe_padding(Second)]).
+  lists:concat([eh_maybe:maybe_padding(Month), "-", eh_maybe:maybe_padding(Day),    "-", eh_maybe:maybe_padding(Year), " ",
+                eh_maybe:maybe_padding(Hour),  ":", eh_maybe:maybe_padding(Minute), ":", eh_maybe:maybe_padding(Second)]).
