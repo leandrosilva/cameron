@@ -132,6 +132,7 @@ handle_cast({create_new_job, #job{} = NewJob}, State) ->
                        "job.status.current",        "scheduled",
                        "job.status.scheduled.time", eh_datetime:now()]),
   
+  % now is running
   ok = redis(["set", redis_pending_tag_for(UUIDTag), UUIDTag]),
   
   {noreply, State};
@@ -143,6 +144,12 @@ handle_cast({mark_job_as_running, #job{} = Job}, State) ->
   ok = redis(["hmset", UUIDTag,
                        "job.status.current",      "running",
                        "job.status.running.time", eh_datetime:now()]),
+
+  % now it is no longer pending
+  1 = redis(["del", redis_pending_tag_for(UUIDTag)]),
+  
+  % it is running
+  ok = redis(["set", redis_running_tag_for(UUIDTag), UUIDTag]),
 
   {noreply, State};
 
@@ -164,6 +171,9 @@ handle_cast({mark_task_as_running, #task{} = Task}, State) ->
       redis(["hset", UUIDTag, "job.tasks", Tasks ++ "," ++ Name])
   end,
 
+  % now it is running
+  ok = redis(["set", redis_running_tag_for(UUIDTag, Name), "yes"]),
+
   {noreply, State};
 
 % save the result of a task/activity given
@@ -181,6 +191,12 @@ handle_cast({save_task_output, #task{} = Task}, State) ->
                        "task." ++ Name ++ ".output.data",            Data,
                        "task." ++ Name ++ ".output.next_activities", NextActivities]),
 
+  % now it is no longer running
+  1 = redis(["del", redis_running_tag_for(UUIDTag, Name)]),
+
+  % it is done
+  ok = redis(["set", redis_done_tag_for(UUIDTag, Name), "yes"]),
+
   {noreply, State};
 
 % save an error message happened in a job's task
@@ -197,6 +213,10 @@ handle_cast({save_error_on_task_execution, #task{} = Task}, State) ->
                        "task." ++ Name ++ ".status.error.time", eh_datetime:now(),
                        "task." ++ Name ++ ".output.data",       Data]),
 
+  % now it is no longer running
+  1 = redis(["del", redis_running_tag_for(UUIDTag, Name)]),
+
+  % it failed
   ok = redis(["set", redis_error_tag_for(UUIDTag, Name), Data]),
 
   {noreply, State};
@@ -209,10 +229,13 @@ handle_cast({mark_job_as_done, #job{} = Job}, State) ->
                        "job.status.current",   "done",
                        "job.status.done.time", eh_datetime:now()]),
                        
-  ?DEBUG("----- JOB WAS MARKED AS DONE (~s) -----", [Job#job.uuid]),
+  % now it is no longer running
+  1 = redis(["del", redis_running_tag_for(UUIDTag)]),
 
-  1 = redis(["del", redis_pending_tag_for(UUIDTag)]),
+  % it is done
   ok = redis(["set", redis_done_tag_for(UUIDTag), UUIDTag]),
+
+  ?DEBUG("----- JOB WAS MARKED AS DONE (~s) -----", [Job#job.uuid]),
 
   {noreply, State};
 
@@ -272,12 +295,24 @@ redis_pending_tag_for(AnyTag) ->
   % cameron:process:{name}:key:{key}:job:{uuid}:pending
   AnyTag ++ ":pending".
 
+redis_running_tag_for(AnyTag) ->
+  % cameron:process:{name}:key:{key}:job:{uuid}:running
+  AnyTag ++ ":running".
+
 redis_done_tag_for(AnyTag) ->
   % cameron:process:{name}:key:{key}:job:{uuid}:done
   AnyTag ++ ":done".
 
+redis_running_tag_for(UUIDTag, ActivityName) ->
+  % cameron:process:{name}:key:{key}:job:{uuid}:{activity}:running
+  UUIDTag ++ ":" ++ ActivityName ++ ":running".
+
+redis_done_tag_for(UUIDTag, ActivityName) ->
+  % cameron:process:{name}:key:{key}:job:{uuid}:{activity}:done
+  UUIDTag ++ ":" ++ ActivityName ++ ":done".
+
 redis_error_tag_for(UUIDTag, ActivityName) ->
-  % cameron:process:{name}:key:{key}:job:{uuid}:error
+  % cameron:process:{name}:key:{key}:job:{uuid}:{activity}:error
   UUIDTag ++ ":" ++ ActivityName ++ ":error".
 
 % --- job -----------------------------------------------------------------------------------------
