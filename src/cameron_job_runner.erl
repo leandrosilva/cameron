@@ -311,7 +311,7 @@ handle_task(#task{} = Task) ->
 
   RequestPayload = build_request_payload(Key, Data, Requestor),
 
-  case http_helper:http_post(URL, RequestPayload) of
+  case eh_http:http_post(URL, RequestPayload) of
     {ok, {{"HTTP/1.1", 200, _}, _, ResponsePayload}} ->
       {ResponseName, ResponseData, ResponseNextActivities} = parse_response_payload(ResponsePayload),
       DoneTask = Task#task{output = #task_output{data = ResponseData, next_activities = ResponseNextActivities}},

@@ -25,7 +25,7 @@ start_link() ->
 %% @spec upgrade() -> ok
 %% @doc Remove and add processes if necessary.
 upgrade() ->
-  supervisor_helper:upgrade(?MODULE).
+  eh_supervisor:upgrade(?MODULE).
 
 %%
 %% Supervisor Callback ----------------------------------------------------------------------------

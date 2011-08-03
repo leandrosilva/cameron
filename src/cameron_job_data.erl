@@ -130,7 +130,7 @@ handle_cast({create_new_job, #job{} = NewJob}, State) ->
                        "job.data",                  Data,
                        "job.requestor",             Requestor,
                        "job.status.current",        "scheduled",
-                       "job.status.scheduled.time", datetime_helper:now()]),
+                       "job.status.scheduled.time", eh_datetime:now()]),
   
   ok = redis(["set", redis_pending_tag_for(UUIDTag), UUIDTag]),
   
@@ -142,7 +142,7 @@ handle_cast({mark_job_as_running, #job{} = Job}, State) ->
 
   ok = redis(["hmset", UUIDTag,
                        "job.status.current",      "running",
-                       "job.status.running.time", datetime_helper:now()]),
+                       "job.status.running.time", eh_datetime:now()]),
 
   {noreply, State};
 
@@ -155,7 +155,7 @@ handle_cast({mark_task_as_running, #task{} = Task}, State) ->
 
   ok = redis(["hmset", UUIDTag,
                        "task." ++ Name ++ ".status.current",      "running",
-                       "task." ++ Name ++ ".status.running.time", datetime_helper:now()]),
+                       "task." ++ Name ++ ".status.running.time", eh_datetime:now()]),
 
   case redis(["hget", UUIDTag, "job.tasks"]) of
     undefined ->
@@ -177,7 +177,7 @@ handle_cast({save_task_output, #task{} = Task}, State) ->
 
   ok = redis(["hmset", UUIDTag,
                        "task." ++ Name ++ ".status.current",         "done",
-                       "task." ++ Name ++ ".status.done.time",       datetime_helper:now(),
+                       "task." ++ Name ++ ".status.done.time",       eh_datetime:now(),
                        "task." ++ Name ++ ".output.data",            Data,
                        "task." ++ Name ++ ".output.next_activities", NextActivities]),
 
@@ -194,7 +194,7 @@ handle_cast({save_error_on_task_execution, #task{} = Task}, State) ->
 
   ok = redis(["hmset", UUIDTag,
                        "task." ++ Name ++ ".status.current",    "error",
-                       "task." ++ Name ++ ".status.error.time", datetime_helper:now(),
+                       "task." ++ Name ++ ".status.error.time", eh_datetime:now(),
                        "task." ++ Name ++ ".output.data",       Data]),
 
   ok = redis(["set", redis_error_tag_for(UUIDTag, Name), Data]),
@@ -207,7 +207,7 @@ handle_cast({mark_job_as_done, #job{} = Job}, State) ->
 
   ok = redis(["hmset", UUIDTag,
                        "job.status.current",   "done",
-                       "job.status.done.time", datetime_helper:now()]),
+                       "job.status.done.time", eh_datetime:now()]),
                        
   ?DEBUG("----- JOB WAS MARKED AS DONE (~s) -----", [Job#job.uuid]),
 
@@ -251,11 +251,11 @@ code_change(_OldVsn, State, _Extra) ->
 
 redis(Command) ->
   Output = redo:cmd(cameron_redo, Command),
-  maybe_helper:maybe_ok(maybe_helper:maybe_string(Output)).
+  eh_maybe:maybe_ok(eh_maybe:maybe_string(Output)).
 
 redis_process_tag_for(ProcessName) ->
   % cameron:process:{name}:
-  re:replace("cameron:process:{name}:", "{name}", maybe_helper:maybe_string(ProcessName), [{return, list}]).
+  re:replace("cameron:process:{name}:", "{name}", eh_maybe:maybe_string(ProcessName), [{return, list}]).
 
 redis_job_tag_for(ProcessName, Key, UUID) ->
   % cameron:process:{name}:key:{key}:job:{uuid}
@@ -283,10 +283,10 @@ redis_error_tag_for(UUIDTag, ActivityName) ->
 % --- job -----------------------------------------------------------------------------------------
 
 new_uuid() ->
-  uuid_helper:new().
+  eh_uuid:new().
 
 extract_job_data(Job, Key, UUID) ->
   UUIDTag = redis_job_tag_for(Job, Key, UUID),
   RawData = redis(["hgetall", UUIDTag]),
-  list_helper:to_properties(RawData).
+  eh_list:to_properties(RawData).
   
