@@ -7,9 +7,9 @@ By web-based I mean:
 * It exposes a Web API
 * And works on process workflows thru their Web API
 
-So if you have any background job that must cascade many tasks to achieve a goal, maybe it fits to your needs.
+So if you have any background job that must cascade many tasks to achieve a goal, maybe Cameron fits to your needs.
 
-To achieve that objective, as you can see, it has been built as an [Erlang/OTP](http://www.erlang.org/doc) application with a REST-like Web API, powered by [Misultin](https://github.com/ostinelli/misultin), and a [Redis](http://redis.io)-based backend database.
+To achieve that objective, as you can see, Cameron has been built as an [Erlang/OTP](http://www.erlang.org/doc) application with a REST-like Web API, powered by [Misultin](https://github.com/ostinelli/misultin), and a [Redis](http://redis.io)-based backend database.
 
 ### Is it aiming the Real World?
 
