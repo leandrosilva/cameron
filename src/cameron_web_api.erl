@@ -13,7 +13,8 @@
 %% Includes and Records ---------------------------------------------------------------------------
 %%
 
--include("include/cameron.hrl").
+-include("cameron.hrl").
+-include("misultin.hrl").
 
 %%
 %% Misultin-based Callbacks for cameron_web_api ---------------------------------------------------
@@ -25,7 +26,6 @@
 handle_http('GET', ["api"], HttpRequest) ->
   HttpRequest:ok([{"Content-Type", "text/plain"}], "Cameron Workflow System // Web API");
 
-% handle a POST on /api/process/{name}/start
 handle_http('POST', ["api", "process", ProcessName, "start"], HttpRequest) ->
   Payload = get_request_payload(HttpRequest),
 
@@ -66,7 +66,7 @@ handle_http(_, _, HttpRequest) ->
 % --- helpers to POST on /api/process/{name}/start ------------------------------------------------
 
 get_request_payload(HttpRequest) ->
-  {req, _, _, _, _, _, _, _, _, _, _, _, _, Body} = HttpRequest:raw(),
+  #req{body = Body} = HttpRequest:raw(),
   binary_to_list(Body).
 
 parse_request_payload(Payload) ->

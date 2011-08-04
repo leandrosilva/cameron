@@ -19,7 +19,7 @@
 %% Includes and Records ---------------------------------------------------------------------------
 %%
 
--include("include/cameron.hrl").
+-include("cameron.hrl").
 
 -record(state, {running_job, how_many_running_tasks}).
 

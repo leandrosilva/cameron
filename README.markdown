@@ -33,8 +33,6 @@ Among Cameron's modules there are a couple of those I think is important to ment
 
     git clone https://leandrosilva@github.com/leandrosilva/cameron.git
 
-* It also requires to clone [Misultin](https://github.com/ostinelli/misultin) as $CAMERON/deps/misultin-0.6.2 or create an equivalent symbolic link _-- as I did_.
-
 #### Configuration
 
 Available workflows are registered in a file under **priv/processes**, based on environment and extension **.config**.

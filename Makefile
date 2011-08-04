@@ -12,10 +12,11 @@ compile: clear
 	      -pa deps/ \
 	      -pa deps/erl_helpers/ebin/ \
 	      -pa deps/erlang-uuid/ebin/ \
-	      -pa deps/misultin-0.6.2/ebin/ \
+	      -pa deps/misultin/ebin/ \
 	      -pa deps/redo/ebin/ \
 	      -pa deps/erlang_syslog/ebin/ \
 	      -I include/ \
+	      -I deps/misultin/include/ \
 	      -o ebin/ \
 	      src/*.erl
 
@@ -26,10 +27,11 @@ compile_prod: clear
 	      -pa deps/ \
 	      -pa deps/erl_helpers/ebin/ \
 	      -pa deps/erlang-uuid/ebin/ \
-	      -pa deps/misultin-0.6.2/ebin/ \
+	      -pa deps/misultin/ebin/ \
 	      -pa deps/redo/ebin/ \
 	      -pa deps/erlang_syslog/ebin/ \
 	      -I include/ \
+	      -I deps/misultin/include/ \
 	      -o ebin/ \
 	      src/*.erl
 	
@@ -38,10 +40,11 @@ compile_test: compile
 	      -pa deps/ \
 	      -pa deps/erl_helpers/ebin/ \
 	      -pa deps/erlang-uuid/ebin/ \
-	      -pa deps/misultin-0.6.2/ebin/ \
+	      -pa deps/misultin/ebin/ \
 	      -pa deps/redo/ebin/ \
 	      -pa deps/erlang_syslog/ebin/ \
 	      -I include/ \
+	      -I deps/misultin/include/ \
 	      -o ebin/ \
 	      test/*.erl
 

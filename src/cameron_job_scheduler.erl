@@ -20,7 +20,7 @@
 %% Includes and Records ---------------------------------------------------------------------------
 %%
 
--include("include/cameron.hrl").
+-include("cameron.hrl").
 
 -record(state, {}).
 
