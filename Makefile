@@ -1,6 +1,10 @@
 APP_NAME := cameron
 
 all: compile
+
+clear:
+	@rm -f ebin/*.beam
+	@rm -f erl_crash.dump
 	
 compile: clear
 	@cp src/$(APP_NAME).app ebin/
@@ -41,20 +45,18 @@ compile_test: compile
 	      -o ebin/ \
 	      test/*.erl
 
-run_prod:
-	@erl -pa ebin/ deps/**/ebin/ -sname $(APP_NAME) -s $(APP_NAME) \
-	     -config priv/config/production \
-	     -processes priv/processes/production.config
-
 run_dev:
 	@erl +P 100000 \
-	     -pa ebin/ deps/**/ebin/ -sname $(APP_NAME) \
-	     -boot start_sasl -s $(APP_NAME) \
+	     -sname $(APP_NAME) \
+	     -s $(APP_NAME) \
+	     -pa ebin/ deps/**/ebin/ \
+	     -boot start_sasl -config priv/sasl/all.config \
 	     -config priv/config/development \
 	     -processes priv/processes/development.config
 
 run_test: compile_test
-	@erl -noshell -pa ebin/ deps/**/ebin/ -s $(APP_NAME) \
+	@erl -noshell -pa ebin/ deps/**/ebin/ \
+	     -s $(APP_NAME) \
 	     -run $(MODULE) test -run init stop \
 	     -config priv/config/test \
  	     -processes priv/processes/test.config
@@ -70,6 +72,11 @@ run_all_tests: compile_test
 		    -config priv/config/test; \
 	done
 
-clear:
-	@rm -f ebin/*.beam
-	@rm -f erl_crash.dump
+run_prod:
+	@erl +P 100000 \
+	     -sname $(APP_NAME) \
+	     -s $(APP_NAME) \
+	     -pa ebin/ deps/**/ebin/ \
+	     -boot start_sasl -config priv/sasl/all.config \
+	     -config priv/config/production \
+	     -processes priv/processes/production.config
