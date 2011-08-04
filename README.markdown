@@ -48,9 +48,11 @@ With layout below:
 
 #### Compiling
 
-    make                 # for development
-    make compile_test    # for test. It includes test modules.
-    make compile_prod    # for production. It switches to use erlang_syslog.
+    make compile_deps    # for dependencies
+    
+    make                 # for development environment
+    make compile_test    # for test environment. It includes test modules.
+    make compile_prod    # for production environment. It switches to use erlang_syslog instead of STDIO.
 
 #### Running
 
