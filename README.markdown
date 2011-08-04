@@ -1,19 +1,19 @@
 ## cameron
 
-That's a *work in progress* for **Cameron Workflow System** whose aim to be a web-based process system able to handle multiple concurrent HTTP requests asking to run pre-defined processes, enqueue them and run them in parallel, as fast as possible.
+That's a **work in progress** for **Cameron Workflow System** whose aim to be a web-based process system able to handle multiple concurrent HTTP requests asking to run pre-defined [but in the same time dynamic] processes, enqueue them and run them in parallel, as fast as possible.
+
+As web-based I mean:
 
 * It exposes a Web API
-* And process workflows are based on Web API
+* And work on process workflows thru their Web API
 
 To achive that objective, as you can see, it has been built as an Erlang/OTP application with a REST-like Web API, powered by Misultin, and a Redis-based backend database.
 
 ### Is it aiming the Real World?
 
-Yes. I have been working in this piece of software because I have a real demand on my Real World job at **Locaweb**.
+Yes. I have been working in this piece of software because I have a real demand on my Real World job. It has been pretty fun do write it, but it has a serious target.
 
-For the time being, we are not using it in production yet. It still new and unended, so we are incubating it before production. Nobody here want to be called in the late night hour, you know.
-
-But again, although it is incomplete now a days, we are building it aiming production.
+However, for the time being, we are not using it in production yet. **It still new and unended** _-- yes, needless to say this, actually --_, so we are testing and incubating it before. Nobody here want to be called in the late night hours, you know.
 
 ### Pieces of it
 
@@ -143,6 +143,8 @@ So this first step will result in a entry like below:
           job.status.current        "scheduled"
           job.status.scheduled.time "08-01-2011 18:03:00"
 
+    set cameron:process:foo:key:(id,007):job:3bd73a7731e5efca25b5ef05e3f79af9:pending
+
 #### Running a job
 
 As soon as a job starts to run (or to be done, if you prefer), it is marked as running like below:
@@ -150,6 +152,8 @@ As soon as a job starts to run (or to be done, if you prefer), it is marked as r
     hmset cameron:process:foo:key:(id,007):job:3bd73a7731e5efca25b5ef05e3f79af9
           status.current      "running"
           status.running.time "08-01-2011 18:03:00"
+
+    set cameron:process:foo:key:(id,007):job:3bd73a7731e5efca25b5ef05e3f79af9:running
 
 And a new **cameron\_job\_runner** is spawned to handle it.
 
@@ -164,6 +168,8 @@ When it happens, it is registered in Redis as follow:
     hmset cameron:process:foo:key:(id,007):job:3bd73a7731e5efca25b5ef05e3f79af9
           task.start.status.current      "running"
           task.start.status.running.time "08-01-2011 18:03:00"
+
+    set cameron:process:foo:key:(id,007):job:3bd73a7731e5efca25b5ef05e3f79af9:{task}:running
 
 As you can see at **test/foo\_workflow\_/api/workflow.rb**, a process workflow is web-based, talks JSON both ways, and always it receives the original **request data** as its payload, like below:
 
@@ -211,6 +217,8 @@ What happens now? Basically it saves that response at Redis:
           task.start.output.data            "..."
           task.start.output.next_activities "..."
 
+    set cameron:process:foo:key:(id,007):job:3bd73a7731e5efca25b5ef05e3f79af9:{task}:done
+
 And follow the same process recursively, the **data** attribute is passed to each **next_activities**.
 
 Yep. It's pipeline-based. So you can cascade it to virtually infinity!
@@ -232,13 +240,15 @@ And it also creates an entry to say that an error happened:
 
 Cool?
 
-#### And finally
+#### The end
 
 When everything is done, it ends with a new information at Redis:
 
     hmset cameron:process:foo:key:(id,007):job:3bd73a7731e5efca25b5ef05e3f79af9
           job.status.current   "done"
           job.status.done.time "08-01-2011 18:03:00"
+
+    set cameron:process:foo:key:(id,007):job:3bd73a7731e5efca25b5ef05e3f79af9:done
 
 That is it.
 
@@ -254,7 +264,11 @@ Now, yes, that is it!
 
 ### What else?
 
-There are many things to do. Stay tuned.
+There are many things to do. **It still new and unended**, as I said before. So stay tuned!
+
+### And finally...
+
+If you have time, please test it and give me feedback; and, if you have even more time, pleeease hack it and send me a pull request.
 
 ### Copyright
 
