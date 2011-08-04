@@ -7,7 +7,7 @@ As web-based I mean:
 * It exposes a Web API
 * And work on process workflows thru their Web API
 
-To achive that objective, as you can see, it has been built as an Erlang/OTP application with a REST-like Web API, powered by Misultin, and a Redis-based backend database.
+To achive that objective, as you can see, it has been built as an [Erlang/OTP](http://www.erlang.org/doc) application with a REST-like Web API, powered by [Misultin](https://github.com/ostinelli/misultin), and a [Redis](http://redis.io)-based backend database.
 
 ### Is it aiming the Real World?
 
@@ -27,11 +27,13 @@ Among Cameron's modules there are a couple of those I think is important to ment
 * **cameron\_web\_server** - Generic server strongly based on Misultin
 * **cameron\_web\_api** - Milsultin-based callback module to handle HTTP requests
 
-### Kick-off
+### Getting Started
 
 #### Installation
 
     git clone https://leandrosilva@github.com/leandrosilva/cameron.git
+
+* It also requires to clone [Misultin](https://github.com/ostinelli/misultin) as $CAMERON/deps/misultin-0.6.2 or create an equivalent symbolic link _-- as I did_.
 
 #### Configuration
 
@@ -71,7 +73,7 @@ Second terminal instance:
 Third terminal instance:
 
     cd $CAMERON/test/foo_workflow
-    make ./bin/run
+    ./bin/run    # it requires Ruby 1.9.x and couple of gems
 
 Forth terminal instance:
 
