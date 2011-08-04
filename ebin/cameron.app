@@ -2,7 +2,7 @@
 %% @copyright 2011 Leandro Silva.
 
 {application, cameron,
- [{description, "Cameron Workflow System"},
+ [{description, "Cameron Workflow Engine"},
   {vsn, "0.0.1"},
   {modules, [
     cameron,

@@ -24,7 +24,7 @@
 
 % handle a GET on /api
 handle_http('GET', ["api"], HttpRequest) ->
-  HttpRequest:ok([{"Content-Type", "text/plain"}], "Cameron Workflow System // Web API");
+  HttpRequest:ok([{"Content-Type", "text/plain"}], "Cameron Workflow Engine // Web API");
 
 handle_http('POST', ["api", "process", ProcessName, "start"], HttpRequest) ->
   Payload = get_request_payload(HttpRequest),
