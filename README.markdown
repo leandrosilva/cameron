@@ -2,10 +2,10 @@
 
 That's a **work in progress** for **Cameron Workflow System** whose aim to be a web-based process system able to handle multiple concurrent HTTP requests asking to run pre-defined [but in the same time dynamic] processes, enqueue them and run them in parallel, as fast as possible.
 
-As web-based I mean:
+By web-based I mean:
 
 * It exposes a Web API
-* And work on process workflows thru their Web API
+* And works on process workflows thru their Web API
 
 To achive that objective, as you can see, it has been built as an [Erlang/OTP](http://www.erlang.org/doc) application with a REST-like Web API, powered by [Misultin](https://github.com/ostinelli/misultin), and a [Redis](http://redis.io)-based backend database.
 
