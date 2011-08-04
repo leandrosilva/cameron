@@ -1,6 +1,6 @@
 ## cameron
 
-That's a **work in progress** for **Cameron Workflow System** whose aim to be a web-based process system able to handle multiple concurrent HTTP requests asking to run pre-defined [but in the same time dynamic] processes, enqueue them and run them in parallel, as fast as possible.
+That's a **work in progress** for **Cameron Workflow System** which aims to be a web-based process system able to handle multiple concurrent HTTP requests asking to run pre-defined [but in the same time dynamic] processes, enqueue them and run them in parallel, as fast as possible.
 
 By web-based I mean:
 
