@@ -181,33 +181,50 @@ As you can see at **test/foo\_workflow\_/api/workflow.rb**, a process workflow i
 An activity/task among other things, can return data and next_activities, as follow:
 
     {
-      "process":"foo",
-      "name":"whois",
-      
-      "data":{"who_id":"(id,007)",
-              "who_name":"Leandro Silva",
-              "who_login":"leandrosilva.codezone",
-              "who_web_info":{"blog":"http://leandrosilva.com.br",
-                              "twitter":"codezone"},
-              "who_dev_info":{ "github":"http://github.com/leandrosilva"}},
-              
-      "next_activities":{
-        "parallelizable":"yes",
-        
-        "definitions": [
-          {"name":"act_1",
-           "url":"http://localhost:9292/foo/v0.0.1/activity/act_1"},
-          {"name":"act_2",
-           "url":"http://localhost:9292/foo/v0.0.1/activity/act_2"},
-          {"name":"act_3",
-           "url":"http://localhost:9292/foo/v0.0.1/activity/act_3"},
-          {"name":"act_4",
-           "url":"http://localhost:9292/foo/v0.0.1/activity/act_4"},
-          {"name":"act_5",
-           "url":"http://localhost:9292/foo/v0.0.1/activity/act_5"}
-        ]
-      }
+        "process": "foo",
+        "name": "whois",
+
+        "data": {
+            "who_id": "(id,007)",
+            "who_name": "Leandro Silva",
+            "who_login": "leandrosilva.codezone",
+            "who_web_info": {
+                "blog": "http://leandrosilva.com.br",
+                "twitter": "codezone"
+            },
+            "who_dev_info": {
+                "github": "http://github.com/leandrosilva"
+            }
+        },
+
+        "next_activities": {
+            "parallelizable": "yes",
+
+            "definitions": [
+            {
+                "name": "act_1",
+                "url": "http://localhost:9292/foo/v0.0.1/activity/act_1"
+            },
+            {
+                "name": "act_2",
+                "url": "http://localhost:9292/foo/v0.0.1/activity/act_2"
+            },
+            {
+                "name": "act_3",
+                "url": "http://localhost:9292/foo/v0.0.1/activity/act_3"
+            },
+            {
+                "name": "act_4",
+                "url": "http://localhost:9292/foo/v0.0.1/activity/act_4"
+            },
+            {
+                "name": "act_5",
+                "url": "http://localhost:9292/foo/v0.0.1/activity/act_5"
+            }
+            ]
+        }
     }
+
 
 What happens now? Basically it saves that response at Redis:
 
@@ -258,7 +275,132 @@ Just do HTTP GET at the location head contained in the HTTP response of the star
 
     http://localhost:8080/api/process/foo/key/(id,007)/job/63f44a1a36d8472a3c501b6fbc2e8825
 
-It will result a JSON response with every data retrieved, including errors.
+It will result a JSON response with every data retrieved, including errors, just like that:
+
+    HTTP/1.1 200 OK
+    Connection: Keep-Alive
+    Content-Length: 1634
+    Content-Type: application/json
+
+    {
+        "process": "foo",
+        "uuid": "5643f21f245770cfffc3c5c5284c5c65",
+        "key": "(id,007)",
+        "requestor": "bob_the_thin",
+        "status": {
+            "current": "done",
+            "time": "08-03-2011 23:21:18"
+        },
+        "tasks": [{
+            "name": "start",
+            "status": {
+                "current": "done",
+                "time": "08-03-2011 23:21:18"
+            },
+            "data": {
+                "who_id": "(id,007)",
+                "who_name": "Leandro Silva",
+                "who_login": "leandrosilva.codezone",
+                "who_web_info": {
+                    "blog": "http://leandrosilva.com.br",
+                    "twitter": "codezone"
+                },
+                "who_dev_info": {
+                    "github": "http://github.com/leandrosilva"
+                }
+            }
+        },
+        {
+            "name": "act_1",
+            "status": {
+                "current": "done",
+                "time": "08-03-2011 23:21:18"
+            },
+            "data": {
+                "bar": "the likable bar",
+                "baz": {
+                    "qux": "the awesome qux",
+                    "quux": "the amazing quux",
+                    "corge": "the great corge"
+                }
+            }
+        },
+        {
+            "name": "act_2",
+            "status": {
+                "current": "done",
+                "time": "08-03-2011 23:21:18"
+            },
+            "data": {
+                "bar": "the likable bar",
+                "baz": {
+                    "qux": "the awesome qux",
+                    "quux": "the amazing quux",
+                    "corge": "the great corge"
+                }
+            }
+        },
+        {
+            "name": "act_3",
+            "status": {
+                "current": "done",
+                "time": "08-03-2011 23:21:18"
+            },
+            "data": {
+                "bar": "the likable bar",
+                "baz": {
+                    "qux": "the awesome qux",
+                    "quux": "the amazing quux",
+                    "corge": "the great corge"
+                }
+            }
+        },
+        {
+            "name": "act_4",
+            "status": {
+                "current": "done",
+                "time": "08-03-2011 23:21:18"
+            },
+            "data": {
+                "bar": "the likable bar",
+                "baz": {
+                    "qux": "the awesome qux",
+                    "quux": "the amazing quux",
+                    "corge": "the great corge"
+                }
+            }
+        },
+        {
+            "name": "act_5",
+            "status": {
+                "current": "done",
+                "time": "08-03-2011 23:21:18"
+            },
+            "data": {
+                "bar": "the likable bar",
+                "baz": {
+                    "qux": "the awesome qux",
+                    "quux": "the amazing quux",
+                    "corge": "the great corge"
+                }
+            }
+        },
+        {
+            "name": "act_5_sub_1",
+            "status": {
+                "current": "done",
+                "time": "08-03-2011 23:21:18"
+            },
+            "data": {
+                "grault": "the likable grault",
+                "garply": {
+                    "waldo": "the awesome waldo",
+                    "fred": "the amazing fred",
+                    "plugh": "the great plugh"
+                }
+            }
+        }]
+    }
 
 Now, yes, that is it!
 
