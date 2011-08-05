@@ -11,7 +11,7 @@
 % admin api
 -export([start_link/2, dump/1, stop/1]).
 % public api
--export([run_job/1, handle_task/1]).
+-export([run_job/1, handle_task/2]).
 % gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -97,7 +97,8 @@ handle_cast({action, run_job}, State) ->
 % to spawn a individual task handler
 handle_cast({action, spawn_task, #task{} = Task}, State) ->
   log_action({action, spawn_task, #task{} = Task}, State),
-  spawn_link(?MODULE, handle_task, [Task]),
+  Job = State#state.running_job,
+  spawn_link(?MODULE, handle_task, [Job, Task]),
   _NewState = update_state(task_has_been_spawned, State);
 
 % when a individual task is being handled
@@ -198,8 +199,8 @@ code_change(_OldVsn, State, _Extra) ->
 dispatch_action(_, undefined) ->
   undefined;
 
-dispatch_action(run_job, ContextJob) ->
-  dispatch_message(ContextJob, {action, run_job});
+dispatch_action(run_job, Job) ->
+  dispatch_message(Job, {action, run_job});
   
 dispatch_action(Action, #task{} = Task) ->
   dispatch_message({action, Action, Task});
@@ -214,11 +215,11 @@ dispatch_event(Event, #task{} = Task) ->
   dispatch_message({event, Event, Task}).
   
 dispatch_message({Type, What, #task{} = Task}) ->
-  ContextJob = Task#task.context_job,
-  ok = dispatch_message(ContextJob, {Type, What, Task}).
+  Job = Task#task.context_job,
+  ok = dispatch_message(Job, {Type, What, Task}).
   
-dispatch_message(ContextJob, Message) ->
-  Pname = ?pname(ContextJob#job.uuid),
+dispatch_message(Job, Message) ->
+  Pname = ?pname(Job#job.uuid),
   ok = gen_server:cast(Pname, Message).
   
 % --- gen_server state management -----------------------------------------------------------------
@@ -250,33 +251,33 @@ update_state(State) ->
 
 % --- task building and handling ------------------------------------------------------------------
 
-build_task(ContextJob, {Data, Requestor}, ActivityDefinition) ->
-  #job{input = #job_input{key = Key}} = ContextJob,
+build_task(Job, {Data, Requestor}, ActivityDefinition) ->
+  #job{input = #job_input{key = Key}} = Job,
   
   TaskInput = #task_input{key       = Key,
                           data      = Data,
                           requestor = Requestor},
   
-  #task{context_job = ContextJob,
+  #task{context_job = Job,
         activity    = ActivityDefinition,
         input       = TaskInput}.
 
-build_start_task(ContextJob) ->
+build_start_task(Job) ->
   #job{process = #process_definition{start_activity = StartActivityDefinition},
-       input   = JobInput} = ContextJob,
+       input   = JobInput} = Job,
 
   #job_input{data      = Data,
              requestor = Requestor} = JobInput,
   
-  build_task(ContextJob, {Data, Requestor}, StartActivityDefinition).
+  build_task(Job, {Data, Requestor}, StartActivityDefinition).
 
-build_next_task(ContextJob, Data, Requestor, ActivityDefinition) ->
-  build_task(ContextJob, {Data, Requestor}, ActivityDefinition).
+build_next_task(Job, Data, Requestor, ActivityDefinition) ->
+  build_task(Job, {Data, Requestor}, ActivityDefinition).
 
-build_next_tasks(_ContextJob, _Data, _Requestor, undefined) ->
+build_next_tasks(_Job, _Data, _Requestor, undefined) ->
   undefined;
   
-build_next_tasks(ContextJob, Data, Requestor, NextActivitiesJson) ->
+build_next_tasks(Job, Data, Requestor, NextActivitiesJson) ->
   NextActivitiesStruct = struct:from_json(NextActivitiesJson),
   % For now, it don't mind if Parallelizable "yes" or "no"
   Parallelizable = struct:get_value(<<"parallelizable">>, NextActivitiesStruct, {format, atom}),
@@ -286,7 +287,7 @@ build_next_tasks(ContextJob, Data, Requestor, NextActivitiesJson) ->
                     Name = struct:get_value(<<"name">>, ActivityStruct, {format, list}),
                     URL = struct:get_value(<<"url">>, ActivityStruct, {format, list}),
 
-                    build_next_task(ContextJob,
+                    build_next_task(Job,
                                     Data,
                                     Requestor,
                                     #activity_definition{name = Name, url = URL})
@@ -304,13 +305,13 @@ build_failed_task(Task, Reason) ->
   #task{activity = #activity_definition{url = URL}} = Task,
   Task#task{output = #task_output{data = ["{\"error\":\"", Reason, "\",\"url\":\"", URL, "\"}"]}, failed = yes}.
 
-handle_task(#task{} = Task) ->
+handle_task(Job, #task{} = Task) ->
   dispatch_event(task_is_being_handled, Task),
   
   #task{activity = #activity_definition{url = URL},
-        input    = #task_input{key = Key, data = Data, requestor = Requestor}} = Task,
+        input    = #task_input{data = Data, requestor = Requestor}} = Task,
 
-  RequestPayload = build_request_payload(Key, Data, Requestor),
+  RequestPayload = build_request_payload(Job, {Data, Requestor}),
 
   case eh_http:http_post(URL, RequestPayload) of
     {ok, {{"HTTP/1.1", 200, _}, _, ResponsePayload}} ->
@@ -334,8 +335,12 @@ handle_task(#task{} = Task) ->
 
 % --- how to build task payload (from and to json) ------------------------------------------------
 
-build_request_payload(Key, Data, Requestor) ->
-  RequestPayload = struct:to_json({struct, [{<<"key">>, list_to_binary(Key)},
+build_request_payload(Job, {Data, Requestor}) ->
+  #job{uuid  = UUID,
+       input = #job_input{key = Key}} = Job,
+
+  RequestPayload = struct:to_json({struct, [{<<"job">>, list_to_binary(UUID)},
+                                            {<<"key">>, list_to_binary(Key)},
                                             {<<"data">>, list_to_binary(Data)},
                                             {<<"requestor">>, list_to_binary(Requestor)}]}),
                                         
