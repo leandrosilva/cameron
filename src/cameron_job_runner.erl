@@ -250,7 +250,9 @@ update_state(State) ->
 
 % --- task building and handling ------------------------------------------------------------------
 
-build_task(ContextJob, {Key, Data, Requestor}, ActivityDefinition) ->
+build_task(ContextJob, {Data, Requestor}, ActivityDefinition) ->
+  #job{input = #job_input{key = Key}} = ContextJob,
+  
   TaskInput = #task_input{key       = Key,
                           data      = Data,
                           requestor = Requestor},
@@ -263,15 +265,13 @@ build_start_task(ContextJob) ->
   #job{process = #process_definition{start_activity = StartActivityDefinition},
        input   = JobInput} = ContextJob,
 
-  #job_input{key       = Key,
-             data      = Data,
+  #job_input{data      = Data,
              requestor = Requestor} = JobInput,
   
-  build_task(ContextJob, {Key, Data, Requestor}, StartActivityDefinition).
+  build_task(ContextJob, {Data, Requestor}, StartActivityDefinition).
 
 build_next_task(ContextJob, Data, Requestor, ActivityDefinition) ->
-  #job{input = #job_input{key = Key}} = ContextJob,
-  build_task(ContextJob, {Key, Data, Requestor}, ActivityDefinition).
+  build_task(ContextJob, {Data, Requestor}, ActivityDefinition).
 
 build_next_tasks(_ContextJob, _Data, _Requestor, undefined) ->
   undefined;
