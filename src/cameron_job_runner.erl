@@ -278,6 +278,7 @@ build_next_tasks(_ContextJob, _Data, _Requestor, undefined) ->
   
 build_next_tasks(ContextJob, Data, Requestor, NextActivitiesJson) ->
   NextActivitiesStruct = struct:from_json(NextActivitiesJson),
+  % For now, it don't mind if Parallelizable "yes" or "no"
   Parallelizable = struct:get_value(<<"parallelizable">>, NextActivitiesStruct, {format, atom}),
   ActivitiesStruct = struct:get_value(<<"definitions">>, NextActivitiesStruct),
 
