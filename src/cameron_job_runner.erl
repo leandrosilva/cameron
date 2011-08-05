@@ -263,7 +263,7 @@ build_task(Job, {Data, Requestor}, ActivityDefinition) ->
   TaskInput = #task_input{key       = Key,
                           data      = Data,
                           requestor = Requestor},
-  ?DEBUG("~n~n--------~n~w~n~n--------~n~n", [ActivityDefinition]),
+
   #task{context_job = Job,
         activity    = ActivityDefinition,
         input       = TaskInput}.
