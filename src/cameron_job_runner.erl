@@ -263,7 +263,7 @@ build_task(Job, {Data, Requestor}, ActivityDefinition) ->
   TaskInput = #task_input{key       = Key,
                           data      = Data,
                           requestor = Requestor},
-  
+  ?DEBUG("~n~n--------~n~w~n~n--------~n~n", [ActivityDefinition]),
   #task{context_job = Job,
         activity    = ActivityDefinition,
         input       = TaskInput}.
@@ -296,7 +296,9 @@ build_next_tasks(Job, Data, Requestor, NextActivitiesJson) ->
                     build_next_task(Job,
                                     Data,
                                     Requestor,
-                                    #activity_definition{name = Name, url = URL})
+                                    #activity_definition{name = Name,
+                                                         url  = URL,
+                                                         parallelizable = Parallelizable})
                   end,
 
   lists:map(BuildNextTask, ActivitiesStruct).

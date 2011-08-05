@@ -12,7 +12,9 @@
 %%
 
 % activity definition
--record(activity_definition, {name, url}).
+-record(activity_definition, {name,
+                              url,
+                              parallelizable = yes}).
 
 % process definition
 -record(process_definition,  {name, start_activity = #activity_definition{}}).
@@ -28,11 +30,11 @@
 -record(task_input,  {key, data, requestor}).
 -record(task_output, {data, next_activities = undefined}).
 
--record(task, {context_job  = #job{},
-               activity     = #activity_definition{},
-               input        = #task_input{},
-               output       = #task_output{},
-               failed       = no}).
+-record(task, {context_job    = #job{},
+               activity       = #activity_definition{},
+               input          = #task_input{},
+               output         = #task_output{},
+               failed         = no}).
 
 %%
 %% Log levels -------------------------------------------------------------------------------------
