@@ -96,26 +96,30 @@ handle_cast({action, run_job}, State) ->
 
 % to spawn a individual task handler
 handle_cast({action, spawn_task, #task{} = Task}, State) ->
-  log_action({action, spawn_task, #task{} = Task}, State),
   Job = State#state.running_job,
+  #job{uuid = UUID} = Job,
+  log_action(UUID, {spawn_task, #task{} = Task}, State),
   spawn_link(?MODULE, handle_task, [Job, Task]),
   _NewState = update_state(task_has_been_spawned, State);
 
 % when a individual task is being handled
 handle_cast({event, task_is_being_handled, #task{} = Task}, State) ->
-  log_event({event, task_is_being_handled, #task{} = Task}, State),
+  #job{uuid = UUID} = State#state.running_job,
+  log_event(UUID, {task_is_being_handled, #task{} = Task}, State),
   ok = cameron_job_data:mark_task_as_running(Task),
   _NewState = update_state(task_is_being_handled, State);
 
 % when a individual task has been done with "no error"
 handle_cast({event, task_has_been_done, #task{} = Task}, State) ->
-  log_event({event, task_has_been_done, #task{} = Task}, State),
+  #job{uuid = UUID} = State#state.running_job,
+  log_event(UUID, {task_has_been_done, #task{} = Task}, State),
   ok = cameron_job_data:save_task_output(Task),
   _NewState = update_state(task_has_been_done, State);
 
 % when a individual task has been done with error
 handle_cast({event, task_has_been_done_with_error, #task{} = Task}, State) ->
-  log_event({event, task_has_been_done_with_error, #task{} = Task}, State),
+  #job{uuid = UUID} = State#state.running_job,
+  log_event(UUID, {task_has_been_done_with_error, #task{} = Task}, State),
   ok = cameron_job_data:save_error_on_task_execution(Task),
   _NewState = update_state(task_has_been_done_with_error, State);
 
@@ -156,13 +160,13 @@ handle_info({'EXIT', Pid, Reason}, State) ->
   % i could do 'how_many_running_tasks' and mark_job_as_done here, couldn't i?
   #job{uuid = UUID} = State#state.running_job,
   N = State#state.how_many_running_tasks,
-  ?DEBUG("cameron_job_runner >> handling: info, UUID: ~s // EXIT: ~w ~w (N: ~w)", [UUID, Pid, Reason, N]),
+  log_info(UUID, {Pid, Reason, N}),
   {noreply, State};
   
 % down
 handle_info({'DOWN',  Ref, Type, Pid, Info}, State) ->
   #job{uuid = UUID} = State#state.running_job,
-  ?DEBUG("cameron_job_runner >> handling: info, UUID: ~s // DOWN: ~w ~w ~w ~w", [UUID, Ref, Type, Pid, Info]),
+  log_info(UUID, {Ref, Type, Pid, Info}),
   {noreply, State};
   
 handle_info(_Info, State) ->
@@ -176,13 +180,13 @@ handle_info(_Info, State) ->
 terminate(normal, State) ->
   #job{uuid = UUID} = State#state.running_job,
   N = State#state.how_many_running_tasks,
-  ?DEBUG("cameron_job_runner >> handling: terminate, UUID: ~s // normal ~w (N: ~w)", [UUID, self(), N]),
+  log_termination(UUID, {self(), N}),
   ok;
 
 % handle_info generic fallback (ignore) // any reason, i.e: cameron_process_sup:stop_child
 terminate(Reason, State) ->
   #job{uuid = UUID} = State#state.running_job,
-  ?DEBUG("cameron_job_runner >> handling: terminate, UUID: ~s // ~w", [UUID, Reason]),
+  log_termination(UUID, Reason),
   ok.
 
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
@@ -357,12 +361,25 @@ parse_response_payload(ResponsePayload) ->
   
 % --- log -----------------------------------------------------------------------------------------
 
-log_action({action, Action, Task}, State) ->
+log_action(UUID, {Action, Task}, State) ->
   #task{activity = #activity_definition{name = Name}} = Task,
   N = State#state.how_many_running_tasks,
-  ?DEBUG("cameron_job_runner >> action: ~w, task: ~s (~w // N: ~w)", [Action, Name, self(), N]).
+  ?DEBUG("cameron_job_runner >> action: ~w, UUID: ~s, task: ~s (~w, N: ~w)", [Action, UUID, Name, self(), N]).
 
-log_event({event, Event, Task}, State) ->
+log_event(UUID, {Event, Task}, State) ->
   #task{activity = #activity_definition{name = Name}} = Task,
   N = State#state.how_many_running_tasks,
-  ?DEBUG("cameron_job_runner >> event: ~w, task: ~s (~w // N: ~w)", [Event, Name, self(), N]).
+  ?DEBUG("cameron_job_runner >> event: ~w, UUID: ~s, task: ~s (~w, N: ~w)", [Event, UUID, Name, self(), N]).
+
+log_info(UUID, {Pid, Reason, N}) ->
+  ?DEBUG("cameron_job_runner >> info: exit, UUID: ~s, Reason: ~w (~w, N: ~w)", [UUID, Reason, Pid, N]);
+  
+log_info(UUID, {Ref, Type, Pid, Info}) ->
+  ?DEBUG("cameron_job_runner >> info: down, UUID: ~s // Ref: ~w, Type: ~w, Info: ~w (~w)", [UUID, Ref, Type, Info, Pid]).
+  
+log_termination(UUID, {Pid, N}) ->
+  ?DEBUG("cameron_job_runner >> termination: normal, UUID: ~s (~w, N: ~w)", [UUID, Pid, N]);
+  
+log_termination(UUID, Reason) ->
+  ?DEBUG("cameron_job_runner >> termination: ~w, UUID: ~s", [Reason, UUID]).
+  
