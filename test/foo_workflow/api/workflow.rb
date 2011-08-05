@@ -14,8 +14,9 @@ Rack::API.app do
       puts "[Request :: start] #{payload}"
       
       {
-        process:  "foo",
-        name:     "whois",
+        process:   "foo",
+        name:      "whois",
+        requestor: payload["requestor"],
         
         data:     { who_id:       payload["key"],
                     who_name:     "Leandro Silva",
@@ -54,6 +55,7 @@ Rack::API.app do
       {
         process:  "foo",
         name:     "foo_act_1",
+        requestor: payload["requestor"],
 
         data: { bar: "the likable bar",
                 baz:  { qux:   "the awesome qux",
@@ -71,6 +73,7 @@ Rack::API.app do
       {
         process:  "foo",
         name:     "foo_act_2",
+        requestor: payload["requestor"],
 
         data: { bar: "the likable bar",
                 baz:  { qux:   "the awesome qux",
@@ -88,6 +91,7 @@ Rack::API.app do
       {
         process:  "foo",
         name:     "foo_act_3",
+        requestor: payload["requestor"],
 
         data: { bar: "the likable bar",
                 baz:  { qux:   "the awesome qux",
@@ -105,6 +109,7 @@ Rack::API.app do
       {
         process:  "foo",
         name:     "foo_act_4",
+        requestor: payload["requestor"],
 
         data: { bar: "the likable bar",
                 baz:  { qux:   "the awesome qux",
@@ -122,6 +127,7 @@ Rack::API.app do
       {
         process:  "foo",
         name:     "foo_act_4",
+        requestor: payload["requestor"],
 
         data: { bar: "the likable bar",
                 baz:  { qux:   "the awesome qux",
@@ -150,6 +156,7 @@ Rack::API.app do
       {
         process:  "foo",
         name:     "foo_act_5_sub_1",
+        requestor: payload["requestor"],
 
         data: { grault: "the likable grault",
                 garply:  { waldo:   "the awesome waldo",

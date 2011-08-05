@@ -187,7 +187,8 @@ An activity/task among other things, can return data and next_activities, as fol
     {
         "process": "foo",
         "name": "whois",
-
+        "requestor": "bob_the_thin",
+        
         "data": {
             "who_id": "(id,007)",
             "who_name": "Leandro Silva",
@@ -200,12 +201,10 @@ An activity/task among other things, can return data and next_activities, as fol
                 "github": "http://github.com/leandrosilva"
             }
         },
-
+        
         "next_activities": {
             "parallelizable": "yes",
-
-            "definitions": [
-            {
+            "definitions": [{
                 "name": "act_1",
                 "url": "http://localhost:9292/foo/v0.0.1/activity/act_1"
             },
@@ -224,11 +223,9 @@ An activity/task among other things, can return data and next_activities, as fol
             {
                 "name": "act_5",
                 "url": "http://localhost:9292/foo/v0.0.1/activity/act_5"
-            }
-            ]
+            }]
         }
     }
-
 
 What happens now? Basically it saves that response at Redis:
 
@@ -288,18 +285,21 @@ It will result a JSON response with every data retrieved, including errors, just
 
     {
         "process": "foo",
-        "uuid": "5643f21f245770cfffc3c5c5284c5c65",
+        "uuid": "a76970078ae93e874c9b1e2b2072c365",
         "key": "(id,007)",
         "requestor": "bob_the_thin",
+        
         "status": {
             "current": "done",
-            "time": "08-03-2011 23:21:18"
+            "time": "08-05-2011 19:45:26"
         },
+        
         "tasks": [{
             "name": "start",
+            "requestor": "bob_the_thin",
             "status": {
                 "current": "done",
-                "time": "08-03-2011 23:21:18"
+                "time": "08-05-2011 19:45:26"
             },
             "data": {
                 "who_id": "(id,007)",
@@ -316,9 +316,10 @@ It will result a JSON response with every data retrieved, including errors, just
         },
         {
             "name": "act_1",
+            "requestor": "whois",
             "status": {
                 "current": "done",
-                "time": "08-03-2011 23:21:18"
+                "time": "08-05-2011 19:45:26"
             },
             "data": {
                 "bar": "the likable bar",
@@ -331,9 +332,10 @@ It will result a JSON response with every data retrieved, including errors, just
         },
         {
             "name": "act_2",
+            "requestor": "whois",
             "status": {
                 "current": "done",
-                "time": "08-03-2011 23:21:18"
+                "time": "08-05-2011 19:45:26"
             },
             "data": {
                 "bar": "the likable bar",
@@ -346,9 +348,10 @@ It will result a JSON response with every data retrieved, including errors, just
         },
         {
             "name": "act_3",
+            "requestor": "whois",
             "status": {
                 "current": "done",
-                "time": "08-03-2011 23:21:18"
+                "time": "08-05-2011 19:45:26"
             },
             "data": {
                 "bar": "the likable bar",
@@ -361,9 +364,10 @@ It will result a JSON response with every data retrieved, including errors, just
         },
         {
             "name": "act_4",
+            "requestor": "whois",
             "status": {
                 "current": "done",
-                "time": "08-03-2011 23:21:18"
+                "time": "08-05-2011 19:45:26"
             },
             "data": {
                 "bar": "the likable bar",
@@ -376,9 +380,10 @@ It will result a JSON response with every data retrieved, including errors, just
         },
         {
             "name": "act_5",
+            "requestor": "whois",
             "status": {
                 "current": "done",
-                "time": "08-03-2011 23:21:18"
+                "time": "08-05-2011 19:45:26"
             },
             "data": {
                 "bar": "the likable bar",
@@ -391,9 +396,10 @@ It will result a JSON response with every data retrieved, including errors, just
         },
         {
             "name": "act_5_sub_1",
+            "requestor": "foo_act_4",
             "status": {
                 "current": "done",
-                "time": "08-03-2011 23:21:18"
+                "time": "08-05-2011 19:45:26"
             },
             "data": {
                 "grault": "the likable grault",
@@ -405,7 +411,7 @@ It will result a JSON response with every data retrieved, including errors, just
             }
         }]
     }
-
+    
 Now, yes, that is it!
 
 ### What else?

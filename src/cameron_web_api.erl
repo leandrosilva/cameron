@@ -101,9 +101,10 @@ expand_job_tasks(Data) ->
   expand_job_tasks(Tasks, Data, []).
   
 expand_job_tasks([Task | Others], Data, Acc) ->
-  Struct = {struct, [{<<"name">>,   eh_maybe:maybe_binary(Task)},
-                     {<<"status">>, expand_task_status(Task, Data)},
-                     {<<"data">>,   expand_task_output(Task, Data)}]},
+  Struct = {struct, [{<<"name">>,      eh_maybe:maybe_binary(Task)},
+                     {<<"requestor">>, get_task_value(Task, "requestor", Data)},
+                     {<<"status">>,    expand_task_status(Task, Data)},
+                     {<<"data">>,      expand_task_output(Task, Data)}]},
   expand_job_tasks(Others, Data, [Struct | Acc]);
 
 expand_job_tasks([], _Data, Acc) ->

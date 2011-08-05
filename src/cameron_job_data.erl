@@ -156,11 +156,13 @@ handle_cast({mark_job_as_running, #job{} = Job}, State) ->
 % mark a task as running
 handle_cast({mark_task_as_running, #task{} = Task}, State) ->
   #task{context_job = Job,
+        input       = #task_input{requestor = Requestor},
         activity    = #activity_definition{name = Name}} = Task,
   
   UUIDTag = redis_job_tag_for(Job),
 
   ok = redis(["hmset", UUIDTag,
+                       "task." ++ Name ++ ".requestor",           Requestor,
                        "task." ++ Name ++ ".status.current",      "running",
                        "task." ++ Name ++ ".status.running.time", eh_datetime:now()]),
 
