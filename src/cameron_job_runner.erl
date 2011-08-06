@@ -310,8 +310,12 @@ build_failed_task(Task, Reason) when is_atom(Reason) ->
   build_failed_task(Task, atom_to_list(Reason));
   
 build_failed_task(Task, Reason) ->
-  #task{activity = #activity_definition{url = URL}} = Task,
-  Task#task{output = #task_output{data = ["{\"error\":\"", Reason, "\",\"url\":\"", URL, "\"}"]}, failed = yes}.
+  #task{context_job = #job{uuid = UUID},
+        activity = #activity_definition{url = URL}} = Task,
+        
+  Error = ["{\"error\":\"", Reason, "\",\"url\":\"", URL, "\"}"],
+  log_failed_task(UUID, {Task, Error}),
+  Task#task{output = #task_output{data = Error}, failed = yes}.
 
 handle_task(Job, #task{} = Task) ->
   dispatch_event(task_is_being_handled, Task),
@@ -386,4 +390,8 @@ log_termination(UUID, {Pid, N}) ->
   
 log_termination(UUID, {Pid, N, Reason}) ->
   ?DEBUG("cameron_job_runner >> (~w, N: ~w) termination: ~w, UUID: ~s", [Pid, N, Reason, UUID]).
+  
+log_failed_task(UUID, {Task, Error}) ->
+  #task{activity = #activity_definition{name = Name}} = Task,
+  ?DEBUG("cameron_job_runner >> (~w) failing: on_task, UUID: ~s, task: ~s, error: ~w", [self(), UUID, Name, Error]).
   
