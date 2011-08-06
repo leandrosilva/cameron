@@ -55,13 +55,15 @@ compile_deps:
 	(cd deps/redo && make)
 
 run_dev:
+	@ulimit -n 2560
 	@erl +P 100000 \
 			 -sname $(APP_NAME) \
 			 -s $(APP_NAME) \
 			 -pa ebin/ deps/**/ebin/ \
 			 -boot start_sasl -config priv/sasl/all.config \
 			 -config priv/config/development \
-			 -processes priv/processes/development.config
+			 -processes priv/processes/development.config \
+			 -env ERL_MAX_PORTS 2560
 
 run_test: compile_test
 	@erl -noshell -pa ebin/ deps/**/ebin/ \
@@ -82,10 +84,12 @@ run_all_tests: compile_test
 	done
 
 run_prod:
+	@ulimit -n 65535
 	@erl +P 100000 \
 			 -sname $(APP_NAME) \
 			 -s $(APP_NAME) \
 			 -pa ebin/ deps/**/ebin/ \
 			 -boot start_sasl -config priv/sasl/all.config \
 			 -config priv/config/production \
-			 -processes priv/processes/production.config
+			 -processes priv/processes/production.config \
+			 -env ERL_MAX_PORTS 65535
