@@ -208,14 +208,14 @@ dispatch_action(_, undefined) ->
 dispatch_action(run_job, Job) ->
   dispatch_message(Job, {action, run_job});
   
-dispatch_action(Action, #task{} = Task) ->
-  dispatch_message({action, Action, Task});
-  
 dispatch_action(spawn_tasks, Tasks) when is_list(Tasks) ->
   SpawnTask = fun (Task) ->
                 dispatch_action(spawn_task, Task)
               end,
-  lists:map(SpawnTask, Tasks).
+  lists:map(SpawnTask, Tasks);
+  
+dispatch_action(Action, #task{} = Task) ->
+  dispatch_message({action, Action, Task}).
   
 dispatch_event(Event, #task{} = Task) ->
   dispatch_message({event, Event, Task}).
