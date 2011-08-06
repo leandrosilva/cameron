@@ -57,13 +57,13 @@ compile_deps:
 run_dev:
 	@ulimit -n 2560
 	@erl +P 100000 \
+			 -env ERL_MAX_PORTS 2560 \
 			 -sname $(APP_NAME) \
 			 -s $(APP_NAME) \
 			 -pa ebin/ deps/**/ebin/ \
 			 -boot start_sasl -config priv/sasl/all.config \
 			 -config priv/config/development \
-			 -processes priv/processes/development.config \
-			 -env ERL_MAX_PORTS 2560
+			 -processes priv/processes/development.config
 
 run_test: compile_test
 	@erl -noshell -pa ebin/ deps/**/ebin/ \
@@ -86,10 +86,10 @@ run_all_tests: compile_test
 run_prod:
 	@ulimit -n 65535
 	@erl +P 100000 \
+			 -env ERL_MAX_PORTS 65535 \
 			 -sname $(APP_NAME) \
 			 -s $(APP_NAME) \
 			 -pa ebin/ deps/**/ebin/ \
 			 -boot start_sasl -config priv/sasl/all.config \
 			 -config priv/config/production \
-			 -processes priv/processes/production.config \
-			 -env ERL_MAX_PORTS 65535
+			 -processes priv/processes/production.config
