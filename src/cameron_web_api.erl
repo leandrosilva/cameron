@@ -50,9 +50,9 @@ handle_http('GET', ["api", "process", ProcessName, "key", Key, "job", UUID], Htt
     undefined ->
       HttpRequest:respond(404, [{"Content-Type", "text/plain"}], "Job not found.");
     {ok, Data} ->
-      JsonData = build_response_payload({ProcessName, Key, UUID}, Data),
+      Payload = build_response_payload({ProcessName, Key, UUID}, Data),
 
-      HttpRequest:respond(200, [{"Content-Type", "application/json"}], "~s", [JsonData])
+      HttpRequest:respond(200, [{"Content-Type", "application/json"}], "~s", [Payload])
   end;    
 
 % handle the 404 page not found
