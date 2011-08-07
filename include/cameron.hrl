@@ -12,9 +12,7 @@
 %%
 
 % activity definition
--record(activity_definition, {name,
-                              url,
-                              parallelizable = yes}).
+-record(activity_definition, {name, url}).
 
 % process definition
 -record(process_definition,  {name, start_activity = #activity_definition{}}).

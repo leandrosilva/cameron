@@ -203,7 +203,6 @@ An activity/task among other things, can return data and next_activities, as fol
         },
         
         "next_activities": {
-            "parallelizable": "yes",
             "definitions": [{
                 "name": "act_1",
                 "url": "http://localhost:9292/foo/v0.0.1/activity/act_1"

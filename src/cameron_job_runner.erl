@@ -285,8 +285,6 @@ build_next_tasks(_Job, _Data, _Requestor, undefined) ->
   
 build_next_tasks(Job, Data, Requestor, NextActivitiesJson) ->
   NextActivitiesStruct = struct:from_json(NextActivitiesJson),
-  % For now, it don't mind if Parallelizable "yes" or "no"
-  Parallelizable = struct:get_value(<<"parallelizable">>, NextActivitiesStruct, {format, atom}),
   ActivitiesStruct = struct:get_value(<<"definitions">>, NextActivitiesStruct),
 
   BuildNextTask = fun (ActivityStruct) ->
@@ -297,8 +295,7 @@ build_next_tasks(Job, Data, Requestor, NextActivitiesJson) ->
                                     Data,
                                     Requestor,
                                     #activity_definition{name = Name,
-                                                         url  = URL,
-                                                         parallelizable = Parallelizable})
+                                                         url  = URL})
                   end,
 
   lists:map(BuildNextTask, ActivitiesStruct).

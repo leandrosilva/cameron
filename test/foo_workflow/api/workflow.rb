@@ -27,8 +27,6 @@ Rack::API.app do
                                              
         next_activities:
         {
-          parallelizable: "yes",
-        
           definitions:
           [
             { name: "act_1",
@@ -136,8 +134,6 @@ Rack::API.app do
                                 
         next_activities:
         {
-          parallelizable: "yes",
-
           definitions:
           [
             { name: "act_5_sub_1",
