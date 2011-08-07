@@ -50,7 +50,7 @@ handle_http('GET', ["api", "process", ProcessName, "key", Key, "job", UUID], Htt
     undefined ->
       HttpRequest:respond(404, [{"Content-Type", "text/plain"}], "Job not found.");
     {ok, Data} ->
-      JsonData = generate_json_response({ProcessName, Key, UUID}, Data),
+      JsonData = build_response_payload({ProcessName, Key, UUID}, Data),
 
       HttpRequest:respond(200, [{"Content-Type", "application/json"}], "~s", [JsonData])
   end;    
@@ -80,7 +80,7 @@ parse_request_payload(Payload) ->
 
 % --- helpers to GET on /api/process/{name}/key/{key}/job/{uuid} ----------------------------------
 
-generate_json_response({ProcessName, Key, UUID}, Data) ->
+build_response_payload({ProcessName, Key, UUID}, Data) ->
   Struct = {struct, [{<<"process">>,   eh_maybe:maybe_binary(ProcessName)},
                      {<<"uuid">>,      eh_maybe:maybe_binary(UUID)},
                      {<<"key">>,       eh_maybe:maybe_binary(Key)},
