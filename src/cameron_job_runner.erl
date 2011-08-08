@@ -307,11 +307,8 @@ build_failed_task(Task, Reason) when is_atom(Reason) ->
   build_failed_task(Task, atom_to_list(Reason));
   
 build_failed_task(Task, Reason) ->
-  #task{context_job = #job{uuid = UUID},
-        activity = #activity_definition{url = URL}} = Task,
-        
+  #task{activity = #activity_definition{url = URL}} = Task,
   Error = ["{\"error\":\"", Reason, "\",\"url\":\"", URL, "\"}"],
-  log_failed_task(UUID, {Task, Error}),
   Task#task{output = #task_output{data = Error}, failed = yes}.
 
 % --- task handling -------------------------------------------------------------------------------
@@ -344,13 +341,13 @@ inspect_task_result(Task, {ok, {{"HTTP/1.1", 200, _}, _, ResponsePayload}}) ->
   NextTasks = build_next_tasks(DoneTask#task.context_job, ResponseData, ResponseName, ResponseNextActivities),
   {task_has_been_done, DoneTask, NextTasks};
 
-inspect_task_result(Task, {ok, {{"HTTP/1.1", _, _}, _, ResponsePayload}}) ->
-  FailedTask = Task#task{output = #task_output{data = ResponsePayload}, failed = yes},
-  {task_has_been_done_with_error, FailedTask};
+inspect_task_result(Task, {ok, {{"HTTP/1.1", Status, _}, _, _ResponsePayload}}) ->
+  inspect_task_result(Task, {error, Status});
   
 inspect_task_result(Task, {error, Reason}) ->
-  ?ERROR("cameron_job_runner >> func: handle_task, http_response: (ERROR) ~w~n", [Reason]),
   FailedTask = build_failed_task(Task, Reason),
+  #task{context_job = #job{uuid = UUID}} = FailedTask,
+  log_failed_task(UUID, {FailedTask, eh_maybe:maybe_string(Reason)}),
   {task_has_been_done_with_error, FailedTask}.
   
 % --- log -----------------------------------------------------------------------------------------
@@ -365,8 +362,14 @@ log_event(UUID, {Event, Task}, State) ->
   N = State#state.how_many_running_tasks,
   ?DEBUG("cameron_job_runner >> (~w, N: ~w) event: ~w, UUID: ~s, task: ~s", [self(), N, Event, UUID, Name]).
 
+log_info(UUID, {Pid, normal, N}) ->
+  ?DEBUG("cameron_job_runner >> (~w, N: ~w) info: exit, UUID: ~s, reason: normal", [Pid, N, UUID]);
+  
+log_info(UUID, {Pid, shutdown, N}) ->
+  ?DEBUG("cameron_job_runner >> (~w, N: ~w) info: exit, UUID: ~s, reason: shutdown", [Pid, N, UUID]);
+
 log_info(UUID, {Pid, Reason, N}) ->
-  ?DEBUG("cameron_job_runner >> (~w, N: ~w) info: exit, UUID: ~s, reason: ~w", [Pid, N, UUID, Reason]);
+  ?ERROR("cameron_job_runner >> (~w, N: ~w) info: exit, UUID: ~s, reason: ~w", [Pid, N, UUID, Reason]);
   
 log_info(UUID, {Pid, N, Ref, Type, Info}) ->
   ?DEBUG("cameron_job_runner >> (~w, N: ~w) info: down, UUID: ~s, ref: ~w, type: ~w, info: ~w", [Pid, N, UUID, Ref, Type, Info]).
@@ -379,5 +382,11 @@ log_termination(UUID, {Pid, N, Reason}) ->
   
 log_failed_task(UUID, {Task, Error}) ->
   #task{activity = #activity_definition{name = Name}} = Task,
-  ?ERROR("cameron_job_runner >> (~w) failing: on_task, UUID: ~s, task: ~s, error: ~w", [self(), UUID, Name, Error]).
+  ?ERROR("cameron_job_runner >> (~w) failing: on_task, UUID: ~s, task: ~s, error: ~s", [self(), UUID, Name, Error]),
+  log_to_redis(UUID, {Name, Error}).
+  
+log_to_redis(UUID, {Task, Error}) ->
+  ErrorTag = "cameron:error:" ++ UUID ++ ":" ++ Task ++ ":" ++ Error,
+  redo:cmd(cameron_redo, ["set", ErrorTag, "yes"]),
+  ok.
   
