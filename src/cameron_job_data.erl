@@ -162,9 +162,9 @@ handle_cast({mark_task_as_running, #task{} = Task}, State) ->
   UUIDTag = redis_job_tag_for(Job),
 
   <<"OK">> = redis([<<"hmset">>, UUIDTag,
-                      attr([<<"task.">>, Name, <<".requestor">>]),           Requestor,
-                      attr([<<"task.">>, Name, <<".status.current">>]),      <<"running">>,
-                      attr([<<"task.">>, Name, <<".status.running.time">>]), eh_datetime:now()]),
+                      binary([<<"task.">>, Name, <<".requestor">>]),           Requestor,
+                      binary([<<"task.">>, Name, <<".status.current">>]),      <<"running">>,
+                      binary([<<"task.">>, Name, <<".status.running.time">>]), eh_datetime:now()]),
 
   case redis([<<"hget">>, UUIDTag, <<"job.tasks">>]) of
     undefined ->
@@ -189,10 +189,10 @@ handle_cast({save_task_output, #task{} = Task}, State) ->
   UUIDTag = redis_job_tag_for(Job),
 
   <<"OK">> = redis([<<"hmset">>, UUIDTag,
-                      attr([<<"task.">>, Name, <<".status.current">>]),         <<"done">>,
-                      attr([<<"task.">>, Name, <<".status.done.time">>]),       eh_datetime:now(),
-                      attr([<<"task.">>, Name, <<".output.data">>]),            Data,
-                      attr([<<"task.">>, Name, <<".output.next_activities">>]), NextActivities]),
+                      binary([<<"task.">>, Name, <<".status.current">>]),         <<"done">>,
+                      binary([<<"task.">>, Name, <<".status.done.time">>]),       eh_datetime:now(),
+                      binary([<<"task.">>, Name, <<".output.data">>]),            Data,
+                      binary([<<"task.">>, Name, <<".output.next_activities">>]), NextActivities]),
 
   % now it is no longer running
   1 = redis([<<"del">>, redis_running_tag_for(UUIDTag, Name)]),
@@ -212,9 +212,9 @@ handle_cast({save_error_on_task_execution, #task{} = Task}, State) ->
   UUIDTag = redis_job_tag_for(Job),
 
   <<"OK">> = redis([<<"hmset">>, UUIDTag,
-                      attr([<<"task.">>, Name, <<".status.current">>]),    <<"error">>,
-                      attr([<<"task.">>, Name, <<".status.error.time">>]), eh_datetime:now(),
-                      attr([<<"task.">>, Name, <<".output.data">>]),       Data]),
+                      binary([<<"task.">>, Name, <<".status.current">>]),    <<"error">>,
+                      binary([<<"task.">>, Name, <<".status.error.time">>]), eh_datetime:now(),
+                      binary([<<"task.">>, Name, <<".output.data">>]),       Data]),
 
   % now it is no longer running
   1 = redis(["del", redis_running_tag_for(UUIDTag, Name)]),
@@ -329,6 +329,6 @@ extract_job_data(Job, Key, UUID) ->
   
 % --- general purpose -----------------------------------------------------------------------------
 
-attr(Pieces) ->
+binary(Pieces) ->
   list_to_binary(Pieces).
   
