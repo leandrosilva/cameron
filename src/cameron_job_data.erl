@@ -166,13 +166,8 @@ handle_cast({mark_task_as_running, #task{} = Task}, State) ->
                       concat([<<"task.">>, Name, <<".status.current">>]),      <<"running">>,
                       concat([<<"task.">>, Name, <<".status.running.time">>]), eh_datetime:now()]),
 
-  case redis([<<"hget">>, UUIDTag, <<"job.tasks">>]) of
-    undefined ->
-      redis([<<"hset">>, UUIDTag, <<"job.tasks">>, Name]);
-    Tasks ->
-      NewTasks = list_to_binary([Tasks, ",", Name]),
-      redis([<<"hset">>, UUIDTag, <<"job.tasks">>, NewTasks])
-  end,
+  Tasks = rebuild_job_tasks(UUIDTag, Name),
+  redis([<<"hset">>, UUIDTag, <<"job.tasks">>, Tasks]),
 
   % now it is running
   <<"OK">> = redis([<<"set">>, build_running_tag(UUIDTag, Name), <<"yes">>]),
@@ -326,6 +321,12 @@ extract_job_data(Job, Key, UUID) ->
   UUIDTag = build_job_tag(Job, Key, UUID),
   RawData = redis([<<"hgetall">>, UUIDTag]),
   eh_list:to_properties(RawData).
+  
+rebuild_job_tasks(UUIDTag, NewTask) ->
+  case redis([<<"hget">>, UUIDTag, <<"job.tasks">>]) of
+    undefined    -> NewTask;
+    CurrentTasks -> list_to_binary([CurrentTasks, ",", NewTask])
+  end.
   
 % --- general purpose -----------------------------------------------------------------------------
 
