@@ -308,7 +308,7 @@ build_failed_task(Task, Reason) when is_atom(Reason) ->
   
 build_failed_task(Task, Reason) ->
   #task{activity = #activity_definition{url = URL}} = Task,
-  Error = ["{\"error\":\"", Reason, "\",\"url\":\"", URL, "\"}"],
+  Error = lists:concat(["{\"error\":\"", Reason, "\",\"url\":\"", URL, "\"}"]),
   Task#task{output = #task_output{data = Error}, failed = yes}.
 
 % --- task handling -------------------------------------------------------------------------------
@@ -342,7 +342,8 @@ inspect_task_result(Task, {ok, {{"HTTP/1.1", 200, _}, _, ResponsePayload}}) ->
   {task_has_been_done, DoneTask, NextTasks};
 
 inspect_task_result(Task, {ok, {{"HTTP/1.1", Status, _}, _, _ResponsePayload}}) ->
-  inspect_task_result(Task, {error, Status});
+  Reason = "HTTP Status " ++ Status,
+  inspect_task_result(Task, {error, Reason});
   
 inspect_task_result(Task, {error, Reason}) ->
   FailedTask = build_failed_task(Task, Reason),

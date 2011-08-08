@@ -70,8 +70,8 @@ parse_response_payload(ResponsePayload) ->
 % --- helpers to build_response_payload function --------------------------------------------------
 
 expand_job_status(Data) ->
-  Status = get_job_value("status.current", Data),
-  Time = get_job_value("status." ++ eh_maybe:maybe_string(Status) ++ ".time", Data),
+  Status = get_job_value(<<"status.current">>, Data),
+  Time = get_job_value([<<"status.">>, Status, <<".time">>], Data),
 
   {struct, [{<<"current">>, Status},
             {<<"time">>,    Time}]}.
@@ -91,14 +91,14 @@ expand_job_tasks([], _Data, Acc) ->
   lists:reverse(Acc).
 
 expand_task_status(Task, Data) ->
-  Status = get_task_value(Task, "status.current", Data),
-  Time = get_task_value(Task, "status." ++ eh_maybe:maybe_string(Status) ++ ".time", Data),
+  Status = get_task_value(Task, <<"status.current">>, Data),
+  Time = get_task_value(Task, [<<"status.">>, Status, <<".time">>], Data),
 
   {struct, [{<<"current">>, Status},
             {<<"time">>,    Time}]}.
 
 expand_task_output(Task, Data) ->
-  case get_task_value(Task, "output.data", Data) of
+  case get_task_value(Task, <<"output.data">>, Data) of
     undefined ->
       <<"nothing yet">>;
     Binary ->
@@ -106,17 +106,21 @@ expand_task_output(Task, Data) ->
       try struct:from_json(String) catch _:_ -> Binary end
   end.
 
+get_value(Key, Data) when is_list(Key) ->
+  BinaryKey = list_to_binary(Key),
+  get_value(BinaryKey, Data);
+
 get_value(Key, Data) ->
-  eh_maybe:maybe_binary(proplists:get_value(Key, Data)).
+  proplists:get_value(Key, Data).
 
 get_job_value(Key, Data) ->
-  get_value("job." ++ Key, Data).
+  get_value([<<"job.">>, Key], Data).
 
 get_job_tasks(Data) ->
-  case proplists:get_value("job.tasks", Data) of
+  case proplists:get_value(<<"job.tasks">>, Data) of
     undefined -> [];
     Tasks     -> re:split(Tasks, ",")
   end.
 
 get_task_value(Task, Key, Data) ->
-  get_value("task." ++ eh_maybe:maybe_string(Task) ++ "." ++ Key, Data).
+  get_value([<<"task">>, <<".">>, Task, <<".">>, Key], Data).
