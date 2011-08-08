@@ -322,7 +322,7 @@ handle_task(Job, #task{} = Task) ->
   #task{activity = #activity_definition{url = URL},
         input    = #task_input{data = Data, requestor = Requestor}} = Task,
 
-  RequestPayload = build_request_payload(Job, {Data, Requestor}),
+  RequestPayload = cameron_protocol:build_request_payload(Job, {Data, Requestor}),
   
   case execute_task(Task, {http_request, URL, RequestPayload}) of
     {task_has_been_done, DoneTask, NextTasks} ->
@@ -339,7 +339,7 @@ execute_task(Task, {http_request, URL, RequestPayload}) ->
   inspect_task_result(Task, HttpResponse).
   
 inspect_task_result(Task, {ok, {{"HTTP/1.1", 200, _}, _, ResponsePayload}}) ->
-  {ResponseName, ResponseData, ResponseNextActivities} = parse_response_payload(ResponsePayload),
+  {ResponseName, ResponseData, ResponseNextActivities} = cameron_protocol:parse_response_payload(ResponsePayload),
   DoneTask = Task#task{output = #task_output{data = ResponseData, next_activities = ResponseNextActivities}},
   NextTasks = build_next_tasks(DoneTask#task.context_job, ResponseData, ResponseName, ResponseNextActivities),
   {task_has_been_done, DoneTask, NextTasks};
@@ -352,28 +352,6 @@ inspect_task_result(Task, {error, Reason}) ->
   ?DEBUG("cameron_job_runner >> func: handle_task, http_response: (ERROR) ~w~n", [Reason]),
   FailedTask = build_failed_task(Task, Reason),
   {task_has_been_done_with_error, FailedTask}.
-  
-% --- how to build task payload (from and to json) ------------------------------------------------
-
-build_request_payload(Job, {Data, Requestor}) ->
-  #job{uuid  = UUID,
-       input = #job_input{key = Key}} = Job,
-
-  RequestPayload = struct:to_json({struct, [{<<"job">>, list_to_binary(UUID)},
-                                            {<<"key">>, list_to_binary(Key)},
-                                            {<<"data">>, list_to_binary(Data)},
-                                            {<<"requestor">>, list_to_binary(Requestor)}]}),
-                                        
-  unicode:characters_to_list(RequestPayload).
-
-parse_response_payload(ResponsePayload) ->
-  Struct = struct:from_json(ResponsePayload),
-
-  Name = struct:get_value(<<"name">>, Struct, {format, list}),
-  Data = struct:get_value(<<"data">>, Struct, {format, json}),
-  NextActivities = struct:get_value(<<"next_activities">>, Struct, {format, json}),
-  
-  {Name, Data, NextActivities}.
   
 % --- log -----------------------------------------------------------------------------------------
 
