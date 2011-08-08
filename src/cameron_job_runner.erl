@@ -379,5 +379,5 @@ log_termination(UUID, {Pid, N, Reason}) ->
   
 log_failed_task(UUID, {Task, Error}) ->
   #task{activity = #activity_definition{name = Name}} = Task,
-  ?DEBUG("cameron_job_runner >> (~w) failing: on_task, UUID: ~s, task: ~s, error: ~w", [self(), UUID, Name, Error]).
+  ?ERROR("cameron_job_runner >> (~w) failing: on_task, UUID: ~s, task: ~s, error: ~w", [self(), UUID, Name, Error]).
   
