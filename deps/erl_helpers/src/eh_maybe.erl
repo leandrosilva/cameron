@@ -25,7 +25,7 @@ maybe_string(Single) when is_binary(Single) ->
   binary_to_list(Single);
   
 maybe_string(Single) when is_integer(Single) ->
-  Single;
+  integer_to_list(Single);
   
 maybe_string(Single) when is_atom(Single) ->
   atom_to_list(Single).
