@@ -27,22 +27,7 @@ handle_http('GET', ["api"], HttpRequest) ->
   HttpRequest:ok([{"Content-Type", "text/plain"}], "Cameron Workflow Engine // Web API");
 
 handle_http('POST', ["api", "process", ProcessName, "start"], HttpRequest) ->
-  Payload = get_request_payload(HttpRequest),
-
-  case cameron_process_catalog:lookup(ProcessName) of
-    undefined ->
-      HttpRequest:respond(404, [{"Content-Type", "application/json"}],
-                                 "{\"payload\":\"~s\"}", [Payload]);
-    Process ->
-      {Key, Data, Requestor} = cameron_protocol:parse_request_payload(Payload),
-      {ok, UUID} = cameron_job_scheduler:schedule(Process, {Key, Data, Requestor}),
-      
-      HttpRequest:respond(201, [{"Content-Type", "application/json"},
-                                {"Location", ["http://localhost:8080/api/process/", ProcessName,
-                                              "/key/", Key,
-                                              "/job/", UUID]}],
-                               "{\"payload\":\"~s\"}", [Payload])
-  end;
+  build_http_response(HttpRequest, ProcessName);
 
 % handle a GET on /api/process/{name}/key/{key}/job/{uuid}
 handle_http('GET', ["api", "process", ProcessName, "key", Key, "job", UUID], HttpRequest) ->
@@ -68,3 +53,23 @@ handle_http(_, _, HttpRequest) ->
 get_request_payload(HttpRequest) ->
   #req{body = Body} = HttpRequest:raw(),
   binary_to_list(Body).
+
+build_http_response({HttpRequest, RequestPayload}, {_, undefined}) ->
+  HttpRequest:respond(404, [{"Content-Type", "application/json"}],
+                             "{\"payload\":\"~s\"}", [RequestPayload]);
+  
+build_http_response({HttpRequest, RequestPayload}, {ProcessName, Process}) ->
+  {Key, Data, Requestor} = cameron_protocol:parse_request_payload(RequestPayload),
+  {ok, UUID} = cameron_job_scheduler:schedule(Process, {Key, Data, Requestor}),
+
+  HttpRequest:respond(201, [{"Content-Type", "application/json"},
+                           {"Location", ["http://localhost:8080/api/process/", ProcessName,
+                                         "/key/", Key,
+                                         "/job/", UUID]}],
+                          "{\"payload\":\"~s\"}", [RequestPayload]);
+  
+build_http_response(HttpRequest, ProcessName) ->
+  RequestPayload = get_request_payload(HttpRequest),
+  Process = cameron_process_catalog:lookup(ProcessName),
+  build_http_response({HttpRequest, RequestPayload}, {ProcessName, Process}).
+  
