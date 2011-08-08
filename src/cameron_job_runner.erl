@@ -349,7 +349,7 @@ inspect_task_result(Task, {ok, {{"HTTP/1.1", _, _}, _, ResponsePayload}}) ->
   {task_has_been_done_with_error, FailedTask};
   
 inspect_task_result(Task, {error, Reason}) ->
-  ?DEBUG("cameron_job_runner >> func: handle_task, http_response: (ERROR) ~w~n", [Reason]),
+  ?ERROR("cameron_job_runner >> func: handle_task, http_response: (ERROR) ~w~n", [Reason]),
   FailedTask = build_failed_task(Task, Reason),
   {task_has_been_done_with_error, FailedTask}.
   
