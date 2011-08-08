@@ -125,15 +125,15 @@ handle_cast({create_new_job, #job{} = NewJob}, State) ->
     
   UUIDTag = redis_job_tag_for(NewJob),
 
-  <<"OK">> = redis(["hmset", UUIDTag,
-                             "job.key",                   Key,
-                             "job.data",                  Data,
-                             "job.requestor",             Requestor,
-                             "job.status.current",        "scheduled",
-                             "job.status.scheduled.time", eh_datetime:now()]),
+  <<"OK">> = redis([<<"hmset">>, UUIDTag,
+                      <<"job.key">>,                   Key,
+                      <<"job.data">>,                  Data,
+                      <<"job.requestor">>,             Requestor,
+                      <<"job.status.current">>,        <<"scheduled">>,
+                      <<"job.status.scheduled.time">>, eh_datetime:now()]),
   
   % now is running
-  <<"OK">> = redis(["set", redis_pending_tag_for(UUIDTag), UUIDTag]),
+  <<"OK">> = redis([<<"set">>, redis_pending_tag_for(UUIDTag), UUIDTag]),
   
   {noreply, State};
 
@@ -141,15 +141,15 @@ handle_cast({create_new_job, #job{} = NewJob}, State) ->
 handle_cast({mark_job_as_running, #job{} = Job}, State) ->
   UUIDTag = redis_job_tag_for(Job),
 
-  <<"OK">> = redis(["hmset", UUIDTag,
-                             "job.status.current",      "running",
-                             "job.status.running.time", eh_datetime:now()]),
+  <<"OK">> = redis([<<"hmset">>, UUIDTag,
+                      <<"job.status.current">>,      <<"running">>,
+                      <<"job.status.running.time">>, eh_datetime:now()]),
 
   % now it is no longer pending
-  1 = redis(["del", redis_pending_tag_for(UUIDTag)]),
+  1 = redis([<<"del">>, redis_pending_tag_for(UUIDTag)]),
   
   % it is running
-  <<"OK">> = redis(["set", redis_running_tag_for(UUIDTag), UUIDTag]),
+  <<"OK">> = redis([<<"set">>, redis_running_tag_for(UUIDTag), UUIDTag]),
 
   {noreply, State};
 
@@ -161,21 +161,21 @@ handle_cast({mark_task_as_running, #task{} = Task}, State) ->
   
   UUIDTag = redis_job_tag_for(Job),
 
-  <<"OK">> = redis(["hmset", UUIDTag,
-                             "task." ++ Name ++ ".requestor",           Requestor,
-                             "task." ++ Name ++ ".status.current",      "running",
-                             "task." ++ Name ++ ".status.running.time", eh_datetime:now()]),
+  <<"OK">> = redis([<<"hmset">>, UUIDTag,
+                      attr([<<"task.">>, Name, <<".requestor">>]),           Requestor,
+                      attr([<<"task.">>, Name, <<".status.current">>]),      <<"running">>,
+                      attr([<<"task.">>, Name, <<".status.running.time">>]), eh_datetime:now()]),
 
-  case redis(["hget", UUIDTag, "job.tasks"]) of
+  case redis([<<"hget">>, UUIDTag, <<"job.tasks">>]) of
     undefined ->
-      redis(["hset", UUIDTag, "job.tasks", Name]);
+      redis([<<"hset">>, UUIDTag, <<"job.tasks">>, Name]);
     Tasks ->
       NewTasks = list_to_binary([Tasks, ",", Name]),
-      redis(["hset", UUIDTag, "job.tasks", NewTasks])
+      redis([<<"hset">>, UUIDTag, <<"job.tasks">>, NewTasks])
   end,
 
   % now it is running
-  <<"OK">> = redis(["set", redis_running_tag_for(UUIDTag, Name), "yes"]),
+  <<"OK">> = redis([<<"set">>, redis_running_tag_for(UUIDTag, Name), <<"yes">>]),
 
   {noreply, State};
 
@@ -188,17 +188,17 @@ handle_cast({save_task_output, #task{} = Task}, State) ->
   
   UUIDTag = redis_job_tag_for(Job),
 
-  <<"OK">> = redis(["hmset", UUIDTag,
-                             "task." ++ Name ++ ".status.current",         "done",
-                             "task." ++ Name ++ ".status.done.time",       eh_datetime:now(),
-                             "task." ++ Name ++ ".output.data",            Data,
-                             "task." ++ Name ++ ".output.next_activities", NextActivities]),
+  <<"OK">> = redis([<<"hmset">>, UUIDTag,
+                      attr([<<"task.">>, Name, <<".status.current">>]),         <<"done">>,
+                      attr([<<"task.">>, Name, <<".status.done.time">>]),       eh_datetime:now(),
+                      attr([<<"task.">>, Name, <<".output.data">>]),            Data,
+                      attr([<<"task.">>, Name, <<".output.next_activities">>]), NextActivities]),
 
   % now it is no longer running
-  1 = redis(["del", redis_running_tag_for(UUIDTag, Name)]),
+  1 = redis([<<"del">>, redis_running_tag_for(UUIDTag, Name)]),
 
   % it is done
-  <<"OK">> = redis(["set", redis_done_tag_for(UUIDTag, Name), "yes"]),
+  <<"OK">> = redis([<<"set">>, redis_done_tag_for(UUIDTag, Name), <<"yes">>]),
 
   {noreply, State};
 
@@ -211,10 +211,10 @@ handle_cast({save_error_on_task_execution, #task{} = Task}, State) ->
 
   UUIDTag = redis_job_tag_for(Job),
 
-  <<"OK">> = redis(["hmset", UUIDTag,
-                             "task." ++ Name ++ ".status.current",    "error",
-                             "task." ++ Name ++ ".status.error.time", eh_datetime:now(),
-                             "task." ++ Name ++ ".output.data",       Data]),
+  <<"OK">> = redis([<<"hmset">>, UUIDTag,
+                      attr([<<"task.">>, Name, <<".status.current">>]),    <<"error">>,
+                      attr([<<"task.">>, Name, <<".status.error.time">>]), eh_datetime:now(),
+                      attr([<<"task.">>, Name, <<".output.data">>]),       Data]),
 
   % now it is no longer running
   1 = redis(["del", redis_running_tag_for(UUIDTag, Name)]),
@@ -228,15 +228,15 @@ handle_cast({save_error_on_task_execution, #task{} = Task}, State) ->
 handle_cast({mark_job_as_done, #job{} = Job}, State) ->
   UUIDTag = redis_job_tag_for(Job),
 
-  <<"OK">> = redis(["hmset", UUIDTag,
-                             "job.status.current",   "done",
-                             "job.status.done.time", eh_datetime:now()]),
+  <<"OK">> = redis([<<"hmset">>, UUIDTag,
+                      <<"job.status.current">>,   <<"done">>,
+                      <<"job.status.done.time">>, eh_datetime:now()]),
   
   % now it is no longer running
   1 = redis(["del", redis_running_tag_for(UUIDTag)]),
 
   % it is done
-  <<"OK">> = redis(["set", redis_done_tag_for(UUIDTag), UUIDTag]),
+  <<"OK">> = redis([<<"set">>, redis_done_tag_for(UUIDTag), UUIDTag]),
 
   ?DEBUG("----- JOB WAS MARKED AS DONE (~s) -----", [Job#job.uuid]),
 
@@ -324,6 +324,11 @@ new_uuid() ->
 
 extract_job_data(Job, Key, UUID) ->
   UUIDTag = redis_job_tag_for(Job, Key, UUID),
-  RawData = redis(["hgetall", UUIDTag]),
+  RawData = redis([<<"hgetall">>, UUIDTag]),
   eh_list:to_properties(RawData).
+  
+% --- general purpose -----------------------------------------------------------------------------
+
+attr(Pieces) ->
+  list_to_binary(Pieces).
   

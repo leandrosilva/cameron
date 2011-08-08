@@ -34,7 +34,7 @@ build_response_payload({ProcessName, Key, UUID}, Data) ->
   Struct = {struct, [{<<"process">>,   eh_maybe:maybe_binary(ProcessName)},
                      {<<"uuid">>,      eh_maybe:maybe_binary(UUID)},
                      {<<"key">>,       eh_maybe:maybe_binary(Key)},
-                     {<<"requestor">>, get_job_value("requestor", Data)},
+                     {<<"requestor">>, get_job_value(<<"requestor">>, Data)},
                      {<<"status">>,    expand_job_status(Data)},
                      {<<"tasks">>,     expand_job_tasks(Data)}]},
   struct:to_json(Struct).
@@ -82,7 +82,7 @@ expand_job_tasks(Data) ->
 
 expand_job_tasks([Task | Others], Data, Acc) ->
   Struct = {struct, [{<<"name">>,      eh_maybe:maybe_binary(Task)},
-                     {<<"requestor">>, get_task_value(Task, "requestor", Data)},
+                     {<<"requestor">>, get_task_value(Task, <<"requestor">>, Data)},
                      {<<"status">>,    expand_task_status(Task, Data)},
                      {<<"data">>,      expand_task_output(Task, Data)}]},
   expand_job_tasks(Others, Data, [Struct | Acc]);

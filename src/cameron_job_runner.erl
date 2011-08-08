@@ -387,7 +387,7 @@ log_failed_task(UUID, {Task, Error}) ->
   log_to_redis(UUID, {Name, Error}).
   
 log_to_redis(UUID, {Task, Error}) ->
-  ErrorTag = "cameron:error:" ++ UUID ++ ":" ++ Task ++ ":" ++ Error,
-  redo:cmd(cameron_redo, ["set", ErrorTag, "yes"]),
+  ErrorTag = list_to_binary([<<"cameron:error:">>, Error, <<":at:">>, UUID, <<":">>, Task]),
+  redo:cmd(cameron_redo, [<<"set">>, ErrorTag, eh_datetime:now()]),
   ok.
   
