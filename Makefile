@@ -57,7 +57,9 @@ compile_deps:
 run_dev:
 	@ulimit -n 2560
 	@erl +P 100000 \
+			 +A100 \
 			 -env ERL_MAX_PORTS 2560 \
+			 -env ERL_FULLSWEEP_AFTER 0 \
 			 -sname $(APP_NAME) \
 			 -s $(APP_NAME) \
 			 -pa ebin/ deps/**/ebin/ \
@@ -86,7 +88,9 @@ run_all_tests: compile_test
 run_prod:
 	@ulimit -n 65535
 	@erl +P 100000 \
+			 +A100 \
 			 -env ERL_MAX_PORTS 65535 \
+			 -env ERL_FULLSWEEP_AFTER 0 \
 			 -sname $(APP_NAME) \
 			 -s $(APP_NAME) \
 			 -pa ebin/ deps/**/ebin/ \
