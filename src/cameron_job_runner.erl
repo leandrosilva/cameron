@@ -255,7 +255,7 @@ update_state(State) ->
       {noreply, NewState}
   end.
 
-% --- task building and handling ------------------------------------------------------------------
+% --- task building -------------------------------------------------------------------------------
 
 build_task(Job, {Data, Requestor}, ActivityDefinition) ->
   #job{input = #job_input{key = Key}} = Job,
@@ -314,6 +314,8 @@ build_failed_task(Task, Reason) ->
   log_failed_task(UUID, {Task, Error}),
   Task#task{output = #task_output{data = Error}, failed = yes}.
 
+% --- task handling -------------------------------------------------------------------------------
+
 handle_task(Job, #task{} = Task) ->
   dispatch_event(task_is_being_handled, Task),
   
@@ -321,27 +323,36 @@ handle_task(Job, #task{} = Task) ->
         input    = #task_input{data = Data, requestor = Requestor}} = Task,
 
   RequestPayload = build_request_payload(Job, {Data, Requestor}),
-
-  case eh_http:http_post(URL, RequestPayload) of
-    {ok, {{"HTTP/1.1", 200, _}, _, ResponsePayload}} ->
-      {ResponseName, ResponseData, ResponseNextActivities} = parse_response_payload(ResponsePayload),
-      DoneTask = Task#task{output = #task_output{data = ResponseData, next_activities = ResponseNextActivities}},
-
-      NextTasks = build_next_tasks(DoneTask#task.context_job, ResponseData, ResponseName, ResponseNextActivities),
+  
+  case execute_task(Task, {http_request, URL, RequestPayload}) of
+    {task_has_been_done, DoneTask, NextTasks} ->
       dispatch_action(spawn_tasks, NextTasks),
-
       dispatch_event(task_has_been_done, DoneTask);
-    {ok, {{"HTTP/1.1", _, _}, _, ResponsePayload}} ->
-      FailedTask = Task#task{output = #task_output{data = ResponsePayload}, failed = yes},
-      dispatch_event(task_has_been_done_with_error, FailedTask);
-    {error, Reason} ->
-      ?DEBUG("cameron_job_runner >> func: handle_task, http_response: (ERROR) ~w~n", [Reason]),
-      FailedTask = build_failed_task(Task, Reason),
+    {task_has_been_done_with_error, FailedTask} ->
       dispatch_event(task_has_been_done_with_error, FailedTask)
   end,
   
   ok.
 
+execute_task(Task, {http_request, URL, RequestPayload}) ->
+  HttpResponse = eh_http:http_post(URL, RequestPayload),
+  inspect_task_result(Task, HttpResponse).
+  
+inspect_task_result(Task, {ok, {{"HTTP/1.1", 200, _}, _, ResponsePayload}}) ->
+  {ResponseName, ResponseData, ResponseNextActivities} = parse_response_payload(ResponsePayload),
+  DoneTask = Task#task{output = #task_output{data = ResponseData, next_activities = ResponseNextActivities}},
+  NextTasks = build_next_tasks(DoneTask#task.context_job, ResponseData, ResponseName, ResponseNextActivities),
+  {task_has_been_done, DoneTask, NextTasks};
+
+inspect_task_result(Task, {ok, {{"HTTP/1.1", _, _}, _, ResponsePayload}}) ->
+  FailedTask = Task#task{output = #task_output{data = ResponsePayload}, failed = yes},
+  {task_has_been_done_with_error, FailedTask};
+  
+inspect_task_result(Task, {error, Reason}) ->
+  ?DEBUG("cameron_job_runner >> func: handle_task, http_response: (ERROR) ~w~n", [Reason]),
+  FailedTask = build_failed_task(Task, Reason),
+  {task_has_been_done_with_error, FailedTask}.
+  
 % --- how to build task payload (from and to json) ------------------------------------------------
 
 build_request_payload(Job, {Data, Requestor}) ->
