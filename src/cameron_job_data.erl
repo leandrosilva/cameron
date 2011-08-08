@@ -123,7 +123,7 @@ handle_cast({create_new_job, #job{} = NewJob}, State) ->
              data      = Data,
              requestor = Requestor} = NewJob#job.input,
     
-  UUIDTag = redis_job_tag_for(NewJob),
+  UUIDTag = build_job_tag(NewJob),
 
   <<"OK">> = redis([<<"hmset">>, UUIDTag,
                       <<"job.key">>,                   Key,
@@ -133,23 +133,23 @@ handle_cast({create_new_job, #job{} = NewJob}, State) ->
                       <<"job.status.scheduled.time">>, eh_datetime:now()]),
   
   % now is running
-  <<"OK">> = redis([<<"set">>, redis_pending_tag_for(UUIDTag), UUIDTag]),
+  <<"OK">> = redis([<<"set">>, build_pending_tag(UUIDTag), UUIDTag]),
   
   {noreply, State};
 
 % mark a new job as running
 handle_cast({mark_job_as_running, #job{} = Job}, State) ->
-  UUIDTag = redis_job_tag_for(Job),
+  UUIDTag = build_job_tag(Job),
 
   <<"OK">> = redis([<<"hmset">>, UUIDTag,
                       <<"job.status.current">>,      <<"running">>,
                       <<"job.status.running.time">>, eh_datetime:now()]),
 
   % now it is no longer pending
-  1 = redis([<<"del">>, redis_pending_tag_for(UUIDTag)]),
+  1 = redis([<<"del">>, build_pending_tag(UUIDTag)]),
   
   % it is running
-  <<"OK">> = redis([<<"set">>, redis_running_tag_for(UUIDTag), UUIDTag]),
+  <<"OK">> = redis([<<"set">>, build_running_tag(UUIDTag), UUIDTag]),
 
   {noreply, State};
 
@@ -159,12 +159,12 @@ handle_cast({mark_task_as_running, #task{} = Task}, State) ->
         input       = #task_input{requestor = Requestor},
         activity    = #activity_definition{name = Name}} = Task,
   
-  UUIDTag = redis_job_tag_for(Job),
+  UUIDTag = build_job_tag(Job),
 
   <<"OK">> = redis([<<"hmset">>, UUIDTag,
-                      binary([<<"task.">>, Name, <<".requestor">>]),           Requestor,
-                      binary([<<"task.">>, Name, <<".status.current">>]),      <<"running">>,
-                      binary([<<"task.">>, Name, <<".status.running.time">>]), eh_datetime:now()]),
+                      concat([<<"task.">>, Name, <<".requestor">>]),           Requestor,
+                      concat([<<"task.">>, Name, <<".status.current">>]),      <<"running">>,
+                      concat([<<"task.">>, Name, <<".status.running.time">>]), eh_datetime:now()]),
 
   case redis([<<"hget">>, UUIDTag, <<"job.tasks">>]) of
     undefined ->
@@ -175,7 +175,7 @@ handle_cast({mark_task_as_running, #task{} = Task}, State) ->
   end,
 
   % now it is running
-  <<"OK">> = redis([<<"set">>, redis_running_tag_for(UUIDTag, Name), <<"yes">>]),
+  <<"OK">> = redis([<<"set">>, build_running_tag(UUIDTag, Name), <<"yes">>]),
 
   {noreply, State};
 
@@ -186,19 +186,19 @@ handle_cast({save_task_output, #task{} = Task}, State) ->
         output      = #task_output{data = Data, next_activities = NextActivities},
         failed      = no} = Task,
   
-  UUIDTag = redis_job_tag_for(Job),
+  UUIDTag = build_job_tag(Job),
 
   <<"OK">> = redis([<<"hmset">>, UUIDTag,
-                      binary([<<"task.">>, Name, <<".status.current">>]),         <<"done">>,
-                      binary([<<"task.">>, Name, <<".status.done.time">>]),       eh_datetime:now(),
-                      binary([<<"task.">>, Name, <<".output.data">>]),            Data,
-                      binary([<<"task.">>, Name, <<".output.next_activities">>]), NextActivities]),
+                      concat([<<"task.">>, Name, <<".status.current">>]),         <<"done">>,
+                      concat([<<"task.">>, Name, <<".status.done.time">>]),       eh_datetime:now(),
+                      concat([<<"task.">>, Name, <<".output.data">>]),            Data,
+                      concat([<<"task.">>, Name, <<".output.next_activities">>]), NextActivities]),
 
   % now it is no longer running
-  1 = redis([<<"del">>, redis_running_tag_for(UUIDTag, Name)]),
+  1 = redis([<<"del">>, build_running_tag(UUIDTag, Name)]),
 
   % it is done
-  <<"OK">> = redis([<<"set">>, redis_done_tag_for(UUIDTag, Name), <<"yes">>]),
+  <<"OK">> = redis([<<"set">>, build_done_tag(UUIDTag, Name), <<"yes">>]),
 
   {noreply, State};
 
@@ -209,34 +209,34 @@ handle_cast({save_error_on_task_execution, #task{} = Task}, State) ->
         output      = #task_output{data = Data, next_activities = _NextActivities},
         failed      = yes} = Task,
 
-  UUIDTag = redis_job_tag_for(Job),
+  UUIDTag = build_job_tag(Job),
 
   <<"OK">> = redis([<<"hmset">>, UUIDTag,
-                      binary([<<"task.">>, Name, <<".status.current">>]),    <<"error">>,
-                      binary([<<"task.">>, Name, <<".status.error.time">>]), eh_datetime:now(),
-                      binary([<<"task.">>, Name, <<".output.data">>]),       Data]),
+                      concat([<<"task.">>, Name, <<".status.current">>]),    <<"error">>,
+                      concat([<<"task.">>, Name, <<".status.error.time">>]), eh_datetime:now(),
+                      concat([<<"task.">>, Name, <<".output.data">>]),       Data]),
 
   % now it is no longer running
-  1 = redis(["del", redis_running_tag_for(UUIDTag, Name)]),
+  1 = redis(["del", build_running_tag(UUIDTag, Name)]),
 
   % it failed
-  <<"OK">> = redis(["set", redis_error_tag_for(UUIDTag, Name), Data]),
+  <<"OK">> = redis(["set", build_error_tag(UUIDTag, Name), Data]),
 
   {noreply, State};
 
 % mark a job as done
 handle_cast({mark_job_as_done, #job{} = Job}, State) ->
-  UUIDTag = redis_job_tag_for(Job),
+  UUIDTag = build_job_tag(Job),
 
   <<"OK">> = redis([<<"hmset">>, UUIDTag,
                       <<"job.status.current">>,   <<"done">>,
                       <<"job.status.done.time">>, eh_datetime:now()]),
   
   % now it is no longer running
-  1 = redis(["del", redis_running_tag_for(UUIDTag)]),
+  1 = redis(["del", build_running_tag(UUIDTag)]),
 
   % it is done
-  <<"OK">> = redis([<<"set">>, redis_done_tag_for(UUIDTag), UUIDTag]),
+  <<"OK">> = redis([<<"set">>, build_done_tag(UUIDTag), UUIDTag]),
 
   ?DEBUG("----- JOB WAS MARKED AS DONE (~s) -----", [Job#job.uuid]),
 
@@ -278,42 +278,42 @@ code_change(_OldVsn, State, _Extra) ->
 redis(Command) ->
   redo:cmd(cameron_redo, Command).
 
-redis_process_tag_for(ProcessName) ->
+build_process_tag(ProcessName) ->
   % cameron:process:{name}:
   re:replace("cameron:process:{name}:", "{name}", eh_maybe:maybe_string(ProcessName), [{return, list}]).
 
-redis_job_tag_for(ProcessName, Key, UUID) ->
+build_job_tag(ProcessName, Key, UUID) ->
   % cameron:process:{name}:key:{key}:job:{uuid}
-  redis_process_tag_for(ProcessName) ++ "key:" ++ Key ++ ":job:" ++ UUID.
+  build_process_tag(ProcessName) ++ "key:" ++ Key ++ ":job:" ++ UUID.
   
-redis_job_tag_for(#job{} = Job) ->
+build_job_tag(#job{} = Job) ->
   #job{uuid    = UUID,
        process = #process_definition{name = ProcessName},
        input   = #job_input{key = Key}} = Job,
     
-  redis_job_tag_for(ProcessName, Key, UUID).
+  build_job_tag(ProcessName, Key, UUID).
 
-redis_pending_tag_for(AnyTag) ->
+build_pending_tag(AnyTag) ->
   % cameron:process:{name}:key:{key}:job:{uuid}:pending
   AnyTag ++ ":pending".
 
-redis_running_tag_for(AnyTag) ->
+build_running_tag(AnyTag) ->
   % cameron:process:{name}:key:{key}:job:{uuid}:running
   AnyTag ++ ":running".
 
-redis_done_tag_for(AnyTag) ->
+build_done_tag(AnyTag) ->
   % cameron:process:{name}:key:{key}:job:{uuid}:done
   AnyTag ++ ":done".
 
-redis_running_tag_for(UUIDTag, ActivityName) ->
+build_running_tag(UUIDTag, ActivityName) ->
   % cameron:process:{name}:key:{key}:job:{uuid}:{activity}:running
   UUIDTag ++ ":" ++ ActivityName ++ ":running".
 
-redis_done_tag_for(UUIDTag, ActivityName) ->
+build_done_tag(UUIDTag, ActivityName) ->
   % cameron:process:{name}:key:{key}:job:{uuid}:{activity}:done
   UUIDTag ++ ":" ++ ActivityName ++ ":done".
 
-redis_error_tag_for(UUIDTag, ActivityName) ->
+build_error_tag(UUIDTag, ActivityName) ->
   % cameron:process:{name}:key:{key}:job:{uuid}:{activity}:error
   UUIDTag ++ ":" ++ ActivityName ++ ":error".
 
@@ -323,12 +323,12 @@ new_uuid() ->
   eh_uuid:new().
 
 extract_job_data(Job, Key, UUID) ->
-  UUIDTag = redis_job_tag_for(Job, Key, UUID),
+  UUIDTag = build_job_tag(Job, Key, UUID),
   RawData = redis([<<"hgetall">>, UUIDTag]),
   eh_list:to_properties(RawData).
   
 % --- general purpose -----------------------------------------------------------------------------
 
-binary(Pieces) ->
+concat(Pieces) ->
   list_to_binary(Pieces).
   
