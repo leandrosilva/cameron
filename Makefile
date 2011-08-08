@@ -59,7 +59,7 @@ run_dev:
 	@erl +P 100000 \
 			 +A100 \
 			 -env ERL_MAX_PORTS 2560 \
-			 -env ERL_FULLSWEEP_AFTER 0 \
+			 -env ERL_FULLSWEEP_AFTER 5 \
 			 -sname $(APP_NAME) \
 			 -s $(APP_NAME) \
 			 -pa ebin/ deps/**/ebin/ \
@@ -90,7 +90,7 @@ run_prod:
 	@erl +P 100000 \
 			 +A100 \
 			 -env ERL_MAX_PORTS 65535 \
-			 -env ERL_FULLSWEEP_AFTER 0 \
+			 -env ERL_FULLSWEEP_AFTER 5 \
 			 -sname $(APP_NAME) \
 			 -s $(APP_NAME) \
 			 -pa ebin/ deps/**/ebin/ \
