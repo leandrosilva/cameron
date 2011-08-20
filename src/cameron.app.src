@@ -10,6 +10,7 @@
     cameron_sup,
     cameron_process_catalog,
     cameron_process_sup,
+    cameron_protocol,
     cameron_job_data,
     cameron_job_scheduler,
     cameron_job_runner,
