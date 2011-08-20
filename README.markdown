@@ -11,7 +11,7 @@ So if you have any background job that must cascade many tasks to achieve a goal
 
 To achieve that objective, as you can see, Cameron has been built as an [Erlang/OTP](http://www.erlang.org/doc) application with a REST-like Web API, powered by [Misultin](https://github.com/ostinelli/misultin), and a [Redis](http://redis.io)-based backend database.
 
-If you would like a briefly overview, please take a look at **doc/cameron\_pres.pdf**.
+If you would like to have a briefly introduction, please take a look at **doc/cameron\_pres.pdf**.
 
 ### Is it aiming the Real World?
 
