@@ -14,7 +14,7 @@
 %%
 
 -include("cameron.hrl").
--include("misultin.hrl").
+-include_lib("misultin/include/misultin.hrl").
 
 %%
 %% Misultin-based Callbacks for cameron_web_api ---------------------------------------------------
