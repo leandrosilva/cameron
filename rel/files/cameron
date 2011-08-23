@@ -8,6 +8,7 @@ RUNNER_SCRIPT=${0##*/}
 RUNNER_BASE_DIR={{runner_base_dir}}
 RUNNER_ETC_DIR={{runner_etc_dir}}
 RUNNER_LOG_DIR={{runner_log_dir}}
+PIPE_DIR=/tmp/$RUNNER_BASE_DIR/
 RUNNER_USER={{runner_user}}
 
 # Make sure this script is running as the appropriate user
@@ -74,7 +75,8 @@ case "$1" in
         fi
         HEART_COMMAND="$RUNNER_SCRIPT_DIR/$SCRIPT start"
         export HEART_COMMAND
-        $ERTS_PATH/run_erl -daemon $RUNNER_LOG_DIR \
+        mkdir -p $PIPE_DIR
+        $ERTS_PATH/run_erl -daemon $PIPE_DIR/ $RUNNER_LOG_DIR \
             "exec $RUNNER_SCRIPT_DIR/$SCRIPT console" 2>&1
 
         # Wait for the node to come up. We can't just ping it because
@@ -88,7 +90,6 @@ case "$1" in
             WAIT=`expr $WAIT - 1`
             sleep 1
             RES=`$NODETOOL ping`
-            echo $RES
             if [ "$?" -ne 0 ]; then
                 continue
             fi
@@ -170,6 +171,9 @@ case "$1" in
             echo "Node is not running!"
             exit $ES
         fi
+
+        shift
+        exec $ERTS_PATH/to_erl $PIPE_DIR
         ;;
 
     console)
