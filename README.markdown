@@ -63,7 +63,7 @@ With layout below:
     ./rel/cameron/bin/cameron start          # for production
     ./rel/cameron/bin/cameron console        # for production
 
-    # Debian and Red Hat packets comming soon.  ;)
+    # Debian and Red Hat packets coming soon.  ;)
 
 #### Testing
 
