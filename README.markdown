@@ -52,17 +52,18 @@ With layout below:
 
 #### Compiling
 
-    make compile_deps    # for dependencies
-    
-    make                 # for development environment
-    make compile_test    # for test environment. It includes test modules.
-    make compile_prod    # for production environment. It switches to use erlang_syslog instead of STDIO.
+    make devrel    # for development environment
+    make rel       # for production environment. It switches to use erlang_syslog instead of STDIO.
 
 #### Running
 
-    make run_dev     # for development
-    make run_test    # for development
-    make run         # for production
+    ./dev/cameron_dev/bin/cameron console    # for development
+    ./dev/cameron_dev/bin/cameron start      # for development
+    
+    ./rel/cameron/bin/cameron start          # for production
+    ./rel/cameron/bin/cameron console        # for production
+
+    # Debian and Red Hat packets comming soon.  ;)
 
 #### Testing
 
