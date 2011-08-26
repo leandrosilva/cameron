@@ -2,3 +2,5 @@
 *.beam
 dump.rdb
 **log
+deps/
+dev/
