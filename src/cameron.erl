@@ -61,11 +61,13 @@ get_redis_server_config() ->
 %% @spec get_processes_config() -> {processes, [{process, {name, Name}, {start_activity_url, URL}}]}
 %% @doc All processes configuration.
 get_processes_config() ->
-  {ok, [[ProcessesConfigFile]]} = init:get_argument(processes),
-  {ok, [{processes, ProcessesConfig}]} = file:consult(ProcessesConfigFile),
-  
-  ProcessesConfig.
-  
+    case application:get_env(cameron, processes) of
+        undefined ->
+            throw({error, processes_undefined});
+        {ok, ProcessesConfig} ->
+            ProcessesConfig
+    end.
+               
 %%
 %% Internal Functions -----------------------------------------------------------------------------
 %%
