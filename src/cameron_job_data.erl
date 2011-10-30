@@ -48,11 +48,11 @@ create_new_job(Process, {Key, Data, Requestor}) ->
   Input = #job_input{key       = Key,
                      data      = Data,
                      requestor = Requestor},
-                                      
+
   NewJob = #job{uuid    = new_uuid(),
                 process = Process,
                 input   = Input},
-  
+
   ok = gen_server:cast(?MODULE, {create_new_job, NewJob}),
 
   {ok, NewJob}.
@@ -122,7 +122,7 @@ handle_cast({create_new_job, #job{} = NewJob}, State) ->
   #job_input{key       = Key,
              data      = Data,
              requestor = Requestor} = NewJob#job.input,
-    
+
   UUIDTag = build_job_tag(NewJob),
 
   <<"OK">> = redis([<<"hmset">>, UUIDTag,
@@ -131,10 +131,10 @@ handle_cast({create_new_job, #job{} = NewJob}, State) ->
                       <<"job.requestor">>,             Requestor,
                       <<"job.status.current">>,        <<"scheduled">>,
                       <<"job.status.scheduled.time">>, eh_datetime:now()]),
-  
+
   % now is running
   <<"OK">> = redis([<<"set">>, build_pending_tag(UUIDTag), UUIDTag]),
-  
+
   {noreply, State};
 
 % mark a new job as running
@@ -147,7 +147,7 @@ handle_cast({mark_job_as_running, #job{} = Job}, State) ->
 
   % now it is no longer pending
   1 = redis([<<"del">>, build_pending_tag(UUIDTag)]),
-  
+
   % it is running
   <<"OK">> = redis([<<"set">>, build_running_tag(UUIDTag), UUIDTag]),
 
@@ -158,7 +158,7 @@ handle_cast({mark_task_as_running, #task{} = Task}, State) ->
   #task{context_job = Job,
         input       = #task_input{requestor = Requestor},
         activity    = #activity_definition{name = Name}} = Task,
-  
+
   UUIDTag = build_job_tag(Job),
 
   <<"OK">> = redis([<<"hmset">>, UUIDTag,
@@ -180,7 +180,7 @@ handle_cast({save_task_output, #task{} = Task}, State) ->
         activity    = #activity_definition{name = Name},
         output      = #task_output{data = Data, next_activities = NextActivities},
         failed      = no} = Task,
-  
+
   UUIDTag = build_job_tag(Job),
 
   <<"OK">> = redis([<<"hmset">>, UUIDTag,
@@ -226,7 +226,7 @@ handle_cast({mark_job_as_done, #job{} = Job}, State) ->
   <<"OK">> = redis([<<"hmset">>, UUIDTag,
                       <<"job.status.current">>,   <<"done">>,
                       <<"job.status.done.time">>, eh_datetime:now()]),
-  
+
   % now it is no longer running
   1 = redis(["del", build_running_tag(UUIDTag)]),
 
@@ -280,12 +280,12 @@ build_process_tag(ProcessName) ->
 build_job_tag(ProcessName, Key, UUID) ->
   % cameron:process:{name}:key:{key}:job:{uuid}
   build_process_tag(ProcessName) ++ "key:" ++ Key ++ ":job:" ++ UUID.
-  
+
 build_job_tag(#job{} = Job) ->
   #job{uuid    = UUID,
        process = #process_definition{name = ProcessName},
        input   = #job_input{key = Key}} = Job,
-    
+
   build_job_tag(ProcessName, Key, UUID).
 
 build_pending_tag(AnyTag) ->
@@ -321,15 +321,14 @@ extract_job_data(Job, Key, UUID) ->
   UUIDTag = build_job_tag(Job, Key, UUID),
   RawData = redis([<<"hgetall">>, UUIDTag]),
   eh_list:to_properties(RawData).
-  
+
 rebuild_job_tasks(UUIDTag, NewTask) ->
   case redis([<<"hget">>, UUIDTag, <<"job.tasks">>]) of
     undefined    -> NewTask;
     CurrentTasks -> list_to_binary([CurrentTasks, ",", NewTask])
   end.
-  
+
 % --- general purpose -----------------------------------------------------------------------------
 
 concat(Pieces) ->
   list_to_binary(Pieces).
-  

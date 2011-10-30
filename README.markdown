@@ -44,7 +44,7 @@ Available workflows are registered in a file under **priv/processes**, based on 
 For example:
 
     priv/processes/development.config
-    
+
 With layout below:
 
     {processes, [{foo, {start_activity_url, "http://localhost:9292/foo/v0.0.1/start"}},
@@ -59,7 +59,7 @@ With layout below:
 
     ./dev/cameron_dev/bin/cameron console    # for development
     ./dev/cameron_dev/bin/cameron start      # for development
-    
+
     ./rel/cameron/bin/cameron start          # for production
     ./rel/cameron/bin/cameron console        # for production
 
@@ -70,11 +70,11 @@ With layout below:
 First terminal instance:
 
     redis-server
-    
+
 Second terminal instance:
 
     redis-client
-    
+
 Third terminal instance:
 
     cd $CAMERON/test/foo_workflow
@@ -191,7 +191,7 @@ An activity/task among other things, can return data and next_activities, as fol
         "process": "foo",
         "name": "whois",
         "requestor": "bob_the_thin",
-        
+
         "data": {
             "who_id": "(id,007)",
             "who_name": "Leandro Silva",
@@ -204,7 +204,7 @@ An activity/task among other things, can return data and next_activities, as fol
                 "github": "http://github.com/leandrosilva"
             }
         },
-        
+
         "next_activities": {
             "definitions": [{
                 "name": "act_1",
@@ -290,12 +290,12 @@ It will result a JSON response with every data retrieved, including errors, just
         "uuid": "a76970078ae93e874c9b1e2b2072c365",
         "key": "(id,007)",
         "requestor": "bob_the_thin",
-        
+
         "status": {
             "current": "done",
             "time": "08-05-2011 19:45:26"
         },
-        
+
         "tasks": [{
             "name": "start",
             "requestor": "bob_the_thin",
@@ -413,7 +413,7 @@ It will result a JSON response with every data retrieved, including errors, just
             }
         }]
     }
-    
+
 Now, yes, that is it!
 
 ### What else?

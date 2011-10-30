@@ -70,16 +70,16 @@ init(WebConfig) ->
   process_flag(trap_exit, true),
 
   [{host, Host}, {port, Port}, {backlog, Backlog}, {docroot, DocRoot}] = WebConfig,
-  
+
   misultin:start_link([{ip, Host},
                        {port, Port},
                        {backlog, Backlog},
                        {loop, fun(Req) -> handle_http(Req) end},
                        {ws_loop, fun(Ws) -> handle_websocket(Ws) end},
                        {ws_autoexit, false}]),
-                       
+
   erlang:monitor(process, misultin),
-  
+
   {ok, #state{host = Host, port = Port, backlog = Backlog, docroot = DocRoot}}.
 
 %% @spec handle_call(Request, From, State) ->
@@ -158,7 +158,7 @@ handle_http(Req) ->
 % callback on received websockets data
 handle_websocket(Ws) ->
   Path = string:tokens(Ws:get(path), "/"),
-  
+
   cameron_web_api:handle_websocket(Path, Ws).
 
 %%

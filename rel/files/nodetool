@@ -16,9 +16,9 @@ main(Args) ->
 
     %% See if the node is currently running  -- if it's not, we'll bail
     case {net_kernel:hidden_connect_node(TargetNode), net_adm:ping(TargetNode)} of
-        {true, pong} -> 
+        {true, pong} ->
             ok;
-        {_, pang} -> 
+        {_, pang} ->
             io:format("Node ~p not responding to pings.\n", [TargetNode]),
             halt(1)
     end,
@@ -69,7 +69,7 @@ main(Args) ->
             io:format("Usage: nodetool {ping|stop|restart|reboot}\n")
     end,
     net_kernel:stop().
-    
+
 process_args([], Acc, TargetNode) ->
     {lists:reverse(Acc), TargetNode};
 process_args(["-setcookie", Cookie | Rest], Acc, TargetNode) ->

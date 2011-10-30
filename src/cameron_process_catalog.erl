@@ -45,7 +45,7 @@ stop() ->
 %% @doc Get a process configuration by name.
 lookup(Name) when is_atom(Name) ->
   gen_server:call(?MODULE, {lookup, Name});
-  
+
 lookup(Name) when is_list(Name) ->
   lookup(list_to_atom(Name)).
 
@@ -66,8 +66,8 @@ init([Processes]) ->
 % get an available process by name
 handle_call({lookup, Name}, _From, State) ->
   Spec = proplists:get_value(Name, State#state.processes, undefined),
-  
-  case Spec of 
+
+  case Spec of
     undefined        ->
       {reply, undefined, State};
     {start_activity_url, URL} ->

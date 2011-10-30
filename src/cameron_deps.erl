@@ -32,7 +32,7 @@ ensure(Module) ->
   code:add_paths(new_siblings(Module)),
   code:clash(),
   ok.
-  
+
 %% @spec get_base_dir(Module) -> string()
 %% @doc Return the application directory for Module. It assumes Module is in
 %%      a standard OTP layout application in the ebin or src directory.
@@ -71,7 +71,7 @@ deps_on_path() ->
         end
       end,
   ordsets:from_list(lists:foldl(F, [], code:get_path())).
-  
+
 %% @spec new_siblings(Module) -> [Dir]
 %% @doc Find new siblings paths relative to Module that aren't already on the
 %%      code path.
@@ -82,7 +82,7 @@ new_siblings(Module) ->
                          ordsets:is_element(
                            filename:basename(filename:dirname(X)),
                            Existing) =:= false],
-  lists:filter(fun filelib:is_dir/1, 
+  lists:filter(fun filelib:is_dir/1,
                lists:append([[filename:join([X, "ebin"]),
                               filename:join([X, "include"])] ||
                                 X <- Siblings])).
