@@ -12,7 +12,7 @@
 ## Enable kernel poll and a few async threads
 +K true
 +A 100
-+P 100000 
++P 100000
 
 ## Treat error_logger warnings as warnings
 +W w
@@ -20,5 +20,5 @@
 ## Increase number of concurrent ports/sockets
 -env ERL_MAX_PORTS 65535
 
-## Tweak GC to run more often 
+## Tweak GC to run more often
 -env ERL_FULLSWEEP_AFTER 5

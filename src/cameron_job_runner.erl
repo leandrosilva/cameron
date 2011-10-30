@@ -68,7 +68,7 @@ run_job(#job{} = Job) ->
 %% @doc Initiates the server.
 init([Job]) ->
   process_flag(trap_exit, true),
-  
+
   {ok, #state{running_job = Job, how_many_running_tasks = 0}}.
 
 %% @spec handle_call(Job, From, State) ->
@@ -91,7 +91,7 @@ handle_cast({action, run_job}, State) ->
 
   StartTask = build_start_task(Job),
   dispatch_action(spawn_task, StartTask),
-  
+
   {noreply, State};
 
 % to spawn a individual task handler
@@ -125,12 +125,12 @@ handle_cast({event, task_has_been_done_with_error, #task{} = Task}, State) ->
 
 % dumps server state
 handle_cast(dump, State) ->
-  {state, {job, UUID,                                                                                    
-                {process_definition, ProcessName,                                                        
-                                     {activity_definition, StartActivity, URL}},                         
-                {job_input, Key, Data, Requestor}},                                                      
+  {state, {job, UUID,
+                {process_definition, ProcessName,
+                                     {activity_definition, StartActivity, URL}},
+                {job_input, Key, Data, Requestor}},
           HowManyTasksRunning} = State,
-                   
+
   ?NOTICE("cameron_job_runner >> current state:~n
     {state, {job, {uuid, ~s},
                   {process_definition, {name, ~s},
@@ -146,7 +146,7 @@ handle_cast(dump, State) ->
 % manual shutdown
 handle_cast(stop, State) ->
   {stop, normal, State};
-    
+
 % handle_cast generic fallback (ignore)
 handle_cast(_Msg, State) ->
   {noreply, State}.
@@ -162,14 +162,14 @@ handle_info({'EXIT', Pid, Reason}, State) ->
   N = State#state.how_many_running_tasks,
   log_info(UUID, {Pid, Reason, N}),
   {noreply, State};
-  
+
 % down
 handle_info({'DOWN',  Ref, Type, Pid, Info}, State) ->
   #job{uuid = UUID} = State#state.running_job,
   N = State#state.how_many_running_tasks,
   log_info(UUID, {Pid, N, Ref, Type, Info}),
   {noreply, State};
-  
+
 handle_info(_Info, State) ->
   {noreply, State}.
 
@@ -207,29 +207,29 @@ dispatch_action(_, undefined) ->
 
 dispatch_action(run_job, Job) ->
   dispatch_message(Job, {action, run_job});
-  
+
 dispatch_action(spawn_tasks, Tasks) when is_list(Tasks) ->
   SpawnTask = fun (Task) ->
                 dispatch_action(spawn_task, Task)
               end,
   lists:map(SpawnTask, Tasks);
-  
+
 dispatch_action(Action, #task{} = Task) ->
   dispatch_message({action, Action, Task}).
-  
+
 dispatch_event(Event, #task{} = Task) ->
   dispatch_message({event, Event, Task}).
-  
+
 dispatch_message({Type, What, #task{} = Task}) ->
   Job = Task#task.context_job,
   ok = dispatch_message(Job, {Type, What, Task}).
-  
+
 dispatch_message(Job, Message) ->
   Pname = ?pname(Job#job.uuid),
   ok = gen_server:cast(Pname, Message).
-  
+
 % --- gen_server state management -----------------------------------------------------------------
-  
+
 update_state(task_has_been_spawned, State) ->
   N = State#state.how_many_running_tasks,
   NewState = State#state{how_many_running_tasks = N + 1},
@@ -237,7 +237,7 @@ update_state(task_has_been_spawned, State) ->
 
 update_state(task_is_being_handled, State) ->
   {noreply, State};
-  
+
 update_state(task_has_been_done, State) ->
   update_state(State);
 
@@ -259,7 +259,7 @@ update_state(State) ->
 
 build_task(Job, {Data, Requestor}, ActivityDefinition) ->
   #job{input = #job_input{key = Key}} = Job,
-  
+
   TaskInput = #task_input{key       = Key,
                           data      = Data,
                           requestor = Requestor},
@@ -274,7 +274,7 @@ build_start_task(Job) ->
 
   #job_input{data      = Data,
              requestor = Requestor} = JobInput,
-  
+
   build_task(Job, {Data, Requestor}, StartActivityDefinition).
 
 build_next_task(Job, Data, Requestor, ActivityDefinition) ->
@@ -282,7 +282,7 @@ build_next_task(Job, Data, Requestor, ActivityDefinition) ->
 
 build_next_tasks(_Job, _Data, _Requestor, undefined) ->
   undefined;
-  
+
 build_next_tasks(Job, Data, Requestor, NextActivitiesJson) ->
   NextActivitiesStruct = struct:from_json(NextActivitiesJson),
   ActivitiesStruct = struct:get_value(<<"definitions">>, NextActivitiesStruct),
@@ -302,10 +302,10 @@ build_next_tasks(Job, Data, Requestor, NextActivitiesJson) ->
 
 build_failed_task(Task, {Key, Value}) when is_atom(Key) and is_atom(Value) ->
   build_failed_task(Task, [atom_to_list(Key), " - ", atom_to_list(Value)]);
-  
+
 build_failed_task(Task, Reason) when is_atom(Reason) ->
   build_failed_task(Task, atom_to_list(Reason));
-  
+
 build_failed_task(Task, Reason) ->
   #task{activity = #activity_definition{url = URL}} = Task,
   Error = lists:concat(["{\"error\":\"", Reason, "\",\"url\":\"", URL, "\"}"]),
@@ -315,12 +315,12 @@ build_failed_task(Task, Reason) ->
 
 handle_task(Job, #task{} = Task) ->
   dispatch_event(task_is_being_handled, Task),
-  
+
   #task{activity = #activity_definition{url = URL},
         input    = #task_input{data = Data, requestor = Requestor}} = Task,
 
   RequestPayload = cameron_protocol:build_request_payload(Job, {Data, Requestor}),
-  
+
   case execute_task(Task, {http_request, URL, RequestPayload}) of
     {task_has_been_done, DoneTask, NextTasks} ->
       dispatch_action(spawn_tasks, NextTasks),
@@ -328,13 +328,13 @@ handle_task(Job, #task{} = Task) ->
     {task_has_been_done_with_error, FailedTask} ->
       dispatch_event(task_has_been_done_with_error, FailedTask)
   end,
-  
+
   ok.
 
 execute_task(Task, {http_request, URL, RequestPayload}) ->
   HttpResponse = eh_http:http_post(URL, RequestPayload),
   inspect_task_result(Task, HttpResponse).
-  
+
 inspect_task_result(Task, {ok, {{"HTTP/1.1", 200, _}, _, ResponsePayload}}) ->
   {ResponseName, ResponseData, ResponseNextActivities} = cameron_protocol:parse_response_payload(ResponsePayload),
   DoneTask = Task#task{output = #task_output{data = ResponseData, next_activities = ResponseNextActivities}},
@@ -344,13 +344,13 @@ inspect_task_result(Task, {ok, {{"HTTP/1.1", 200, _}, _, ResponsePayload}}) ->
 inspect_task_result(Task, {ok, {{"HTTP/1.1", Status, _}, _, _ResponsePayload}}) ->
   Reason = "HTTP Status " ++ Status,
   inspect_task_result(Task, {error, Reason});
-  
+
 inspect_task_result(Task, {error, Reason}) ->
   FailedTask = build_failed_task(Task, Reason),
   #task{context_job = #job{uuid = UUID}} = FailedTask,
   log_failed_task(UUID, {FailedTask, eh_maybe:maybe_string(Reason)}),
   {task_has_been_done_with_error, FailedTask}.
-  
+
 % --- log -----------------------------------------------------------------------------------------
 
 log_action(UUID, {Action, Task}, State) ->
@@ -365,29 +365,28 @@ log_event(UUID, {Event, Task}, State) ->
 
 log_info(UUID, {Pid, normal, N}) ->
   ?DEBUG("cameron_job_runner >> (~w, N: ~w) info: exit, UUID: ~s, reason: normal", [Pid, N, UUID]);
-  
+
 log_info(UUID, {Pid, shutdown, N}) ->
   ?DEBUG("cameron_job_runner >> (~w, N: ~w) info: exit, UUID: ~s, reason: shutdown", [Pid, N, UUID]);
 
 log_info(UUID, {Pid, Reason, N}) ->
   ?ERROR("cameron_job_runner >> (~w, N: ~w) info: exit, UUID: ~s, reason: ~w", [Pid, N, UUID, Reason]);
-  
+
 log_info(UUID, {Pid, N, Ref, Type, Info}) ->
   ?DEBUG("cameron_job_runner >> (~w, N: ~w) info: down, UUID: ~s, ref: ~w, type: ~w, info: ~w", [Pid, N, UUID, Ref, Type, Info]).
-  
+
 log_termination(UUID, {Pid, N}) ->
   ?DEBUG("cameron_job_runner >> (~w, N: ~w) termination: normal, UUID: ~s", [Pid, N, UUID]);
-  
+
 log_termination(UUID, {Pid, N, Reason}) ->
   ?DEBUG("cameron_job_runner >> (~w, N: ~w) termination: ~w, UUID: ~s", [Pid, N, Reason, UUID]).
-  
+
 log_failed_task(UUID, {Task, Error}) ->
   #task{activity = #activity_definition{name = Name}} = Task,
   ?ERROR("cameron_job_runner >> (~w) failing: on_task, UUID: ~s, task: ~s, error: ~s", [self(), UUID, Name, Error]),
   log_to_redis(UUID, {Name, Error}).
-  
+
 log_to_redis(UUID, {Task, Error}) ->
   ErrorTag = list_to_binary([<<"cameron:error:">>, Error, <<":at:">>, UUID, <<":">>, Task]),
   redo:cmd(cameron_redo, [<<"set">>, ErrorTag, eh_datetime:now()]),
   ok.
-  

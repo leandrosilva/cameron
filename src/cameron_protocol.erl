@@ -21,11 +21,11 @@
 %% @doc Parses a JSON string from client request.
 parse_request_payload(Payload) ->
   Struct = struct:from_json(Payload),
-  
+
   Key = struct:get_value(<<"key">>, Struct, {format, list}),
   Data = struct:get_value(<<"data">>, Struct, {format, list}),
   Requestor = struct:get_value(<<"requestor">>, Struct, {format, list}),
-  
+
   {Key, Data, Requestor}.
 
 %% @spec build_response_payload({ProcessName, Key, UUID}, Data) -> Struct | {error, Reason}

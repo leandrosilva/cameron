@@ -29,4 +29,4 @@ stop(_State) ->
 %% @doc Upgrade the Cameron application code.
 upgrade() ->
   cameron_sup:upgrade().
-  
+

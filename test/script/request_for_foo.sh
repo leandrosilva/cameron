@@ -7,4 +7,3 @@ curl -X POST http://localhost:8080/api/process/foo/start \
      -d '{"key":"(id,007)", "data":"be careful with that data", "requestor":"bob_the_thin"}' \
      -i \
      --header 'Content-Type: application/json'
-     

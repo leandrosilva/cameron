@@ -58,12 +58,12 @@ stop_child(UUID) when is_list(UUID) ->
 stop_child(Pname) when is_atom(Pname) ->
   supervisor:terminate_child(cameron_process_sup, Pname),
   supervisor:delete_child(cameron_process_sup, Pname).
-  
+
 %% @spec which_children() -> [ChildSpec] | {error, Error}
 %% @dynamic List of children workers.
 which_children() ->
   supervisor:which_children(cameron_process_sup).
-  
+
 %%
 %% Supervisor Callback ----------------------------------------------------------------------------
 %%
@@ -86,7 +86,7 @@ init([]) ->
 
   JobScheduler = {cameron_job_scheduler, {cameron_job_scheduler, start_link, []},
                                          permanent, 5000, worker, dynamic},
-                                                      
+
   {ok, {{one_for_one, 10, 10}, [ProcessCatalog, JobData, JobScheduler]}}.
 
 %%
@@ -98,4 +98,3 @@ pname(#job{uuid = UUID}) ->
 
 pname(UUID) when is_list(UUID) ->
   ?pname(UUID).
-  

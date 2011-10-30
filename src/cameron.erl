@@ -15,7 +15,7 @@
 %%
 %% Admin API --------------------------------------------------------------------------------------
 %%
-        
+
 %% @spec start() -> ok
 %% @doc Start the cameron server.
 start() ->
@@ -67,7 +67,7 @@ get_processes_config() ->
         {ok, ProcessesConfig} ->
             ProcessesConfig
     end.
-               
+
 %%
 %% Internal Functions -----------------------------------------------------------------------------
 %%
@@ -96,13 +96,13 @@ get_env(Name) ->
 %% @doc Upgrade the cameron server code.
 upgrade_code() ->
   {ok, LoadedModules} = application:get_key(cameron, modules),
-  
+
   [code:purge(Module) || Module <- LoadedModules],
   [code:load_file(Module) || Module <- LoadedModules].
-  
+
 %% @spec upgrade_app() -> [{module, Module}]
 %% @doc Upgrade the cameron server application.
 upgrade_app() ->
   {ok, {AppName, _}} = application:get_key(?MODULE, mod),
   AppName:upgrade().
-  
+

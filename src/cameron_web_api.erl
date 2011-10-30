@@ -31,7 +31,7 @@ handle_http('POST', ["api", "process", ProcessName, "start"], HttpRequest) ->
 
 % handle a GET on /api/process/{name}/key/{key}/job/{uuid}
 handle_http('GET', ["api", "process", ProcessName, "key", Key, "job", UUID], HttpRequest) ->
-  build_http_response(HttpRequest, {get_job_data, ProcessName, Key, UUID});    
+  build_http_response(HttpRequest, {get_job_data, ProcessName, Key, UUID});
 
 % handle the 404 page not found
 handle_http(_, _, HttpRequest) ->
@@ -59,7 +59,7 @@ build_http_response(HttpRequest, {get_job_data, ProcessName, Key, UUID}) ->
 build_http_response(start_process, {HttpRequest, RequestPayload}, {_ProcessName, undefined}) ->
   HttpRequest:respond(404, [{"Content-Type", "application/json"}],
                              "{\"payload\":\"~s\"}", [RequestPayload]);
-  
+
 build_http_response(start_process, {HttpRequest, RequestPayload}, {ProcessName, Process}) ->
   {Key, Data, Requestor} = cameron_protocol:parse_request_payload(RequestPayload),
   {ok, UUID} = cameron_job_scheduler:schedule(Process, {Key, Data, Requestor}),
@@ -69,12 +69,12 @@ build_http_response(start_process, {HttpRequest, RequestPayload}, {ProcessName, 
                                          "/key/", Key,
                                          "/job/", UUID]}],
                           "{\"payload\":\"~s\"}", [RequestPayload]).
-                          
+
 build_http_response(get_job_data, HttpRequest, {_ProcessName, _Key, _UUID}, undefined) ->
   HttpRequest:respond(404, [{"Content-Type", "text/plain"}], "Job not found.");
-  
+
 build_http_response(get_job_data, HttpRequest, {ProcessName, Key, UUID}, {_, JobData}) ->
   Payload = cameron_protocol:build_response_payload({ProcessName, Key, UUID}, JobData),
   HttpRequest:respond(200, [{"Content-Type", "application/json"}], "~s", [Payload]).
-  
-  
+
+
