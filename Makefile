@@ -11,7 +11,6 @@ compile: clear
 	@erlc -pa ebin/ \
 				-pa deps/ \
 				-pa deps/erl_helpers/ebin/ \
-				-pa deps/erlang-uuid/ebin/ \
 				-pa deps/misultin/ebin/ \
 				-pa deps/redo/ebin/ \
 				-pa deps/erlang_syslog/ebin/ \
@@ -26,7 +25,6 @@ compile_prod: clear
 				-pa ebin/ \
 				-pa deps/ \
 				-pa deps/erl_helpers/ebin/ \
-				-pa deps/erlang-uuid/ebin/ \
 				-pa deps/misultin/ebin/ \
 				-pa deps/redo/ebin/ \
 				-pa deps/erlang_syslog/ebin/ \
@@ -39,7 +37,6 @@ compile_test: compile
 	@erlc -pa ebin/ \
 				-pa deps/ \
 				-pa deps/erl_helpers/ebin/ \
-				-pa deps/erlang-uuid/ebin/ \
 				-pa deps/misultin/ebin/ \
 				-pa deps/redo/ebin/ \
 				-pa deps/erlang_syslog/ebin/ \
