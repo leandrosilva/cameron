@@ -1,6 +1,6 @@
 ## cameron
 
-That is a **work in progress** for **Cameron Workflow Engine** which aims to be a web-based process engine able to handle multiple concurrent HTTP requests asking to run pre-defined [but in the same time dynamic] processes, enqueue them and run them in parallel, as fast as possible.
+This is a **work in progress** for **Cameron Workflow Engine** whose aim is to be a web-based process engine able to handle multiple concurrent HTTP requests asking for running pre-defined [but in the same time dynamic] processes, enqueue these requests, and run these jobs in parallel as soon as possible.
 
 By web-based I mean:
 
@@ -9,7 +9,7 @@ By web-based I mean:
 
 So if you have any background job that must cascade many tasks to achieve a goal, maybe Cameron fits to your needs.
 
-To achieve that objective, as you can see, Cameron has been built as an [Erlang/OTP](http://www.erlang.org/doc) application with a REST-like Web API, powered by [Misultin](https://github.com/ostinelli/misultin), and a [Redis](http://redis.io)-based backend database.
+To achieve this objective, as you can see, Cameron has been built as an [Erlang/OTP](http://www.erlang.org/doc) application with a REST-like Web API, powered by [Misultin](https://github.com/ostinelli/misultin), and a [Redis](http://redis.io)-based backend database.
 
 If you would like to have a briefly introduction, please take a look at **doc/cameron\_pres.pdf**.
 
