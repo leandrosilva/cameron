@@ -1,0 +1,20 @@
+%% @author Leandro Silva <leandrodoze@gmail.com>
+%% @copyright 2011 Leandro Silva.
+
+{application, erl_helpers,
+ [{description, "Erlang Helper Modules"},
+  {vsn, "0.0.1"},
+  {modules, [
+             eh_datetime,
+             eh_http,
+             eh_list,
+             eh_maybe,
+             eh_supervisor,
+             eh_uuid,
+             mochijson2,
+             struct
+  ]},
+  {registered, []},
+  {mod, {erl_helpers_app, []}},
+  {env, []},
+  {applications, [kernel, stdlib]}]}.
